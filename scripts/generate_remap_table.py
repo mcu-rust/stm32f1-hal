@@ -78,6 +78,15 @@ def write_reg_operation(d: dict, filter: str, w: Write) -> None:
                 w.write(REG_TEMPLATE.format(mode=mode, peri=peri, op=op))
 
 
+BINDER_BODY = """ {{
+    #[inline(always)]
+    fn is_pin(&self) -> bool {{
+        {v}
+    }}
+}}
+"""
+
+
 def write_binder_type(d: dict, filter: str, w: Write) -> None:
     w.write("\n// Binder types ------------------\n\n")
     func_list: list[str] = []
@@ -90,8 +99,8 @@ def write_binder_type(d: dict, filter: str, w: Write) -> None:
     func_list = sorted(list(set(func_list)))
     for func in func_list:
         name = func_pin_name(filter, func)
-        w.write(f"pub trait {name}<REMAP> {{}}")
-        w.write(f"impl<T> {name}<T> for NonePin {{}}")
+        w.write(f"pub trait {name}<REMAP>" + BINDER_BODY.format(v="true"))
+        w.write(f"impl<T> {name}<T> for NonePin" + BINDER_BODY.format(v="false"))
     w.write("\n")
 
 

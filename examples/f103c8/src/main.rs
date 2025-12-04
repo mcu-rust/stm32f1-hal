@@ -77,10 +77,10 @@ fn main() -> ! {
 
     // UART -------------------------------------
 
-    // let pin_tx = Some(gpioa.pa9.into_alternate_push_pull(&mut gpioa.crh));
-    // let pin_rx = Some(gpioa.pa10.into_pull_up_input(&mut gpioa.crh));
-    let pin_tx = Some(gpiob.pb6.into_alternate_push_pull(&mut gpiob.crl));
-    let pin_rx = Some(gpiob.pb7.into_pull_up_input(&mut gpiob.crl));
+    // let pin_tx = gpioa.pa9.into_alternate_push_pull(&mut gpioa.crh);
+    // let pin_rx = gpioa.pa10.into_pull_up_input(&mut gpioa.crh);
+    let pin_tx = gpiob.pb6.into_alternate_push_pull(&mut gpiob.crl);
+    let pin_rx = gpiob.pb7.into_pull_up_input(&mut gpiob.crl);
     // let pin_rx = hal::afio::NONE_PIN;
 
     let config = uart::Config::default();
@@ -122,7 +122,7 @@ fn main() -> ! {
     let mut tim1 = dp.TIM1.constrain(&mut mcu);
     tim1.set_count_direction(CountDirection::Up); // Optional
     let (mut bt, Some(mut ch1), _) =
-        tim1.into_pwm2::<RemapDefault<_>>((Some(c1), NONE_PIN), 20.kHz(), true, &mut mcu)
+        tim1.into_pwm2::<RemapDefault<_>>((c1, NONE_PIN), 20.kHz(), true, &mut mcu)
     else {
         panic!()
     };

@@ -8,24 +8,114 @@ use crate::{gpio::*, pac::*};
 
 // Binder types ------------------
 
-pub trait TimBkinPin<REMAP> {}
-impl<T> TimBkinPin<T> for NonePin {}
-pub trait TimCh1Pin<REMAP> {}
-impl<T> TimCh1Pin<T> for NonePin {}
-pub trait TimCh1nPin<REMAP> {}
-impl<T> TimCh1nPin<T> for NonePin {}
-pub trait TimCh2Pin<REMAP> {}
-impl<T> TimCh2Pin<T> for NonePin {}
-pub trait TimCh2nPin<REMAP> {}
-impl<T> TimCh2nPin<T> for NonePin {}
-pub trait TimCh3Pin<REMAP> {}
-impl<T> TimCh3Pin<T> for NonePin {}
-pub trait TimCh3nPin<REMAP> {}
-impl<T> TimCh3nPin<T> for NonePin {}
-pub trait TimCh4Pin<REMAP> {}
-impl<T> TimCh4Pin<T> for NonePin {}
-pub trait TimEtrPin<REMAP> {}
-impl<T> TimEtrPin<T> for NonePin {}
+pub trait TimBkinPin<REMAP> {
+    #[inline(always)]
+    fn is_pin(&self) -> bool {
+        true
+    }
+}
+impl<T> TimBkinPin<T> for NonePin {
+    #[inline(always)]
+    fn is_pin(&self) -> bool {
+        false
+    }
+}
+pub trait TimCh1Pin<REMAP> {
+    #[inline(always)]
+    fn is_pin(&self) -> bool {
+        true
+    }
+}
+impl<T> TimCh1Pin<T> for NonePin {
+    #[inline(always)]
+    fn is_pin(&self) -> bool {
+        false
+    }
+}
+pub trait TimCh1nPin<REMAP> {
+    #[inline(always)]
+    fn is_pin(&self) -> bool {
+        true
+    }
+}
+impl<T> TimCh1nPin<T> for NonePin {
+    #[inline(always)]
+    fn is_pin(&self) -> bool {
+        false
+    }
+}
+pub trait TimCh2Pin<REMAP> {
+    #[inline(always)]
+    fn is_pin(&self) -> bool {
+        true
+    }
+}
+impl<T> TimCh2Pin<T> for NonePin {
+    #[inline(always)]
+    fn is_pin(&self) -> bool {
+        false
+    }
+}
+pub trait TimCh2nPin<REMAP> {
+    #[inline(always)]
+    fn is_pin(&self) -> bool {
+        true
+    }
+}
+impl<T> TimCh2nPin<T> for NonePin {
+    #[inline(always)]
+    fn is_pin(&self) -> bool {
+        false
+    }
+}
+pub trait TimCh3Pin<REMAP> {
+    #[inline(always)]
+    fn is_pin(&self) -> bool {
+        true
+    }
+}
+impl<T> TimCh3Pin<T> for NonePin {
+    #[inline(always)]
+    fn is_pin(&self) -> bool {
+        false
+    }
+}
+pub trait TimCh3nPin<REMAP> {
+    #[inline(always)]
+    fn is_pin(&self) -> bool {
+        true
+    }
+}
+impl<T> TimCh3nPin<T> for NonePin {
+    #[inline(always)]
+    fn is_pin(&self) -> bool {
+        false
+    }
+}
+pub trait TimCh4Pin<REMAP> {
+    #[inline(always)]
+    fn is_pin(&self) -> bool {
+        true
+    }
+}
+impl<T> TimCh4Pin<T> for NonePin {
+    #[inline(always)]
+    fn is_pin(&self) -> bool {
+        false
+    }
+}
+pub trait TimEtrPin<REMAP> {
+    #[inline(always)]
+    fn is_pin(&self) -> bool {
+        true
+    }
+}
+impl<T> TimEtrPin<T> for NonePin {
+    #[inline(always)]
+    fn is_pin(&self) -> bool {
+        false
+    }
+}
 
 // Bind pins ---------------------
 

@@ -35,17 +35,25 @@ pub struct Uart<U> {
 impl<U: UartPeriphExt> Uart<U> {
     pub fn into_tx_rx<REMAP: RemapMode<U>>(
         mut self,
-        pins: (Option<impl UartTxPin<REMAP>>, Option<impl UartRxPin<REMAP>>),
+        pins: (impl UartTxPin<REMAP>, impl UartRxPin<REMAP>),
         config: Config,
         mcu: &mut Mcu,
     ) -> (Option<Tx<U>>, Option<Rx<U>>) {
         REMAP::remap(&mut mcu.afio);
         self.uart.config(config, mcu);
-        self.uart.enable_comm(pins.0.is_some(), pins.1.is_some());
+        self.uart.enable_comm(pins.0.is_pin(), pins.1.is_pin());
         unsafe {
             (
-                pins.0.map(|_| Tx::new(self.uart.steal())),
-                pins.1.map(|_| Rx::new(self.uart.steal())),
+                if pins.0.is_pin() {
+                    Some(Tx::new(self.uart.steal()))
+                } else {
+                    None
+                },
+                if pins.1.is_pin() {
+                    Some(Rx::new(self.uart.steal()))
+                } else {
+                    None
+                },
             )
         }
     }

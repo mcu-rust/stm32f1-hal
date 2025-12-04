@@ -176,7 +176,7 @@ impl<'a, TIM: Instance + TimerWithPwm1Ch + Steal + 'a> Timer<TIM> {
 impl<'a, TIM: Instance + TimerWithPwm2Ch + Steal + 'a> Timer<TIM> {
     pub fn into_pwm2<REMAP: RemapMode<TIM>>(
         mut self,
-        pins: (Option<impl TimCh1Pin<REMAP>>, Option<impl TimCh2Pin<REMAP>>),
+        pins: (impl TimCh1Pin<REMAP>, impl TimCh2Pin<REMAP>),
         update_freq: Hertz,
         preload: bool,
         mcu: &mut Mcu,
@@ -189,12 +189,16 @@ impl<'a, TIM: Instance + TimerWithPwm2Ch + Steal + 'a> Timer<TIM> {
         self.tim.enable_preload(preload);
         self.tim.config_freq(self.clk, update_freq);
 
-        let c1 = pins
-            .0
-            .map(|_| PwmChannel1::new(unsafe { self.tim.steal() }));
-        let c2 = pins
-            .1
-            .map(|_| PwmChannel2::new(unsafe { self.tim.steal() }));
+        let c1 = if pins.0.is_pin() {
+            Some(PwmChannel1::new(unsafe { self.tim.steal() }))
+        } else {
+            None
+        };
+        let c2 = if pins.1.is_pin() {
+            Some(PwmChannel2::new(unsafe { self.tim.steal() }))
+        } else {
+            None
+        };
         let t = PwmTimer::new(self.tim, self.clk);
         (t, c1, c2)
     }
@@ -204,10 +208,10 @@ impl<'a, TIM: Instance + TimerWithPwm4Ch + Steal + 'a> Timer<TIM> {
     pub fn into_pwm4<REMAP: RemapMode<TIM>>(
         mut self,
         pins: (
-            Option<impl TimCh1Pin<REMAP>>,
-            Option<impl TimCh2Pin<REMAP>>,
-            Option<impl TimCh3Pin<REMAP>>,
-            Option<impl TimCh4Pin<REMAP>>,
+            impl TimCh1Pin<REMAP>,
+            impl TimCh2Pin<REMAP>,
+            impl TimCh3Pin<REMAP>,
+            impl TimCh4Pin<REMAP>,
         ),
         update_freq: Hertz,
         preload: bool,
@@ -223,18 +227,26 @@ impl<'a, TIM: Instance + TimerWithPwm4Ch + Steal + 'a> Timer<TIM> {
         self.tim.enable_preload(preload);
         self.tim.config_freq(self.clk, update_freq);
 
-        let c1 = pins
-            .0
-            .map(|_| PwmChannel1::new(unsafe { self.tim.steal() }));
-        let c2 = pins
-            .1
-            .map(|_| PwmChannel2::new(unsafe { self.tim.steal() }));
-        let c3 = pins
-            .2
-            .map(|_| PwmChannel3::new(unsafe { self.tim.steal() }));
-        let c4 = pins
-            .3
-            .map(|_| PwmChannel4::new(unsafe { self.tim.steal() }));
+        let c1 = if pins.0.is_pin() {
+            Some(PwmChannel1::new(unsafe { self.tim.steal() }))
+        } else {
+            None
+        };
+        let c2 = if pins.1.is_pin() {
+            Some(PwmChannel2::new(unsafe { self.tim.steal() }))
+        } else {
+            None
+        };
+        let c3 = if pins.2.is_pin() {
+            Some(PwmChannel3::new(unsafe { self.tim.steal() }))
+        } else {
+            None
+        };
+        let c4 = if pins.3.is_pin() {
+            Some(PwmChannel4::new(unsafe { self.tim.steal() }))
+        } else {
+            None
+        };
         let t = PwmTimer::new(self.tim, self.clk);
         (t, c1, c2, c3, c4)
     }

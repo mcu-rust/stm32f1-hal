@@ -70,7 +70,7 @@ pub struct RemapPartial1<REG>(PhantomData<REG>);
 pub struct RemapPartial2<REG>(PhantomData<REG>);
 pub struct RemapFull<REG>(PhantomData<REG>);
 pub struct NonePin {}
-pub const NONE_PIN: Option<NonePin> = None::<NonePin>;
+pub const NONE_PIN: NonePin = NonePin {};
 
 /// AF remap and debug I/O configuration register (MAPR)
 ///

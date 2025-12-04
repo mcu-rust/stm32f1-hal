@@ -11,16 +11,66 @@ use crate::{
 
 // Binder types ------------------
 
-pub trait UartCkPin<REMAP> {}
-impl<T> UartCkPin<T> for NonePin {}
-pub trait UartCtsPin<REMAP> {}
-impl<T> UartCtsPin<T> for NonePin {}
-pub trait UartRtsPin<REMAP> {}
-impl<T> UartRtsPin<T> for NonePin {}
-pub trait UartRxPin<REMAP> {}
-impl<T> UartRxPin<T> for NonePin {}
-pub trait UartTxPin<REMAP> {}
-impl<T> UartTxPin<T> for NonePin {}
+pub trait UartCkPin<REMAP> {
+    #[inline(always)]
+    fn is_pin(&self) -> bool {
+        true
+    }
+}
+impl<T> UartCkPin<T> for NonePin {
+    #[inline(always)]
+    fn is_pin(&self) -> bool {
+        false
+    }
+}
+pub trait UartCtsPin<REMAP> {
+    #[inline(always)]
+    fn is_pin(&self) -> bool {
+        true
+    }
+}
+impl<T> UartCtsPin<T> for NonePin {
+    #[inline(always)]
+    fn is_pin(&self) -> bool {
+        false
+    }
+}
+pub trait UartRtsPin<REMAP> {
+    #[inline(always)]
+    fn is_pin(&self) -> bool {
+        true
+    }
+}
+impl<T> UartRtsPin<T> for NonePin {
+    #[inline(always)]
+    fn is_pin(&self) -> bool {
+        false
+    }
+}
+pub trait UartRxPin<REMAP> {
+    #[inline(always)]
+    fn is_pin(&self) -> bool {
+        true
+    }
+}
+impl<T> UartRxPin<T> for NonePin {
+    #[inline(always)]
+    fn is_pin(&self) -> bool {
+        false
+    }
+}
+pub trait UartTxPin<REMAP> {
+    #[inline(always)]
+    fn is_pin(&self) -> bool {
+        true
+    }
+}
+impl<T> UartTxPin<T> for NonePin {
+    #[inline(always)]
+    fn is_pin(&self) -> bool {
+        false
+    }
+}
 
 // Bind pins ---------------------
 
