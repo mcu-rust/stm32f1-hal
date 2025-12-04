@@ -1,7 +1,7 @@
 type TimerX = pac::TIM1;
 type Width = u16;
 
-// sync begin
+// $sync begin
 
 use super::*;
 use crate::{Mcu, pac};
@@ -132,9 +132,9 @@ impl GeneralTimer for TimerX {
     #[inline(always)]
     fn stop_in_debug(&mut self, state: bool) {
         let dbg = unsafe { DBG::steal() };
-        // sync dbg_t1
+        // $sync dbg_t1
         dbg.cr().modify(|_, w| w.dbg_tim1_stop().bit(state));
-        // sync dbg_end
+        // $sync dbg_end
     }
 
     #[inline(always)]
@@ -143,7 +143,7 @@ impl GeneralTimer for TimerX {
     }
 }
 
-// sync pwm
+// $sync pwm
 // PWM ------------------------------------------------------------------------
 
 impl TimerWithPwm for TimerX {
@@ -151,7 +151,7 @@ impl TimerWithPwm for TimerX {
         self.disable_counter();
     }
 
-    // sync start_pwm_aoe
+    // $sync start_pwm_aoe
 
     #[inline(always)]
     fn start_pwm(&mut self) {
@@ -161,7 +161,7 @@ impl TimerWithPwm for TimerX {
         self.enable_counter();
     }
 
-    // sync pwm_cfg_4
+    // $sync pwm_cfg_4
 
     #[inline(always)]
     fn preload_output_channel_in_mode(&mut self, channel: Channel, mode: PwmMode) {
@@ -208,7 +208,7 @@ impl TimerWithPwm for TimerX {
     }
 }
 
-// sync pwm_ch1
+// $sync pwm_ch1
 // PWM Channels ---------------------------------------------------------------
 
 impl TimerWithPwm1Ch for TimerX {
@@ -228,7 +228,7 @@ impl TimerWithPwm1Ch for TimerX {
     }
 }
 
-// sync pwm_ch2
+// $sync pwm_ch2
 
 impl TimerWithPwm2Ch for TimerX {
     #[inline(always)]
@@ -247,7 +247,7 @@ impl TimerWithPwm2Ch for TimerX {
     }
 }
 
-// sync pwm_ch4
+// $sync pwm_ch4
 
 impl TimerWithPwm3Ch for TimerX {
     #[inline(always)]
@@ -285,7 +285,7 @@ impl TimerWithPwm4Ch for TimerX {
 
 // Other ----------------------------------------------------------------------
 
-// sync master
+// $sync master
 impl MasterTimer for TimerX {
     #[inline(always)]
     fn master_mode(&mut self, mode: MasterMode) {
@@ -293,7 +293,7 @@ impl MasterTimer for TimerX {
     }
 }
 
-// sync dir
+// $sync dir
 
 impl TimerDirection for TimerX {
     #[inline(always)]
@@ -303,7 +303,7 @@ impl TimerDirection for TimerX {
     }
 }
 
-// sync RTIC
+// $sync RTIC
 #[cfg(feature = "rtic")]
 mod timer_rtic {
     use super::*;
@@ -406,7 +406,7 @@ mod timer_rtic {
     }
 }
 
-// sync end
+// $sync end
 
 use pac::tim1::cr2::MMS;
 impl From<MasterMode> for MMS {

@@ -3,7 +3,7 @@ type Width = u16;
 
 // Do NOT manually modify the code between begin and end!
 // It's synced by scripts/sync_code.py.
-// sync begin
+// $sync begin
 
 use super::*;
 use crate::{Mcu, pac};
@@ -134,9 +134,9 @@ impl GeneralTimer for TimerX {
     #[inline(always)]
     fn stop_in_debug(&mut self, state: bool) {
         let dbg = unsafe { DBG::steal() };
-        // sync dbg_t16
+        // $sync dbg_t16
         dbg.cr().modify(|_, w| w.dbg_tim16_stop().bit(state));
-        // sync dbg_end
+        // $sync dbg_end
     }
 
     #[inline(always)]
@@ -145,7 +145,7 @@ impl GeneralTimer for TimerX {
     }
 }
 
-// sync pwm
+// $sync pwm
 // PWM ------------------------------------------------------------------------
 
 impl TimerWithPwm for TimerX {
@@ -153,7 +153,7 @@ impl TimerWithPwm for TimerX {
         self.disable_counter();
     }
 
-    // sync start_pwm
+    // $sync start_pwm
 
     #[inline(always)]
     fn start_pwm(&mut self) {
@@ -161,7 +161,7 @@ impl TimerWithPwm for TimerX {
         self.enable_counter();
     }
 
-    // sync pwm_cfg_1
+    // $sync pwm_cfg_1
 
     #[inline(always)]
     fn preload_output_channel_in_mode(&mut self, channel: Channel, mode: PwmMode) {
@@ -180,7 +180,7 @@ impl TimerWithPwm for TimerX {
     }
 }
 
-// sync pwm_ch1
+// $sync pwm_ch1
 // PWM Channels ---------------------------------------------------------------
 
 impl TimerWithPwm1Ch for TimerX {
@@ -200,4 +200,4 @@ impl TimerWithPwm1Ch for TimerX {
     }
 }
 
-// sync end
+// $sync end

@@ -9,7 +9,7 @@
     name = "stm32f1-hal"
     readme = "README.md"
     repository = "https://github.com/mcu-rust/stm32f1-hal"
-    version = "0.2.2"
+    version = "0.3.0"
 
     [package.metadata.docs.rs]
         features = ["stm32f103", "xG"]
@@ -48,6 +48,9 @@
     mcu = ["dep:cortex-m", "dep:cortex-m-rt", "dep:stm32f1"]
     rtic = ["dep:rtic-monotonic"]
     std = []
+
+[build-dependencies]
+    sync-code = "0.1.1"
 
 [dependencies]
     bitflags = "2.9"

@@ -11,9 +11,9 @@ Below are the design principles.
 2. Concise is not equal to simple.
     - Fewer lines of code do not necessarily mean easier to read and understand.
 
-Therefore, if a module is quite complex, I would not use a macro + generic approach, as it is too difficult to read.
+Therefore, if a module is quite complex, I would not use a `macro` + `generic` approach, as it is too difficult to read.
 
-Instead, I use a synchronization script to manage duplicate code across peripherals and a script to generate code for GPIO alternate function remapping.
+Instead, I use [sync-code](https://crates.io/crates/sync-code) to manage duplicate code across peripherals and a script to generate code for GPIO alternate function remapping.
 
 ## Note
 This project is still in its early stages, with only a few features completed.

@@ -3,7 +3,7 @@ type Width = u16;
 
 // Do NOT manually modify the code between begin and end!
 // It's synced by scripts/sync_code.py.
-// sync begin
+// $sync begin
 
 use super::*;
 use crate::{Mcu, pac};
@@ -134,9 +134,9 @@ impl GeneralTimer for TimerX {
     #[inline(always)]
     fn stop_in_debug(&mut self, state: bool) {
         let dbg = unsafe { DBG::steal() };
-        // sync dbg_t6
+        // $sync dbg_t6
         dbg.cr().modify(|_, w| w.dbg_tim6_stop().bit(state));
-        // sync dbg_end
+        // $sync dbg_end
     }
 
     #[inline(always)]
@@ -145,7 +145,7 @@ impl GeneralTimer for TimerX {
     }
 }
 
-// sync master
+// $sync master
 impl MasterTimer for TimerX {
     #[inline(always)]
     fn master_mode(&mut self, mode: MasterMode) {
@@ -153,7 +153,7 @@ impl MasterTimer for TimerX {
     }
 }
 
-// sync end
+// $sync end
 
 use pac::tim6::cr2::MMS;
 impl From<MasterMode> for MMS {

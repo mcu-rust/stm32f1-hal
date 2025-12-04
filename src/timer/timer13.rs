@@ -2,7 +2,7 @@
 type TimerX = pac::TIM13;
 type Width = u16;
 
-// sync begin
+// $sync begin
 
 use super::*;
 use crate::{Mcu, pac};
@@ -133,10 +133,10 @@ impl GeneralTimer for TimerX {
     #[inline(always)]
     fn stop_in_debug(&mut self, state: bool) {
         let dbg = unsafe { DBG::steal() };
-        // sync dbg_t13
+        // $sync dbg_t13
         //TODO: restore these timers once stm32-rs has been updated
         // dbg.cr().modify(|_, w| w.dbg_tim13_stop().bit(state));
-        // sync dbg_end
+        // $sync dbg_end
     }
 
     #[inline(always)]
@@ -145,7 +145,7 @@ impl GeneralTimer for TimerX {
     }
 }
 
-// sync pwm
+// $sync pwm
 // PWM ------------------------------------------------------------------------
 
 impl TimerWithPwm for TimerX {
@@ -153,7 +153,7 @@ impl TimerWithPwm for TimerX {
         self.disable_counter();
     }
 
-    // sync start_pwm
+    // $sync start_pwm
 
     #[inline(always)]
     fn start_pwm(&mut self) {
@@ -161,7 +161,7 @@ impl TimerWithPwm for TimerX {
         self.enable_counter();
     }
 
-    // sync pwm_cfg_1
+    // $sync pwm_cfg_1
 
     #[inline(always)]
     fn preload_output_channel_in_mode(&mut self, channel: Channel, mode: PwmMode) {
@@ -180,7 +180,7 @@ impl TimerWithPwm for TimerX {
     }
 }
 
-// sync pwm_ch1
+// $sync pwm_ch1
 // PWM Channels ---------------------------------------------------------------
 
 impl TimerWithPwm1Ch for TimerX {
@@ -200,4 +200,4 @@ impl TimerWithPwm1Ch for TimerX {
     }
 }
 
-// sync end
+// $sync end

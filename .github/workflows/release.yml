@@ -14,19 +14,18 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: thumbv7m-none-eabi
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
-      - run: python scripts/sync_code.py --check
       - run: cargo build --release --features=stm32f100,xC
-      - run: python scripts/build.py build --release
-      - run: python scripts/build.py clippy
-      - run: python scripts/build.py test
-      - run: python scripts/build.py build --example=f103c8
+      - run: python3.13 scripts/build.py build --release
+      - run: python3.13 scripts/build.py clippy
+      - run: python3.13 scripts/build.py test
+      - run: python3.13 scripts/build.py build --example=f103c8
 
   publish:
     needs: test
@@ -35,7 +34,7 @@ jobs:
     permissions:
       id-token: write # Required for OIDC token exchange
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: thumbv7m-none-eabi

@@ -1,7 +1,7 @@
 use crate::pac::usart1::cr1;
 type UartX = pac::USART3;
 
-// sync begin
+// $sync begin
 
 use super::*;
 use crate::{Mcu, pac};
@@ -54,7 +54,7 @@ impl UartPeriphExt for UartX {
     }
 
     fn set_stop_bits(&mut self, bits: StopBits) {
-        // sync stop_bits_u1
+        // $sync stop_bits_u1
         use pac::usart1::cr2::STOP;
 
         self.cr2().write(|w| {
@@ -65,7 +65,7 @@ impl UartPeriphExt for UartX {
                 StopBits::STOP2 => STOP::Stop2,
             })
         });
-        // sync stop_bits_end
+        // $sync stop_bits_end
     }
 }
 
@@ -206,4 +206,4 @@ impl UartPeriph for UartX {
     }
 }
 
-// sync end
+// $sync end

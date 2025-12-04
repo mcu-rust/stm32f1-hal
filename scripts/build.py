@@ -4,7 +4,6 @@ import platform
 import subprocess
 
 from base import green
-from sync_code import sync_all
 
 
 def run_cmd(cmd: list[str]) -> None:
@@ -19,8 +18,6 @@ def main() -> int:
     parser.add_argument("--features", type=str, nargs="*")
     parser.add_argument("-e", "--examples", type=str, nargs="*")
     opts = parser.parse_args()
-
-    sync_all()
 
     cmd = ["cargo", opts.cmd]
 
