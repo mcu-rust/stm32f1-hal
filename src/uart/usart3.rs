@@ -9,7 +9,7 @@ use crate::{Mcu, pac};
 // Initialization -------------------------------------------------------------
 
 impl UartInit<UartX> for UartX {
-    fn constrain(self, mcu: &mut Mcu) -> Uart<UartX> {
+    fn init(self, mcu: &mut Mcu) -> Uart<UartX> {
         mcu.rcc.enable(&self);
         mcu.rcc.reset(&self);
         Uart { uart: self }

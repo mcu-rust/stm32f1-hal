@@ -7,7 +7,7 @@
   The backup domain also contains tamper protection and writes to it must be enabled in order
   to use the real time clock (RTC).
 
-  Write access to the backup domain is enabled in RCC using the `rcc::Rcc::BKP::constrain()`
+  Write access to the backup domain is enabled in RCC using the `rcc::Rcc::BKP::init()`
   function.
 
   Only the RTC functionality is currently implemented.
@@ -17,7 +17,7 @@ use crate::pac::BKP;
 
 /**
   The existence of this struct indicates that writing to the the backup
-  domain has been enabled. It is acquired by calling `constrain` on `rcc::Rcc::BKP`
+  domain has been enabled. It is acquired by calling `init` on `rcc::Rcc::BKP`
 */
 pub struct BackupDomain {
     pub(crate) _regs: BKP,

@@ -55,7 +55,7 @@ pub trait Instance: rcc::Enable + rcc::Reset + rcc::BusTimerClock + GeneralTimer
 // Initialize -----------------------------------------------------------------
 
 pub trait TimerInit<TIM> {
-    fn constrain(self, mcu: &mut Mcu) -> Timer<TIM>;
+    fn init(self, mcu: &mut Mcu) -> Timer<TIM>;
 }
 
 /// Timer wrapper

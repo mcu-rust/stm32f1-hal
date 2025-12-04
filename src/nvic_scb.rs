@@ -3,25 +3,25 @@ use cortex_m::peripheral::NVIC;
 use cortex_m::peripheral::SCB;
 
 pub trait ScbInit {
-    fn constrain(self) -> Scb;
+    fn init(self) -> Scb;
 }
 pub struct Scb {
     pub(crate) scb: SCB,
 }
 impl ScbInit for SCB {
-    fn constrain(self) -> Scb {
+    fn init(self) -> Scb {
         Scb { scb: self }
     }
 }
 
 pub trait NvicInit {
-    fn constrain(self) -> Nvic;
+    fn init(self) -> Nvic;
 }
 pub struct Nvic {
     pub(crate) nvic: NVIC,
 }
 impl NvicInit for NVIC {
-    fn constrain(self) -> Nvic {
+    fn init(self) -> Nvic {
         Nvic { nvic: self }
     }
 }

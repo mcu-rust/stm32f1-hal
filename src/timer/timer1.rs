@@ -9,7 +9,7 @@ use crate::{Mcu, pac};
 impl Instance for TimerX {}
 
 impl TimerInit<TimerX> for TimerX {
-    fn constrain(self, mcu: &mut Mcu) -> Timer<TimerX> {
+    fn init(self, mcu: &mut Mcu) -> Timer<TimerX> {
         Timer::new(self, mcu)
     }
 }

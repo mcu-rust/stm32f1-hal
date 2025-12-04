@@ -37,23 +37,23 @@ static mut HEAP_MEM: [MaybeUninit<u8>; HEAP_SIZE] = [MaybeUninit::uninit(); HEAP
 #[entry]
 fn main() -> ! {
     let cp = cortex_m::Peripherals::take().unwrap();
-    let mut scb = cp.SCB.constrain();
+    let mut scb = cp.SCB.init();
     // Set it as early as possible
     scb.set_priority_grouping(PriorityGrouping::Group4);
     // Initialize the heap BEFORE you use it
     unsafe { HEAP.init(&raw mut HEAP_MEM as usize, HEAP_SIZE) }
 
     let dp = pac::Peripherals::take().unwrap();
-    let mut flash = dp.FLASH.constrain();
+    let mut flash = dp.FLASH.init();
     let sysclk = 72.MHz();
     let cfg = rcc::Config::hse(8.MHz()).sysclk(sysclk);
-    let mut rcc = dp.RCC.constrain().freeze(cfg, &mut flash.acr);
+    let mut rcc = dp.RCC.init().freeze(cfg, &mut flash.acr);
     assert_eq!(rcc.clocks.sysclk(), sysclk);
 
-    let afio = dp.AFIO.constrain(&mut rcc);
+    let afio = dp.AFIO.init(&mut rcc);
     let mut mcu = Mcu {
         scb,
-        nvic: cp.NVIC.constrain(),
+        nvic: cp.NVIC.init(),
         rcc,
         afio,
         exti: dp.EXTI,
@@ -86,7 +86,7 @@ fn main() -> ! {
     let config = uart::Config::default();
     let (Some(uart_tx), Some(uart_rx)) =
         dp.USART1
-            .constrain(&mut mcu)
+            .init(&mut mcu)
             .into_tx_rx((pin_tx, pin_rx), config, &mut mcu)
     else {
         panic!()
@@ -119,7 +119,7 @@ fn main() -> ! {
     // PWM --------------------------------------
 
     let c1 = gpioa.pa8.into_alternate_push_pull(&mut gpioa.crh);
-    let mut tim1 = dp.TIM1.constrain(&mut mcu);
+    let mut tim1 = dp.TIM1.init(&mut mcu);
     tim1.set_count_direction(CountDirection::Up); // Optional
     let (mut bt, Some(mut ch1), _) =
         tim1.into_pwm2::<RemapDefault<_>>((c1, NONE_PIN), 20.kHz(), true, &mut mcu)

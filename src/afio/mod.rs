@@ -11,11 +11,11 @@ use core::marker::PhantomData;
 type MaprBits = <afio::mapr::MAPRrs as RegisterSpec>::Ux;
 
 pub trait AfioInit {
-    fn constrain(self, rcc: &mut Rcc) -> Afio;
+    fn init(self, rcc: &mut Rcc) -> Afio;
 }
 
 impl AfioInit for AFIO {
-    fn constrain(self, rcc: &mut Rcc) -> Afio {
+    fn init(self, rcc: &mut Rcc) -> Afio {
         rcc.enable(&self);
         rcc.reset(&self);
 
@@ -34,13 +34,13 @@ impl AfioInit for AFIO {
 
 /// HAL wrapper around the AFIO registers
 ///
-/// Aquired by calling [constrain](trait.AfioInit.html#constrain) on the [AFIO
+/// Aquired by calling [init](trait.AfioInit.html#init) on the [AFIO
 /// registers](../pac/struct.AFIO.html)
 ///
 /// ```rust
 /// let p = pac::Peripherals::take().unwrap();
-/// let mut rcc = p.RCC.constrain();
-/// let mut afio = p.AFIO.constrain();
+/// let mut rcc = p.RCC.init();
+/// let mut afio = p.AFIO.init();
 pub struct Afio {
     _reg: AFIO,
     pub evcr: EVCR,
@@ -78,8 +78,8 @@ pub const NONE_PIN: NonePin = NonePin {};
 ///
 /// ```rust
 /// let dp = pac::Peripherals::take().unwrap();
-/// let mut rcc = dp.RCC.constrain();
-/// let mut afio = dp.AFIO.constrain();
+/// let mut rcc = dp.RCC.init();
+/// let mut afio = dp.AFIO.init();
 /// function_using_mapr(&mut afio.mapr);
 /// ```
 #[non_exhaustive]

@@ -1,6 +1,6 @@
 //! Flash memory
 
-use crate::pac::{flash, FLASH};
+use crate::pac::{FLASH, flash};
 
 pub const FLASH_START: u32 = 0x0800_0000;
 pub const FLASH_END: u32 = 0x080F_FFFF;
@@ -300,14 +300,12 @@ impl FlashWriter<'_> {
     }
 }
 
-/// Extension trait to constrain the FLASH peripheral
-pub trait FlashExt {
-    /// Constrains the FLASH peripheral to play nicely with the other abstractions
-    fn constrain(self) -> Parts;
+pub trait FlashInit {
+    fn init(self) -> Parts;
 }
 
-impl FlashExt for FLASH {
-    fn constrain(self) -> Parts {
+impl FlashInit for FLASH {
+    fn init(self) -> Parts {
         Parts {
             acr: ACR,
             ar: AR,
@@ -321,7 +319,7 @@ impl FlashExt for FLASH {
     }
 }
 
-/// Constrained FLASH peripheral
+/// FLASH peripheral
 pub struct Parts {
     /// Opaque ACR register
     pub acr: ACR,

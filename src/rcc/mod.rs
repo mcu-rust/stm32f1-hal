@@ -16,14 +16,12 @@ use crate::backup_domain::BackupDomain;
 
 mod enable;
 
-/// Extension trait that constrains the `RCC` peripheral
-pub trait RccExt {
-    /// Constrains the `RCC` peripheral so it plays nicely with the other abstractions
-    fn constrain(self) -> Rcc;
+pub trait RccInit {
+    fn init(self) -> Rcc;
 }
 
-impl RccExt for RCC {
-    fn constrain(self) -> Rcc {
+impl RccInit for RCC {
+    fn init(self) -> Rcc {
         Rcc {
             rb: self,
             clocks: Clocks::default(),
@@ -31,14 +29,14 @@ impl RccExt for RCC {
     }
 }
 
-/// Constrained RCC peripheral
+/// Initialize RCC peripheral
 ///
-/// Aquired by calling the [constrain](../trait.RccExt.html#tymethod.constrain) method
+/// Aquired by calling the [init](../trait.RccInit.html#init) method
 /// on the Rcc struct from the `PAC`
 ///
 /// ```rust
 /// let dp = pac::Peripherals::take().unwrap();
-/// let mut rcc = dp.RCC.constrain();
+/// let mut rcc = dp.RCC.init();
 /// ```
 pub struct Rcc {
     pub clocks: Clocks,
@@ -54,9 +52,9 @@ impl Rcc {
     ///
     /// ```rust
     /// let dp = pac::Peripherals::take().unwrap();
-    /// let mut flash = dp.FLASH.constrain();
+    /// let mut flash = dp.FLASH.init();
     /// let cfg = rcc::Config::hse(8.MHz()).sysclk(72.MHz());
-    /// let mut rcc = dp.RCC.constrain().freeze(cfg, &mut flash.acr);
+    /// let mut rcc = dp.RCC.init().freeze(cfg, &mut flash.acr);
     /// ```
     #[allow(unused_variables)]
     #[inline(always)]
@@ -323,13 +321,13 @@ impl Config {
     }
 }
 
-pub trait BkpExt {
+pub trait BkpInit {
     /// Enables write access to the registers in the backup domain
-    fn constrain(self, pwr: &mut PWR, rcc: &mut RCC) -> BackupDomain;
+    fn init(self, pwr: &mut PWR, rcc: &mut RCC) -> BackupDomain;
 }
 
-impl BkpExt for BKP {
-    fn constrain(self, pwr: &mut PWR, rcc: &mut RCC) -> BackupDomain {
+impl BkpInit for BKP {
+    fn init(self, pwr: &mut PWR, rcc: &mut RCC) -> BackupDomain {
         // Enable the backup interface by setting PWREN and BKPEN
         BKP::enable(rcc);
         PWR::enable(rcc);
@@ -350,8 +348,8 @@ impl BkpExt for BKP {
 ///
 /// ```rust
 /// let dp = pac::Peripherals::take().unwrap();
-/// let mut rcc = dp.RCC.constrain();
-/// let mut flash = dp.FLASH.constrain();
+/// let mut rcc = dp.RCC.init();
+/// let mut flash = dp.FLASH.init();
 ///
 /// let clocks = rcc.cfgr.freeze(&mut flash.acr);
 /// ```

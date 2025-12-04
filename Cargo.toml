@@ -50,7 +50,7 @@
     std = []
 
 [build-dependencies]
-    sync-code = "0.1.1"
+    sync-code = "0.1"
 
 [dependencies]
     bitflags = "2"
