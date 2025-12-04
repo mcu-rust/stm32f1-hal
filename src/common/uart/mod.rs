@@ -5,6 +5,7 @@ pub use uart_it::*;
 mod uart_poll;
 pub use uart_poll::*;
 
+use core::fmt::Display;
 use embedded_hal_nb as e_nb;
 use embedded_io as e_io;
 
@@ -93,6 +94,21 @@ pub enum Error {
     /// A different error occurred. The original error may contain more information.
     Other,
 }
+
+impl Display for Error {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Error::Overrun => write!(f, "UART overrun error"),
+            Error::FrameFormat => write!(f, "UART frame format error"),
+            Error::Parity => write!(f, "UART parity error"),
+            Error::Noise => write!(f, "UART noise error"),
+            Error::Busy => write!(f, "UART busy"),
+            Error::Other => write!(f, "UART other error"),
+        }
+    }
+}
+
+impl core::error::Error for Error {}
 
 impl embedded_io::Error for Error {
     #[inline]

@@ -53,7 +53,7 @@
     sync-code = "0.1.1"
 
 [dependencies]
-    bitflags = "2.9"
+    bitflags = "2"
     cfg-if = "1.0"
     cortex-m = { version = "0.7", optional = true }
     cortex-m-rt = { version = "0.7", optional = true }
@@ -61,7 +61,7 @@
     embedded-dma = "0.2"
     embedded-hal = "1.0"
     embedded-hal-nb = "1.0"
-    embedded-io = "0.6"
+    embedded-io = "0.7"
     fugit = "0.3"
     fugit-timer = "0.1"
     nb = "1.1"
