@@ -2,7 +2,14 @@
 Because the design of [stm32f1xx-hal](https://github.com/stm32-rs/stm32f1xx-hal) is unsuitable for my needs and [stm32-hal](https://github.com/David-OConnor/stm32-hal) doesn't support the F1 series, I decided to write a new crate.
 Many codes come from [stm32f1xx-hal](https://github.com/stm32-rs/stm32f1xx-hal).
 
-Example is [here](https://github.com/mcu-rust/stm32f1-hal/blob/main/examples/f103c8/src/main.rs).
+See [example](examples/f103c8/src/main.rs).
+
+## Usage
+```shell
+cargo add stm32f1-hal
+```
+
+See [crate](https://crates.io/crates/stm32f1-hal).
 
 ## Design
 Below are the design principles.
