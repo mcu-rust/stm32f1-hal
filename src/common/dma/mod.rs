@@ -28,7 +28,7 @@ pub trait DmaChannel {
         len: usize,
     );
 
-    fn get_left_len(&self) -> usize;
+    fn get_unprocessed_len(&self) -> usize;
     fn in_progress(&self) -> bool;
 
     fn set_interrupt(&mut self, event: DmaEvent, enable: bool);

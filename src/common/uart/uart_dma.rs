@@ -130,7 +130,7 @@ where
 
         let mut t = self.timeout.start();
         loop {
-            if let Some(d) = self.ch.read(buf.len()) {
+            if let Some(d) = self.ch.pop_slice(buf.len()) {
                 buf[..d.len()].copy_from_slice(d);
                 return Ok(d.len());
             } else if t.timeout() {

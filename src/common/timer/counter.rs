@@ -99,7 +99,6 @@ impl<TIM: GeneralTimer> CounterHz<TIM> {
 
 // ----------------------------------------------------------------------------
 
-/// Periodic non-blocking timer that imlements [embedded_hal_02::timer::CountDown]
 pub struct Counter<TIM, const FREQ: u32>(pub(super) FTimer<TIM, FREQ>);
 
 impl<T, const FREQ: u32> Deref for Counter<T, FREQ> {

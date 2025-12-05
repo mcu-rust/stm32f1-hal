@@ -1,6 +1,6 @@
 //! # Direct Memory Access
 
-use crate::{common::wrap_trait::*, pac, rcc::Rcc, Steal};
+use crate::{Steal, common::wrap_trait::*, pac, rcc::Rcc};
 
 pub use crate::common::dma::*;
 pub type DmaPriority = pac::dma1::ch::cr::PL;
@@ -172,13 +172,13 @@ where
     }
 
     #[inline]
-    fn get_left_len(&self) -> usize {
+    fn get_unprocessed_len(&self) -> usize {
         self.ch().ndtr().read().bits() as usize
     }
 
     #[inline]
     fn in_progress(&self) -> bool {
-        self.get_left_len() != 0 && self.dma.isr().read().tcif(C).bit_is_clear()
+        self.get_unprocessed_len() != 0 && self.dma.isr().read().tcif(C).bit_is_clear()
     }
 
     #[inline]

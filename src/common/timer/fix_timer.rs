@@ -31,7 +31,6 @@ impl<TIM: GeneralTimer, const FREQ: u32> FTimer<TIM, FREQ> {
         self.tim.set_prescaler(u16::try_from(psc - 1).unwrap());
     }
 
-    /// Creates `Counter` that imlements [embedded_hal_02::timer::CountDown]
     pub fn counter(self) -> Counter<TIM, FREQ> {
         Counter(self)
     }

@@ -1,4 +1,5 @@
 use super::*;
+#[cfg(not(feature = "std"))]
 use crate::common::os::*;
 
 /// A buffer used for DMA cyclic data reception, continuously read by the user.
@@ -21,8 +22,9 @@ where
         Self { ch, buf }
     }
 
-    pub fn read(&mut self, max: usize) -> Option<&[T]> {
-        self.buf.read(self.ch.get_left_len(), max)
+    #[inline]
+    pub fn pop_slice(&mut self, max: usize) -> Option<&[T]> {
+        self.buf.pop_slice(self.ch.get_unprocessed_len(), max)
     }
 }
 
@@ -45,11 +47,11 @@ impl<T: Sized + Copy> CircularBuffer<T> {
         }
     }
 
-    fn read(&mut self, left_len: usize, max: usize) -> Option<&[T]> {
-        let dma_recv_idx = if left_len == 0 {
+    fn pop_slice(&mut self, unprocessed_len: usize, max: usize) -> Option<&[T]> {
+        let dma_recv_idx = if unprocessed_len == 0 {
             0
         } else {
-            self.recv_buf.len() - left_len
+            self.recv_buf.len() - unprocessed_len
         };
 
         if self.read_idx == dma_recv_idx {
@@ -97,35 +99,35 @@ mod tests {
         }
 
         assert_eq!(
-            buf.read(5, usize::MAX),
+            buf.pop_slice(5, usize::MAX),
             Some([0u8, 1, 2, 3, 4, 5, 6, 7].as_slice())
         );
-        assert_eq!(buf.read(5, usize::MAX), None);
+        assert_eq!(buf.pop_slice(5, usize::MAX), None);
         // Single wraparound
         assert_eq!(
-            buf.read(0, usize::MAX),
+            buf.pop_slice(0, usize::MAX),
             Some([8u8, 9, 10, 11, 12].as_slice())
         );
-        assert_eq!(buf.read(0, usize::MAX), None);
-        assert_eq!(buf.read(buf_size, usize::MAX), None);
+        assert_eq!(buf.pop_slice(0, usize::MAX), None);
+        assert_eq!(buf.pop_slice(buf_size, usize::MAX), None);
         // small max
-        assert_eq!(buf.read(5, 5), Some([0u8, 1, 2, 3, 4].as_slice()));
-        assert_eq!(buf.read(5, 5), Some([5u8, 6, 7].as_slice()));
-        assert_eq!(buf.read(5, 5), None);
+        assert_eq!(buf.pop_slice(5, 5), Some([0u8, 1, 2, 3, 4].as_slice()));
+        assert_eq!(buf.pop_slice(5, 5), Some([5u8, 6, 7].as_slice()));
+        assert_eq!(buf.pop_slice(5, 5), None);
         assert_eq!(
-            buf.read(0, usize::MAX),
+            buf.pop_slice(0, usize::MAX),
             Some([8u8, 9, 10, 11, 12].as_slice())
         );
         // Multiple wraparounds
         assert_eq!(
-            buf.read(5, usize::MAX),
+            buf.pop_slice(5, usize::MAX),
             Some([0u8, 1, 2, 3, 4, 5, 6, 7].as_slice())
         );
         assert_eq!(
-            buf.read(10, usize::MAX),
+            buf.pop_slice(10, usize::MAX),
             Some([8u8, 9, 10, 11, 12].as_slice())
         );
-        assert_eq!(buf.read(10, usize::MAX), Some([0u8, 1, 2].as_slice()));
-        assert_eq!(buf.read(10, usize::MAX), None);
+        assert_eq!(buf.pop_slice(10, usize::MAX), Some([0u8, 1, 2].as_slice()));
+        assert_eq!(buf.pop_slice(10, usize::MAX), None);
     }
 }

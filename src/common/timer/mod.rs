@@ -119,7 +119,7 @@ pub enum Error {
 /// Interrupt events
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum SysEvent {
-    /// [Timer] timed out / count down ended
+    /// Timer timed out / count down ended
     Update,
 }
 

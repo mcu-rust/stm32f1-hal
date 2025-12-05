@@ -68,7 +68,7 @@
     rtic-monotonic = { version = "1.0", optional = true }
     rtrb = { version = "0.3", default-features = false }
     stm32f1 = { version = "0.16", optional = true }
-    waiter-trait = "0.8"
+    waiter-trait = "0.9"
 
 [profile.release]
     codegen-units = 1
