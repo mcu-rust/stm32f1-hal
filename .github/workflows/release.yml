@@ -1,35 +1,18 @@
 name: Release
 
 on:
-  pull_request:
-  merge_group:
   workflow_dispatch:
   push:
-    branches:
-      - main
     tags:
       - "v*"
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: thumbv7m-none-eabi
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.13"
-      - run: cargo build --release --features=stm32f100,xC
-      - run: python3.13 scripts/build.py build --release
-      - run: python3.13 scripts/build.py clippy
-      - run: python3.13 scripts/build.py test
-      - run: python3.13 scripts/build.py build --example=f103c8
+  ci:
+    uses: ./.github/workflows/ci.yml
 
   publish:
     if: github.ref_type == 'tag'
-    needs: test
+    needs: ci
     runs-on: ubuntu-latest
     environment: release # Optional: for enhanced security
     permissions:
@@ -39,12 +22,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: thumbv7m-none-eabi
-      # - name: Dry run
-      #   if: github.ref_type != 'tag'
-      #   run: cargo publish --features=stm32f103,xG --dry-run
       - uses: rust-lang/crates-io-auth-action@v1
         id: auth
       - name: Publish crate
         run: cargo publish --features=stm32f103,xG
+        # run: cargo publish --features=stm32f103,xG --dry-run
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
