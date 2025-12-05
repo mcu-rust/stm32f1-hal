@@ -15,10 +15,6 @@
         features = ["stm32f103", "xG"]
 
 [features]
-    critical-section-single-core = [
-        "cortex-m/critical-section-single-core",
-        "mcu",
-    ]
     stm32f100 = ["stm32f1/stm32f100", "mcu"]
     stm32f101 = ["stm32f1/stm32f101", "mcu"]
     stm32f103 = ["stm32f1/stm32f103", "mcu"]
@@ -45,9 +41,15 @@
     has-can = []
     # Devices with Dac
     has-dac = []
+
+    critical-section-single-core = [
+        "cortex-m/critical-section-single-core",
+        "mcu",
+    ]
+    custom-std-mutex = []
     mcu = ["dep:cortex-m", "dep:cortex-m-rt", "dep:stm32f1"]
     rtic = ["dep:rtic-monotonic"]
-    std = []
+    std = ["mutex/std"]
 
 [build-dependencies]
     sync-code = "0.1"
@@ -64,6 +66,8 @@
     embedded-io = "0.7"
     fugit = "0.3"
     fugit-timer = "0.1"
+    mutex = "1"
+    mutex-traits = "1"
     nb = "1.1"
     rtic-monotonic = { version = "1.0", optional = true }
     rtrb = { version = "0.3", default-features = false }

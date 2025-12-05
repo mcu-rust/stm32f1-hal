@@ -26,9 +26,11 @@ cfg_if::cfg_if! {
 
 pub mod common;
 
+pub use common::mutex;
 pub use common::os;
 pub use common::ringbuf;
 pub use common::simplest_heap::Heap;
+pub use mutex_traits;
 pub use waiter_trait;
 
 pub use embedded_hal;
