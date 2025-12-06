@@ -61,7 +61,7 @@ See [example](examples/f103c8/src/main.rs).
 See [crate](https://crates.io/crates/stm32f1-hal).
 
 ## 🗺 Roadmap
-This project is still in its early stages, with only a few features implemented so far. Contributions and feedback are welcome to help expand support for more peripherals and features.
+**This project is still in its early stages, with only a few features implemented so far**. Contributions and feedback are welcome to help expand support for more peripherals and features.
 - [x] GPIO
 - [x] UART
 - [ ] I2C
