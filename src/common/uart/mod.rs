@@ -30,17 +30,17 @@ impl<U: UartPeriph> UartIdleInterrupt<U> {
 
     #[inline]
     pub fn is_interrupted(&mut self) -> bool {
-        self.uart.is_interrupted(UartEvent::Idle)
+        self.uart.is_interrupted(Event::Idle)
     }
 
     #[inline]
     pub fn listen(&mut self) {
-        self.uart.set_interrupt(UartEvent::Idle, true);
+        self.uart.set_interrupt(Event::Idle, true);
     }
 
     #[inline]
     pub fn unlisten(&mut self) {
-        self.uart.set_interrupt(UartEvent::Idle, false);
+        self.uart.set_interrupt(Event::Idle, false);
     }
 }
 
@@ -54,9 +54,9 @@ pub trait UartPeriph {
     fn read(&mut self) -> nb::Result<u16, Error>;
     fn is_rx_not_empty(&self) -> bool;
 
-    fn set_interrupt(&mut self, event: UartEvent, enable: bool);
-    fn is_interrupt_enable(&mut self, event: UartEvent) -> bool;
-    fn is_interrupted(&mut self, event: UartEvent) -> bool;
+    fn set_interrupt(&mut self, event: Event, enable: bool);
+    fn is_interrupt_enable(&mut self, event: Event) -> bool;
+    fn is_interrupted(&mut self, event: Event) -> bool;
 
     fn clear_err_flag(&self);
 
@@ -67,7 +67,7 @@ pub trait UartPeriph {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum UartEvent {
+pub enum Event {
     /// New data can be sent
     TxEmpty,
     /// New data has been received
@@ -98,12 +98,12 @@ pub enum Error {
 impl Display for Error {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Error::Overrun => write!(f, "UART overrun error"),
-            Error::FrameFormat => write!(f, "UART frame format error"),
-            Error::Parity => write!(f, "UART parity error"),
-            Error::Noise => write!(f, "UART noise error"),
-            Error::Busy => write!(f, "UART busy"),
-            Error::Other => write!(f, "UART other error"),
+            Self::Overrun => write!(f, "UART overrun error"),
+            Self::FrameFormat => write!(f, "UART frame format error"),
+            Self::Parity => write!(f, "UART parity error"),
+            Self::Noise => write!(f, "UART noise error"),
+            Self::Busy => write!(f, "UART busy"),
+            Self::Other => write!(f, "UART other error"),
         }
     }
 }
@@ -114,12 +114,12 @@ impl embedded_io::Error for Error {
     #[inline]
     fn kind(&self) -> e_io::ErrorKind {
         match self {
-            Error::Overrun => e_io::ErrorKind::InvalidData,
-            Error::FrameFormat => e_io::ErrorKind::InvalidData,
-            Error::Parity => e_io::ErrorKind::InvalidData,
-            Error::Noise => e_io::ErrorKind::InvalidData,
-            Error::Busy => e_io::ErrorKind::WriteZero,
-            Error::Other => e_io::ErrorKind::Other,
+            Self::Overrun => e_io::ErrorKind::InvalidData,
+            Self::FrameFormat => e_io::ErrorKind::InvalidData,
+            Self::Parity => e_io::ErrorKind::InvalidData,
+            Self::Noise => e_io::ErrorKind::InvalidData,
+            Self::Busy => e_io::ErrorKind::WriteZero,
+            Self::Other => e_io::ErrorKind::Other,
         }
     }
 }
@@ -128,12 +128,12 @@ impl e_nb::serial::Error for Error {
     #[inline]
     fn kind(&self) -> e_nb::serial::ErrorKind {
         match self {
-            Error::Overrun => e_nb::serial::ErrorKind::Overrun,
-            Error::FrameFormat => e_nb::serial::ErrorKind::FrameFormat,
-            Error::Parity => e_nb::serial::ErrorKind::Parity,
-            Error::Noise => e_nb::serial::ErrorKind::Noise,
-            Error::Busy => e_nb::serial::ErrorKind::Other,
-            Error::Other => e_nb::serial::ErrorKind::Other,
+            Self::Overrun => e_nb::serial::ErrorKind::Overrun,
+            Self::FrameFormat => e_nb::serial::ErrorKind::FrameFormat,
+            Self::Parity => e_nb::serial::ErrorKind::Parity,
+            Self::Noise => e_nb::serial::ErrorKind::Noise,
+            Self::Busy => e_nb::serial::ErrorKind::Other,
+            Self::Other => e_nb::serial::ErrorKind::Other,
         }
     }
 }

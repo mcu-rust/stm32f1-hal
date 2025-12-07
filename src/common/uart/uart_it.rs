@@ -52,10 +52,10 @@ impl<U: UartPeriph, W: Waiter> Write for UartInterruptTx<U, W> {
         let mut t = self.timeout.start();
         loop {
             if let n @ 1.. = self.w.push_slice(buf) {
-                self.uart.set_interrupt(UartEvent::TxEmpty, true);
+                self.uart.set_interrupt(Event::TxEmpty, true);
                 return Ok(n);
-            } else if !self.uart.is_interrupt_enable(UartEvent::TxEmpty) {
-                self.uart.set_interrupt(UartEvent::TxEmpty, true);
+            } else if !self.uart.is_interrupt_enable(Event::TxEmpty) {
+                self.uart.set_interrupt(Event::TxEmpty, true);
             }
 
             if t.timeout() {
@@ -75,8 +75,8 @@ impl<U: UartPeriph, W: Waiter> Write for UartInterruptTx<U, W> {
                 return Ok(());
             } else if t.timeout() {
                 break;
-            } else if !self.uart.is_interrupt_enable(UartEvent::TxEmpty) {
-                self.uart.set_interrupt(UartEvent::TxEmpty, true);
+            } else if !self.uart.is_interrupt_enable(Event::TxEmpty) {
+                self.uart.set_interrupt(Event::TxEmpty, true);
             }
         }
         Err(Error::Other)
@@ -108,8 +108,8 @@ where
             if self.uart.write(*data as u16).is_ok() {
                 self.r.pop().ok();
             }
-        } else if self.uart.is_interrupt_enable(UartEvent::TxEmpty) {
-            self.uart.set_interrupt(UartEvent::TxEmpty, false);
+        } else if self.uart.is_interrupt_enable(Event::TxEmpty) {
+            self.uart.set_interrupt(Event::TxEmpty, false);
         }
     }
 }
@@ -155,8 +155,8 @@ where
         loop {
             if let n @ 1.. = self.r.pop_slice(buf) {
                 return Ok(n);
-            } else if !self.uart.is_interrupt_enable(UartEvent::RxNotEmpty) {
-                self.uart.set_interrupt(UartEvent::RxNotEmpty, true);
+            } else if !self.uart.is_interrupt_enable(Event::RxNotEmpty) {
+                self.uart.set_interrupt(Event::RxNotEmpty, true);
             }
 
             if t.timeout() {
@@ -180,7 +180,7 @@ where
     U: UartPeriph,
 {
     pub fn new(mut uart: U, w: Producer<u8>) -> Self {
-        uart.set_interrupt(UartEvent::RxNotEmpty, true);
+        uart.set_interrupt(Event::RxNotEmpty, true);
         Self {
             uart,
             w,

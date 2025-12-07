@@ -16,7 +16,7 @@ impl UartInit<UartX> for UartX {
     }
 }
 
-impl UartPeriphExt for UartX {
+impl UartConfig for UartX {
     fn config(&mut self, config: Config, mcu: &mut Mcu) {
         // Configure baud rate
         let brr = mcu.rcc.get_clock(self).raw() / config.baudrate;
@@ -142,48 +142,48 @@ impl UartPeriph for UartX {
     }
 
     #[inline]
-    fn set_interrupt(&mut self, event: UartEvent, enable: bool) {
+    fn set_interrupt(&mut self, event: Event, enable: bool) {
         match event {
-            UartEvent::Idle => {
+            Event::Idle => {
                 self.cr1().modify(|_, w| w.idleie().bit(enable));
             }
-            UartEvent::RxNotEmpty => {
+            Event::RxNotEmpty => {
                 self.cr1().modify(|_, w| w.rxneie().bit(enable));
             }
-            UartEvent::TxEmpty => {
+            Event::TxEmpty => {
                 self.cr1().modify(|_, w| w.txeie().bit(enable));
             }
         }
     }
 
     #[inline]
-    fn is_interrupt_enable(&mut self, event: UartEvent) -> bool {
+    fn is_interrupt_enable(&mut self, event: Event) -> bool {
         let cr1 = self.cr1().read();
         match event {
-            UartEvent::Idle => cr1.idleie().bit_is_set(),
-            UartEvent::RxNotEmpty => cr1.rxneie().bit_is_set(),
-            UartEvent::TxEmpty => cr1.txeie().bit_is_set(),
+            Event::Idle => cr1.idleie().bit_is_set(),
+            Event::RxNotEmpty => cr1.rxneie().bit_is_set(),
+            Event::TxEmpty => cr1.txeie().bit_is_set(),
         }
     }
 
     #[inline]
-    fn is_interrupted(&mut self, event: UartEvent) -> bool {
+    fn is_interrupted(&mut self, event: Event) -> bool {
         let sr = self.sr().read();
         match event {
-            UartEvent::Idle => {
+            Event::Idle => {
                 if sr.idle().bit_is_set() && self.cr1().read().idleie().bit_is_set() {
                     self.clear_err_flag();
                     return true;
                 }
             }
-            UartEvent::RxNotEmpty => {
+            Event::RxNotEmpty => {
                 if (sr.rxne().bit_is_set() || sr.ore().bit_is_set())
                     && self.cr1().read().rxneie().bit_is_set()
                 {
                     return true;
                 }
             }
-            UartEvent::TxEmpty => {
+            Event::TxEmpty => {
                 if sr.txe().bit_is_set() && self.cr1().read().txeie().bit_is_set() {
                     return true;
                 }

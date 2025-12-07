@@ -21,7 +21,7 @@ pub trait UartInit<U> {
     fn init(self, mcu: &mut Mcu) -> Uart<U>;
 }
 
-pub trait UartPeriphExt: UartPeriph + BusClock + Enable + Reset + Steal {
+pub trait UartConfig: UartPeriph + BusClock + Enable + Reset + Steal {
     fn config(&mut self, config: Config, mcu: &mut Mcu);
     fn enable_comm(&mut self, tx: bool, rx: bool);
     fn set_stop_bits(&mut self, bits: StopBits);
@@ -32,7 +32,7 @@ pub struct Uart<U> {
     uart: U,
 }
 
-impl<U: UartPeriphExt> Uart<U> {
+impl<U: UartConfig> Uart<U> {
     pub fn into_tx_rx<REMAP: RemapMode<U>>(
         mut self,
         pins: (impl UartTxPin<REMAP>, impl UartRxPin<REMAP>),
@@ -70,7 +70,7 @@ pub struct Tx<U> {
     uart: U,
 }
 
-impl<U: UartPeriphExt> Tx<U> {
+impl<U: UartConfig> Tx<U> {
     pub(crate) fn new(uart: U) -> Self {
         Self { uart }
     }
@@ -118,7 +118,7 @@ pub struct Rx<U> {
     uart: U,
 }
 
-impl<U: UartPeriphExt> Rx<U> {
+impl<U: UartConfig> Rx<U> {
     pub(crate) fn new(uart: U) -> Self {
         Self { uart }
     }

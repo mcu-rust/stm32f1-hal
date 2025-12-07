@@ -6,7 +6,7 @@ type Width = u16;
 use super::*;
 use crate::{Mcu, pac};
 
-impl Instance for TimerX {}
+impl TimerConfig for TimerX {}
 
 impl TimerInit<TimerX> for TimerX {
     fn init(self, mcu: &mut Mcu) -> Timer<TimerX> {

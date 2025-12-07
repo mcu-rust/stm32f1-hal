@@ -20,7 +20,7 @@ use stm32f1_hal::{
     rcc,
     time::MonoTimer,
     timer::*,
-    uart::{self, UartPeriphExt},
+    uart::{self, UartConfig},
     waiter_trait::{self, Counter, prelude::*},
 };
 
@@ -157,7 +157,7 @@ fn panic(_info: &PanicInfo) -> ! {
     loop {}
 }
 
-fn uart_poll_init<U: UartPeriphExt>(
+fn uart_poll_init<U: UartConfig>(
     tx: uart::Tx<U>,
     rx: uart::Rx<U>,
 ) -> UartPollTask<impl embedded_io::Write, impl embedded_io::Read> {
@@ -166,7 +166,7 @@ fn uart_poll_init<U: UartPeriphExt>(
     UartPollTask::new(32, uart_tx, uart_rx)
 }
 
-fn uart_interrupt_init<U: UartPeriphExt + 'static>(
+fn uart_interrupt_init<U: UartConfig + 'static>(
     tx: uart::Tx<U>,
     rx: uart::Rx<U>,
     interrupt_callback: &hal::interrupt::Callback,
@@ -186,7 +186,7 @@ fn uart_interrupt_init<U: UartPeriphExt + 'static>(
     UartPollTask::new(32, tx, rx)
 }
 
-fn uart_dma_init<'r, U: UartPeriphExt + 'static>(
+fn uart_dma_init<'r, U: UartConfig + 'static>(
     tx: uart::Tx<U>,
     mut dma_tx: impl DmaBindTx<U> + 'static,
     interrupt_callback: &hal::interrupt::Callback,

@@ -50,7 +50,7 @@ pub mod timer8;
 #[cfg(feature = "xl")]
 pub mod timer9;
 
-pub trait Instance: rcc::Enable + rcc::Reset + rcc::BusTimerClock + GeneralTimer {}
+pub trait TimerConfig: rcc::Enable + rcc::Reset + rcc::BusTimerClock + GeneralTimer {}
 
 // Initialize -----------------------------------------------------------------
 
@@ -64,7 +64,7 @@ pub struct Timer<TIM> {
     clk: Hertz,
 }
 
-impl<TIM: Instance + Steal> Timer<TIM> {
+impl<TIM: TimerConfig + Steal> Timer<TIM> {
     /// Initialize timer
     pub fn new(tim: TIM, mcu: &mut Mcu) -> Self {
         // Enable and reset the timer peripheral
@@ -141,13 +141,13 @@ impl<TIM: Instance + Steal> Timer<TIM> {
     }
 }
 
-impl<TIM: Instance + MasterTimer> Timer<TIM> {
+impl<TIM: TimerConfig + MasterTimer> Timer<TIM> {
     pub fn set_master_mode(&mut self, mode: MasterMode) {
         self.tim.master_mode(mode)
     }
 }
 
-impl<TIM: Instance + TimerDirection> Timer<TIM> {
+impl<TIM: TimerConfig + TimerDirection> Timer<TIM> {
     pub fn set_count_direction(&mut self, dir: CountDirection) {
         self.tim.set_count_direction(dir);
     }
@@ -155,7 +155,7 @@ impl<TIM: Instance + TimerDirection> Timer<TIM> {
 
 // Initialize PWM -------------------------------------------------------------
 
-impl<'a, TIM: Instance + TimerWithPwm1Ch + Steal + 'a> Timer<TIM> {
+impl<'a, TIM: TimerConfig + TimerWithPwm1Ch + Steal + 'a> Timer<TIM> {
     pub fn into_pwm1<REMAP: RemapMode<TIM>>(
         mut self,
         _pin: impl TimCh1Pin<REMAP>,
@@ -173,7 +173,7 @@ impl<'a, TIM: Instance + TimerWithPwm1Ch + Steal + 'a> Timer<TIM> {
     }
 }
 
-impl<'a, TIM: Instance + TimerWithPwm2Ch + Steal + 'a> Timer<TIM> {
+impl<'a, TIM: TimerConfig + TimerWithPwm2Ch + Steal + 'a> Timer<TIM> {
     pub fn into_pwm2<REMAP: RemapMode<TIM>>(
         mut self,
         pins: (impl TimCh1Pin<REMAP>, impl TimCh2Pin<REMAP>),
@@ -204,7 +204,7 @@ impl<'a, TIM: Instance + TimerWithPwm2Ch + Steal + 'a> Timer<TIM> {
     }
 }
 
-impl<'a, TIM: Instance + TimerWithPwm4Ch + Steal + 'a> Timer<TIM> {
+impl<'a, TIM: TimerConfig + TimerWithPwm4Ch + Steal + 'a> Timer<TIM> {
     pub fn into_pwm4<REMAP: RemapMode<TIM>>(
         mut self,
         pins: (
