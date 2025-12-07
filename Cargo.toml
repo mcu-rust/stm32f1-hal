@@ -46,10 +46,10 @@
         "cortex-m/critical-section-single-core",
         "mcu",
     ]
-    custom-std-mutex = []
     mcu = ["dep:cortex-m", "dep:cortex-m-rt", "dep:stm32f1"]
     rtic = ["dep:rtic-monotonic"]
-    std = ["mutex/std"]
+    std = []
+    std-custom-mutex = ["mutex/std"]
 
 [build-dependencies]
     sync-code = "0.1"

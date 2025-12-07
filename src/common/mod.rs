@@ -1,6 +1,4 @@
 pub mod dma;
-pub mod mutex;
-pub mod notifier;
 pub mod os;
 pub mod ringbuf;
 pub mod simplest_heap;
