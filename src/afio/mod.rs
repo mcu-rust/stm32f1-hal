@@ -1,5 +1,6 @@
 //! # Alternate Function I/Os
 
+pub mod i2c_remap;
 pub mod timer_remap;
 pub mod uart_remap;
 

@@ -106,10 +106,11 @@ def write_binder_type(d: dict, filter: str, w: Write) -> None:
 
 IMPL_TEMPLATE_LIST = [
     (
-        ["TX", "CK", "CH1", "CH2", "CH3", "CH4"],
+        ["UartTxPin", "UartCkPin", "TimCh1Pin", "TimCh2Pin", "TimCh3Pin", "TimCh4Pin"],
         "impl {func}<{mode}<{peri}>> for {pin}<Alternate<PushPull>>",
     ),
-    (["RX"], "impl<PULL: UpMode> {func}<{mode}<{peri}>> for {pin}<Input<PULL>>"),
+    (["UartRxPin"], "impl<PULL: UpMode> {func}<{mode}<{peri}>> for {pin}<Input<PULL>>"),
+    (["I2cSclPin", "I2cSdaPin"], "impl {func}<{mode}<{peri}>> for {pin}<Alternate<OpenDrain>>"),
 ]
 
 
@@ -122,13 +123,13 @@ def get_impl_template(func: str) -> str:
 
 def write_item(filter: str, peri: str, mode: str, pins: dict[str, str], w: Write) -> None:
     for pin_func, pin in sorted(pins.items()):
-        impl = get_impl_template(pin_func)
+        func = func_pin_name(filter, pin_func)
+        impl = get_impl_template(func)
         if impl:
             cfg = CFG_TABLE.get(peri, "")
             if cfg:
                 w.write(cfg)
 
-            func = func_pin_name(filter, pin_func)
             w.write(impl.format(func=func, mode=mode, peri=peri, pin=pin))
             w.write("{}")
 
@@ -197,6 +198,7 @@ def csv_to_code(csv_file: str, show: bool = False) -> None:
 
     write_table(d, "UART", csv_file, "src/afio/uart_remap.rs")
     write_table(d, "TIM", csv_file, "src/afio/timer_remap.rs")
+    write_table(d, "I2C", csv_file, "src/afio/i2c_remap.rs")
 
 
 if __name__ == "__main__":
