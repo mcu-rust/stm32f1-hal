@@ -16,6 +16,8 @@ pub trait NotifyReceiver {
     fn take(&mut self, timeout: MicrosDurationU32) -> bool;
 }
 
+// Fake implementations for testing -----------------------------------------
+
 #[derive(Default)]
 pub struct FakeNotifier;
 
@@ -27,10 +29,7 @@ impl NotifierIsr for FakeNotifier {
     fn notify_from_isr(&mut self) {}
 }
 
-#[derive(Default)]
-pub struct FakeNotifyReceiver;
-
-impl NotifyReceiver for FakeNotifyReceiver {
+impl NotifyReceiver for FakeNotifier {
     fn take(&mut self, _timeout: MicrosDurationU32) -> bool {
         true
     }
