@@ -1,4 +1,5 @@
 pub mod dma;
+pub mod i2c;
 pub mod os;
 pub mod ringbuf;
 pub mod simplest_heap;

@@ -21,6 +21,7 @@ cfg_if::cfg_if! {
         pub use mcu::Mcu;
         pub use cortex_m;
         pub use cortex_m_rt;
+        pub mod i2c;
     }
 }
 

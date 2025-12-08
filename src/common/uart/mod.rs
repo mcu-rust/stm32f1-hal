@@ -56,6 +56,7 @@ pub trait UartPeriph {
 
     fn set_interrupt(&mut self, event: Event, enable: bool);
     fn is_interrupt_enable(&mut self, event: Event) -> bool;
+    /// Read and clean the flag
     fn is_interrupted(&mut self, event: Event) -> bool;
 
     fn clear_err_flag(&self);
