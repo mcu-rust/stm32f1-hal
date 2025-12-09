@@ -1,6 +1,7 @@
 pub mod dma;
 pub mod i2c;
 pub mod os;
+pub mod prelude;
 pub mod ringbuf;
 pub mod simplest_heap;
 pub mod timer;

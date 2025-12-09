@@ -13,7 +13,7 @@ pub struct UartDmaBufTx<U, CH, W> {
 
 impl<U, CH, W> UartDmaBufTx<U, CH, W>
 where
-    U: UartPeriph,
+    U: UartPeriphWithDma,
     CH: DmaChannel,
     W: Waiter,
 {
@@ -93,7 +93,7 @@ pub struct UartDmaRx<U, CH, W> {
 
 impl<U, CH, W> UartDmaRx<U, CH, W>
 where
-    U: UartPeriph,
+    U: UartPeriphWithDma,
     CH: DmaChannel,
     W: Waiter,
 {

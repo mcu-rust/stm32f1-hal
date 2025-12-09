@@ -40,7 +40,7 @@ impl<U: UartPeriph, W: Waiter> e_nb::serial::Write<u16> for UartPollTx<U, W> {
 
     #[inline]
     fn flush(&mut self) -> nb::Result<(), Self::Error> {
-        if self.uart.is_tx_empty() && self.uart.is_tx_complete() {
+        if self.uart.is_tx_complete() {
             return Ok(());
         }
         Err(nb::Error::WouldBlock)
@@ -86,7 +86,7 @@ impl<U: UartPeriph, W: Waiter> e_io::Write for UartPollTx<U, W> {
     fn flush(&mut self) -> Result<(), Self::Error> {
         let mut t = self.flush_timeout.start();
         loop {
-            if self.uart.is_tx_empty() && self.uart.is_tx_complete() {
+            if self.uart.is_tx_complete() {
                 return Ok(());
             }
 

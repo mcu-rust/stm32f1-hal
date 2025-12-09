@@ -1,10 +1,10 @@
 #[cfg(any(all(feature = "stm32f103", feature = "high"), feature = "connectivity"))]
-pub mod uart4;
+mod uart4;
 #[cfg(any(all(feature = "stm32f103", feature = "high"), feature = "connectivity"))]
 pub mod uart5;
-pub mod usart1;
-pub mod usart2;
-pub mod usart3;
+mod usart1;
+mod usart2;
+mod usart3;
 pub use crate::common::uart::*;
 
 use crate::{
@@ -25,6 +25,8 @@ pub trait UartConfig: UartPeriph + BusClock + Enable + Reset + Steal {
     fn config(&mut self, config: Config, mcu: &mut Mcu);
     fn enable_comm(&mut self, tx: bool, rx: bool);
     fn set_stop_bits(&mut self, bits: StopBits);
+    fn is_tx_empty(&self) -> bool;
+    fn is_rx_not_empty(&self) -> bool;
 }
 
 // wrapper
@@ -88,7 +90,9 @@ impl<U: UartConfig> Tx<U> {
         let u2 = unsafe { self.uart.steal() };
         UartInterruptTx::new([self.uart, u2], buf_size, timeout, flush_timeout)
     }
+}
 
+impl<U: UartConfig + UartPeriphWithDma> Tx<U> {
     // pub fn into_dma<CH>(self, dma_ch: CH) -> UartDmaTx<U, CH>
     // where
     //     CH: BindDmaTx<U>,
@@ -135,7 +139,9 @@ impl<U: UartConfig> Rx<U> {
         let u2 = unsafe { self.uart.steal() };
         UartInterruptRx::new([self.uart, u2], buf_size, timeout)
     }
+}
 
+impl<U: UartConfig + UartPeriphWithDma> Rx<U> {
     pub fn into_dma_circle<CH, W>(
         self,
         dma_ch: CH,

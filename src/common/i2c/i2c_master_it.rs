@@ -95,7 +95,14 @@ where
 
         // get error code
         if let Some(err) = int_to_err(self.err_code.load(Ordering::Acquire)) {
-            Err(err)
+            let mode: Mode = self.mode.load(Ordering::Acquire).into();
+            if mode == Mode::WriteAddr {
+                Err(err.nack_addr())
+            } else if mode == Mode::WriteData {
+                Err(err.nack_data())
+            } else {
+                Err(err)
+            }
         } else {
             Ok(())
         }
@@ -143,7 +150,14 @@ where
 
         // get error code
         if let Some(err) = int_to_err(self.err_code.load(Ordering::Acquire)) {
-            Err(err)
+            let mode: Mode = self.mode.load(Ordering::Acquire).into();
+            if mode == Mode::ReadAddr {
+                Err(err.nack_addr())
+            } else if mode == Mode::ReadData {
+                Err(err.nack_data())
+            } else {
+                Err(err)
+            }
         } else {
             Ok(())
         }
@@ -188,10 +202,10 @@ where
         }
 
         match mode {
-            Mode::Write => self.write(),
-            Mode::Read => self.read(),
+            Mode::Write | Mode::WriteAddr | Mode::WriteData => self.write(),
+            Mode::Read | Mode::ReadAddr | Mode::ReadData => self.read(),
             Mode::Stop => self.i2c.it_reset(),
-            _ => (),
+            Mode::StartWrite(_) | Mode::StartRead(_) => (),
         }
     }
 
@@ -199,11 +213,13 @@ where
         match self.step {
             0 => {
                 if self.i2c.it_send_slave_addr(self.slave_addr, false) {
+                    self.mode.store(Mode::WriteAddr.into(), Ordering::Release);
                     self.next();
                 }
             }
             1 => {
                 if self.i2c.it_start_write_data() {
+                    self.mode.store(Mode::WriteData.into(), Ordering::Release);
                     self.next();
                 }
             }
@@ -228,11 +244,13 @@ where
         match self.step {
             0 => {
                 if self.i2c.it_send_slave_addr(self.slave_addr, false) {
+                    self.mode.store(Mode::ReadAddr.into(), Ordering::Release);
                     self.next();
                 }
             }
             1 => {
                 if self.i2c.it_start_write_data() {
+                    self.mode.store(Mode::ReadData.into(), Ordering::Release);
                     self.next();
                 }
             }
@@ -252,6 +270,7 @@ where
             }
             3 => {
                 if self.i2c.it_send_slave_addr(self.slave_addr, true) {
+                    self.mode.store(Mode::ReadAddr.into(), Ordering::Release);
                     if let Ok(Command::Len(len)) = self.cmd_r.pop() {
                         self.data_len = len;
                     }
@@ -260,6 +279,7 @@ where
             }
             4 => {
                 if self.i2c.it_start_read_data(self.data_len as usize) {
+                    self.mode.store(Mode::ReadData.into(), Ordering::Release);
                     self.next();
                 }
             }

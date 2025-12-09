@@ -7,7 +7,11 @@ pub enum Mode {
     /// with sequence id
     StartRead(u8),
     Write,
+    WriteAddr,
+    WriteData,
     Read,
+    ReadAddr,
+    ReadData,
     Stop,
 }
 
@@ -18,6 +22,10 @@ impl Into<u16> for Mode {
             Mode::StartRead(id) => 2 | ((id as u16) << 8),
             Mode::Write => 3 as u16,
             Mode::Read => 4 as u16,
+            Mode::WriteAddr => 5 as u16,
+            Mode::ReadAddr => 6 as u16,
+            Mode::WriteData => 7 as u16,
+            Mode::ReadData => 8 as u16,
             Mode::Stop => 0 as u16,
         }
     }
@@ -32,6 +40,10 @@ impl From<u16> for Mode {
             2 => Self::StartRead(id),
             3 => Self::Write,
             4 => Self::Read,
+            5 => Self::WriteAddr,
+            6 => Self::ReadAddr,
+            7 => Self::WriteData,
+            8 => Self::ReadData,
             _ => Self::Stop,
         }
     }
@@ -117,6 +129,22 @@ mod tests {
         assert_eq!(mode, i.into());
 
         let mode = Mode::Stop;
+        let i: u16 = mode.into();
+        assert_eq!(mode, i.into());
+
+        let mode = Mode::WriteData;
+        let i: u16 = mode.into();
+        assert_eq!(mode, i.into());
+
+        let mode = Mode::ReadData;
+        let i: u16 = mode.into();
+        assert_eq!(mode, i.into());
+
+        let mode = Mode::WriteAddr;
+        let i: u16 = mode.into();
+        assert_eq!(mode, i.into());
+
+        let mode = Mode::ReadAddr;
         let i: u16 = mode.into();
         assert_eq!(mode, i.into());
     }

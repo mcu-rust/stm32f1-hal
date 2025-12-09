@@ -13,6 +13,7 @@ pub use crate::timer::SysTimerInit as _stm32_hal_timer_SysCounterInit;
 pub use crate::timer::TimerInit as _stm32_hal_timer_TimerInit;
 // pub use crate::timer::pwm_input::PwmInputExt as _;
 // pub use crate::timer::pwm_input::QeiExt as _;
+pub use crate::common::prelude::*;
 pub use crate::dma::DmaInit as _;
 pub use crate::nvic_scb::NvicInit as _;
 pub use crate::nvic_scb::ScbInit as _;

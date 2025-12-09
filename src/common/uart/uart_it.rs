@@ -68,10 +68,7 @@ impl<U: UartPeriph, W: Waiter> Write for UartInterruptTx<U, W> {
     fn flush(&mut self) -> Result<(), Self::Error> {
         let mut t = self.flush_timeout.start();
         loop {
-            if self.uart.is_tx_empty()
-                && self.uart.is_tx_complete()
-                && self.w.slots() == self.w.buffer().capacity()
-            {
+            if self.uart.is_tx_complete() && self.w.slots() == self.w.buffer().capacity() {
                 return Ok(());
             } else if t.timeout() {
                 break;

@@ -19,7 +19,7 @@ use stm32f1_hal::{
     prelude::*,
     rcc,
     time::MonoTimer,
-    timer::*,
+    timer::{CountDirection, PwmMode, PwmPolarity, SystemTimer},
     uart::{self, UartConfig},
     waiter_trait::{self, Counter, prelude::*},
 };
@@ -186,7 +186,7 @@ fn uart_interrupt_init<U: UartConfig + 'static>(
     UartPollTask::new(32, tx, rx)
 }
 
-fn uart_dma_init<'r, U: UartConfig + 'static>(
+fn uart_dma_init<'r, U: UartConfig + UartPeriphWithDma + 'static>(
     tx: uart::Tx<U>,
     mut dma_tx: impl DmaBindTx<U> + 'static,
     interrupt_callback: &hal::interrupt::Callback,

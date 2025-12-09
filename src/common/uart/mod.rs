@@ -11,11 +11,6 @@ use embedded_io as e_io;
 
 pub use core::convert::Infallible;
 
-// pub mod uart_dma_tx;
-// pub use uart_dma_tx::*;
-// pub mod uart_dma_ringbuf_tx;
-// pub use uart_dma_ringbuf_tx::*;
-
 // ------------------------------------------------------------------------------------------------
 
 // UART idle interrupt handler
@@ -48,11 +43,10 @@ impl<U: UartPeriph> UartIdleInterrupt<U> {
 
 pub trait UartPeriph {
     fn write(&mut self, word: u16) -> nb::Result<(), Error>;
-    fn is_tx_empty(&self) -> bool;
+    /// Transfer is empty and completed
     fn is_tx_complete(&self) -> bool;
 
     fn read(&mut self) -> nb::Result<u16, Error>;
-    fn is_rx_not_empty(&self) -> bool;
 
     fn set_interrupt(&mut self, event: Event, enable: bool);
     fn is_interrupt_enable(&mut self, event: Event) -> bool;
@@ -60,7 +54,9 @@ pub trait UartPeriph {
     fn is_interrupted(&mut self, event: Event) -> bool;
 
     fn clear_err_flag(&self);
+}
 
+pub trait UartPeriphWithDma: UartPeriph {
     fn get_tx_data_reg_addr(&self) -> usize;
     fn get_rx_data_reg_addr(&self) -> usize;
     fn enable_dma_tx(&mut self, enable: bool);

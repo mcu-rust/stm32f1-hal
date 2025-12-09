@@ -67,19 +67,25 @@ impl UartConfig for UartX {
         });
         // $sync stop_bits_end
     }
-}
 
-// Implement Peripheral -------------------------------------------------------
-
-impl UartPeriph for UartX {
     #[inline]
     fn is_tx_empty(&self) -> bool {
         self.sr().read().txe().bit_is_set()
     }
 
     #[inline]
+    fn is_rx_not_empty(&self) -> bool {
+        self.sr().read().rxne().bit_is_set()
+    }
+}
+
+// Implement Peripheral -------------------------------------------------------
+
+impl UartPeriph for UartX {
+    #[inline]
     fn is_tx_complete(&self) -> bool {
-        self.sr().read().tc().bit_is_set()
+        let sr = self.sr().read();
+        sr.txe().bit_is_set() && sr.tc().bit_is_set()
     }
 
     fn write(&mut self, word: u16) -> nb::Result<(), Error> {
@@ -119,26 +125,6 @@ impl UartPeriph for UartX {
         } else {
             Err(nb::Error::WouldBlock)
         }
-    }
-
-    #[inline]
-    fn get_tx_data_reg_addr(&self) -> usize {
-        self.dr().as_ptr() as usize
-    }
-
-    #[inline]
-    fn get_rx_data_reg_addr(&self) -> usize {
-        self.dr().as_ptr() as usize
-    }
-
-    #[inline]
-    fn enable_dma_tx(&mut self, enable: bool) {
-        self.cr3().modify(|_, w| w.dmat().bit(enable));
-    }
-
-    #[inline]
-    fn enable_dma_rx(&mut self, enable: bool) {
-        self.cr3().modify(|_, w| w.dmar().bit(enable));
     }
 
     #[inline]
@@ -199,10 +185,27 @@ impl UartPeriph for UartX {
         let _ = self.sr().read();
         let _ = self.dr().read();
     }
+}
+
+impl UartPeriphWithDma for UartX {
+    #[inline]
+    fn get_tx_data_reg_addr(&self) -> usize {
+        self.dr().as_ptr() as usize
+    }
 
     #[inline]
-    fn is_rx_not_empty(&self) -> bool {
-        self.sr().read().rxne().bit_is_set()
+    fn get_rx_data_reg_addr(&self) -> usize {
+        self.dr().as_ptr() as usize
+    }
+
+    #[inline]
+    fn enable_dma_tx(&mut self, enable: bool) {
+        self.cr3().modify(|_, w| w.dmat().bit(enable));
+    }
+
+    #[inline]
+    fn enable_dma_rx(&mut self, enable: bool) {
+        self.cr3().modify(|_, w| w.dmar().bit(enable));
     }
 }
 

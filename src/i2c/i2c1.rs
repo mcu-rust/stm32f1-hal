@@ -132,12 +132,12 @@ impl I2cPeriph for I2cX {
     #[inline]
     fn it_send_start(&mut self) {
         self.set_interrupt(Interrupt::Buffer, false);
+        self.set_interrupt(Interrupt::Event, true);
         // Clear all pending error bits
         // NOTE(unsafe): Writing 0 clears the r/w bits and has no effect on the r bits
         self.sr1().write(|w| unsafe { w.bits(0) });
-        self.set_interrupt(Interrupt::Error, true);
-        self.set_interrupt(Interrupt::Event, true);
         self.cr1().modify(|_, w| w.start().set_bit());
+        self.set_interrupt(Interrupt::Error, true);
     }
 
     #[inline]
@@ -278,36 +278,6 @@ impl I2cPeriph for I2cX {
     //     }
     //     Err(nb::Error::WouldBlock)
     // }
-}
-
-#[inline]
-fn read_error(sr1: &sr1::R, nack: NoAcknowledgeSource) -> Result<(), Error> {
-    if sr1.berr().bit_is_set() {
-        Err(Error::Bus)
-    } else if sr1.arlo().bit_is_set() {
-        Err(Error::ArbitrationLoss)
-    } else if sr1.af().bit_is_set() {
-        Err(Error::NoAcknowledge(nack))
-    } else if sr1.ovr().bit_is_set() {
-        Err(Error::Overrun)
-    } else if sr1.timeout().bit_is_set() {
-        Err(Error::Timeout)
-    } else {
-        Ok(())
-    }
-}
-
-#[inline]
-fn read_flag(sr1: &sr1::R, flag: Flag) -> bool {
-    match flag {
-        Flag::TxEmpty => sr1.tx_e().bit_is_set(),
-        Flag::RxNotEmpty => sr1.rx_ne().bit_is_set(),
-        Flag::ByteTransferFinished => sr1.btf().bit_is_set(),
-        Flag::Started => sr1.sb().bit_is_set(),
-        Flag::Stopped => sr1.stopf().bit_is_set(),
-        Flag::AddressSent => sr1.addr().bit_is_set(),
-        _ => false,
-    }
 }
 
 // $sync end

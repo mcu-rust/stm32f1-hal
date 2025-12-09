@@ -15,40 +15,40 @@ pub use monotonic::*;
 pub mod syst;
 pub use syst::*;
 #[cfg(any(feature = "stm32f100", feature = "stm32f103", feature = "connectivity"))]
-pub mod timer1;
+mod timer1;
 #[cfg(feature = "xl")]
-pub mod timer10;
+mod timer10;
 #[cfg(feature = "xl")]
-pub mod timer11;
+mod timer11;
 #[cfg(any(feature = "xl", all(feature = "stm32f100", feature = "high",)))]
-pub mod timer12;
+mod timer12;
 #[cfg(any(feature = "xl", all(feature = "stm32f100", feature = "high",)))]
-pub mod timer13;
+mod timer13;
 #[cfg(any(feature = "xl", all(feature = "stm32f100", feature = "high",)))]
-pub mod timer14;
+mod timer14;
 #[cfg(feature = "stm32f100")]
-pub mod timer15;
+mod timer15;
 #[cfg(feature = "stm32f100")]
-pub mod timer16;
+mod timer16;
 #[cfg(feature = "stm32f100")]
-pub mod timer17;
-pub mod timer2;
-pub mod timer3;
+mod timer17;
+mod timer2;
+mod timer3;
 #[cfg(feature = "medium")]
-pub mod timer4;
+mod timer4;
 #[cfg(any(feature = "high", feature = "connectivity"))]
-pub mod timer5;
+mod timer5;
 #[cfg(any(feature = "stm32f100", feature = "high", feature = "connectivity"))]
-pub mod timer6;
+mod timer6;
 #[cfg(any(
     all(feature = "high", any(feature = "stm32f101", feature = "stm32f103")),
     any(feature = "stm32f100", feature = "connectivity")
 ))]
-pub mod timer7;
+mod timer7;
 #[cfg(all(feature = "stm32f103", feature = "high"))]
-pub mod timer8;
+mod timer8;
 #[cfg(feature = "xl")]
-pub mod timer9;
+mod timer9;
 
 pub trait TimerConfig: rcc::Enable + rcc::Reset + rcc::BusTimerClock + GeneralTimer {}
 
