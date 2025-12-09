@@ -1,28 +1,30 @@
 use super::*;
 use crate::common::{dma::*, os::*};
+use core::marker::PhantomData;
 use embedded_io::{ErrorType, Read, Write};
 
 // TX -------------------------------------------------------------------------
 
-pub struct UartDmaBufTx<U, CH, W> {
+pub struct UartDmaBufTx<U, CH, OS> {
     _uart: U,
     w: DmaRingbufTxWriter<u8, CH>,
-    timeout: W,
-    flush_timeout: W,
+    timeout: MicrosDurationU32,
+    flush_timeout: MicrosDurationU32,
+    _os: PhantomData<OS>,
 }
 
-impl<U, CH, W> UartDmaBufTx<U, CH, W>
+impl<U, CH, OS> UartDmaBufTx<U, CH, OS>
 where
     U: UartPeriphWithDma,
     CH: DmaChannel,
-    W: Waiter,
+    OS: OsInterface,
 {
     pub fn new(
         mut uart: U,
         dma_ch: CH,
         buf_size: usize,
-        timeout: W,
-        flush_timeout: W,
+        baudrate: u32,
+        timeout: MicrosDurationU32,
     ) -> (Self, DmaRingbufTxLoader<u8, CH>) {
         uart.enable_dma_tx(true);
         let (w, l) = DmaRingbufTx::new(dma_ch, uart.get_tx_data_reg_addr(), buf_size);
@@ -31,27 +33,28 @@ where
                 _uart: uart,
                 w,
                 timeout,
-                flush_timeout,
+                flush_timeout: calculate_timeout(baudrate, buf_size + buf_size / 2),
+                _os: PhantomData,
             },
             l,
         )
     }
 }
 
-impl<U, CH, W> ErrorType for UartDmaBufTx<U, CH, W>
+impl<U, CH, OS> ErrorType for UartDmaBufTx<U, CH, OS>
 where
     U: UartPeriph,
     CH: DmaChannel,
-    W: Waiter,
+    OS: OsInterface,
 {
     type Error = Error;
 }
 
-impl<U, CH, W> Write for UartDmaBufTx<U, CH, W>
+impl<U, CH, OS> Write for UartDmaBufTx<U, CH, OS>
 where
     U: UartPeriph,
     CH: DmaChannel,
-    W: Waiter,
+    OS: OsInterface,
 {
     #[inline(always)]
     fn write(&mut self, buf: &[u8]) -> Result<usize, Self::Error> {
@@ -59,7 +62,7 @@ where
             return Err(Error::Other);
         }
 
-        let mut t = self.timeout.start();
+        let mut t = OS::start_timeout(self.timeout);
         loop {
             if let n @ 1.. = self.w.write(buf) {
                 return Ok(n);
@@ -71,7 +74,7 @@ where
     }
 
     fn flush(&mut self) -> Result<(), Self::Error> {
-        let mut t = self.flush_timeout.start();
+        let mut t = OS::start_timeout(self.flush_timeout);
         loop {
             if !self.w.in_progress() {
                 return Ok(());
@@ -85,50 +88,52 @@ where
 
 // RX -------------------------------------------------------------------------
 
-pub struct UartDmaRx<U, CH, W> {
+pub struct UartDmaRx<U, CH, OS> {
     _uart: U,
     ch: DmaCircularBufferRx<u8, CH>,
-    timeout: W,
+    timeout: MicrosDurationU32,
+    _os: PhantomData<OS>,
 }
 
-impl<U, CH, W> UartDmaRx<U, CH, W>
+impl<U, CH, OS> UartDmaRx<U, CH, OS>
 where
     U: UartPeriphWithDma,
     CH: DmaChannel,
-    W: Waiter,
+    OS: OsInterface,
 {
-    pub fn new(mut uart: U, dma_ch: CH, buf_size: usize, timeout: W) -> Self {
+    pub fn new(mut uart: U, dma_ch: CH, buf_size: usize, timeout: MicrosDurationU32) -> Self {
         let ch = DmaCircularBufferRx::<u8, CH>::new(dma_ch, uart.get_rx_data_reg_addr(), buf_size);
         uart.enable_dma_rx(true);
         Self {
             _uart: uart,
             ch,
             timeout,
+            _os: PhantomData,
         }
     }
 }
 
-impl<U, CH, W> ErrorType for UartDmaRx<U, CH, W>
+impl<U, CH, OS> ErrorType for UartDmaRx<U, CH, OS>
 where
     U: UartPeriph,
     CH: DmaChannel,
-    W: Waiter,
+    OS: OsInterface,
 {
     type Error = Error;
 }
 
-impl<U, CH, W> Read for UartDmaRx<U, CH, W>
+impl<U, CH, OS> Read for UartDmaRx<U, CH, OS>
 where
     U: UartPeriph,
     CH: DmaChannel,
-    W: Waiter,
+    OS: OsInterface,
 {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
         if buf.is_empty() {
             return Err(Error::Other);
         }
 
-        let mut t = self.timeout.start();
+        let mut t = OS::start_timeout(self.timeout);
         loop {
             if let Some(d) = self.ch.pop_slice(buf.len()) {
                 buf[..d.len()].copy_from_slice(d);

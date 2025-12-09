@@ -2,37 +2,40 @@
 
 use super::*;
 use crate::common::os::*;
+use core::marker::PhantomData;
 use embedded_hal_nb as e_nb;
 use embedded_io as e_io;
 
 // TX -------------------------------------------------------------------------
 
-pub struct UartPollTx<U, W> {
+pub struct UartPollTx<U, OS> {
     uart: U,
-    timeout: W,
-    flush_timeout: W,
+    timeout: MicrosDurationU32,
+    flush_timeout: MicrosDurationU32,
+    _os: PhantomData<OS>,
 }
 
-impl<U: UartPeriph, W: Waiter> UartPollTx<U, W> {
-    pub fn new(uart: U, timeout: W, flush_timeout: W) -> Self {
+impl<U: UartPeriph, OS: OsInterface> UartPollTx<U, OS> {
+    pub fn new(uart: U, baudrate: u32, timeout: MicrosDurationU32) -> Self {
         Self {
             uart,
             timeout,
-            flush_timeout,
+            flush_timeout: calculate_timeout(baudrate, 4),
+            _os: PhantomData,
         }
     }
 }
 
-impl<U: UartPeriph, W: Waiter> e_nb::serial::ErrorType for UartPollTx<U, W> {
+impl<U: UartPeriph, OS: OsInterface> e_nb::serial::ErrorType for UartPollTx<U, OS> {
     type Error = Error;
 }
-impl<U: UartPeriph, W: Waiter> e_io::ErrorType for UartPollTx<U, W> {
+impl<U: UartPeriph, OS: OsInterface> e_io::ErrorType for UartPollTx<U, OS> {
     type Error = Error;
 }
 
 // NB Write ----
 
-impl<U: UartPeriph, W: Waiter> e_nb::serial::Write<u16> for UartPollTx<U, W> {
+impl<U: UartPeriph, OS: OsInterface> e_nb::serial::Write<u16> for UartPollTx<U, OS> {
     #[inline]
     fn write(&mut self, word: u16) -> nb::Result<(), Self::Error> {
         self.uart.write(word)
@@ -49,14 +52,14 @@ impl<U: UartPeriph, W: Waiter> e_nb::serial::Write<u16> for UartPollTx<U, W> {
 
 // IO Write ----
 
-impl<U: UartPeriph, W: Waiter> e_io::Write for UartPollTx<U, W> {
+impl<U: UartPeriph, OS: OsInterface> e_io::Write for UartPollTx<U, OS> {
     fn write(&mut self, buf: &[u8]) -> Result<usize, Self::Error> {
         if buf.is_empty() {
             return Err(Error::Other);
         }
 
         // try first data
-        let mut t = self.timeout.start();
+        let mut t = OS::start_timeout(self.timeout);
         let rst = loop {
             let rst = self.uart.write(buf[0] as u16);
             if let Err(nb::Error::WouldBlock) = rst {
@@ -84,7 +87,7 @@ impl<U: UartPeriph, W: Waiter> e_io::Write for UartPollTx<U, W> {
     }
 
     fn flush(&mut self) -> Result<(), Self::Error> {
-        let mut t = self.flush_timeout.start();
+        let mut t = OS::start_timeout(self.flush_timeout);
         loop {
             if self.uart.is_tx_complete() {
                 return Ok(());
@@ -100,32 +103,34 @@ impl<U: UartPeriph, W: Waiter> e_io::Write for UartPollTx<U, W> {
 
 // RX -------------------------------------------------------------------------
 
-pub struct UartPollRx<U, W> {
+pub struct UartPollRx<U, OS> {
     uart: U,
-    timeout: W,
-    continue_timeout: W,
+    timeout: MicrosDurationU32,
+    continue_timeout: MicrosDurationU32,
+    _os: PhantomData<OS>,
 }
 
-impl<U: UartPeriph, W: Waiter> UartPollRx<U, W> {
-    pub fn new(uart: U, timeout: W, continue_timeout: W) -> Self {
+impl<U: UartPeriph, OS: OsInterface> UartPollRx<U, OS> {
+    pub fn new(uart: U, baudrate: u32, timeout: MicrosDurationU32) -> Self {
         Self {
             uart,
             timeout,
-            continue_timeout,
+            continue_timeout: calculate_timeout(baudrate, 4),
+            _os: PhantomData,
         }
     }
 }
 
-impl<U: UartPeriph, W: Waiter> e_nb::serial::ErrorType for UartPollRx<U, W> {
+impl<U: UartPeriph, OS: OsInterface> e_nb::serial::ErrorType for UartPollRx<U, OS> {
     type Error = Error;
 }
-impl<U: UartPeriph, W: Waiter> e_io::ErrorType for UartPollRx<U, W> {
+impl<U: UartPeriph, OS: OsInterface> e_io::ErrorType for UartPollRx<U, OS> {
     type Error = Error;
 }
 
 // NB Read ----
 
-impl<U: UartPeriph, W: Waiter> e_nb::serial::Read<u16> for UartPollRx<U, W> {
+impl<U: UartPeriph, OS: OsInterface> e_nb::serial::Read<u16> for UartPollRx<U, OS> {
     #[inline]
     fn read(&mut self) -> nb::Result<u16, Self::Error> {
         self.uart.read()
@@ -134,14 +139,14 @@ impl<U: UartPeriph, W: Waiter> e_nb::serial::Read<u16> for UartPollRx<U, W> {
 
 // IO Read ----
 
-impl<U: UartPeriph, W: Waiter> e_io::Read for UartPollRx<U, W> {
+impl<U: UartPeriph, OS: OsInterface> e_io::Read for UartPollRx<U, OS> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
         if buf.is_empty() {
             return Err(Error::Other);
         }
 
         // try first data
-        let mut t = self.timeout.start();
+        let mut t = OS::start_timeout(self.timeout);
         let rst = loop {
             let rst = self.uart.read();
             if let Err(nb::Error::WouldBlock) = rst {
@@ -158,7 +163,7 @@ impl<U: UartPeriph, W: Waiter> e_io::Read for UartPollRx<U, W> {
             _ => return Err(Error::Other),
         }
 
-        let mut t = self.continue_timeout.start();
+        let mut t = OS::start_timeout(self.continue_timeout);
         let mut n = 1;
         while n < buf.len() {
             match self.uart.read() {

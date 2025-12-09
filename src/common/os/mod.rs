@@ -5,14 +5,15 @@ pub mod mutex_impls;
 pub mod notifier;
 pub mod notifier_impls;
 pub mod os_impls;
+pub mod timeout;
 
 pub use mutex_impls::*;
 pub use notifier::*;
 pub use notifier_impls::*;
 pub use os_impls::*;
+pub use timeout::*;
 
 pub use fugit::{ExtU32, MicrosDurationU32};
-pub use waiter_trait::{Waiter, WaiterStatus};
 
 use mutex_traits::{ConstInit, RawMutex};
 
@@ -25,7 +26,7 @@ use mutex_traits::{ConstInit, RawMutex};
 /// ```
 /// use stm32f1_hal::common::os::*;
 ///
-/// fn os_apis<OS: OsInterface>() {
+/// fn os_interface<OS: OsInterface>() {
 ///     let mutex = OS::mutex(2);
 ///
 ///     let mut guard = mutex.try_lock().unwrap();
@@ -36,11 +37,11 @@ use mutex_traits::{ConstInit, RawMutex};
 /// }
 ///
 /// fn select_os() {
-///     os_apis::<FakeOs>();
-///     os_apis::<StdOs>();
+///     os_interface::<FakeOs>();
+///     os_interface::<StdOs>();
 /// }
 /// ```
-pub trait OsInterface {
+pub trait OsInterface: Send + Sync {
     type RawMutex: ConstInit + RawMutex;
 
     #[inline]
@@ -50,6 +51,7 @@ pub trait OsInterface {
 
     fn yield_thread();
     fn sleep(dur: MicrosDurationU32);
-    fn notifier_isr() -> (impl NotifierIsr, impl NotifyReceiver);
-    fn notifier() -> (impl Notifier, impl NotifyReceiver);
+    fn start_timeout(dur: MicrosDurationU32) -> impl TimeoutStatus;
+    fn notifier_isr() -> (impl NotifierIsr, impl NotifyWaiter);
+    fn notifier() -> (impl Notifier, impl NotifyWaiter);
 }

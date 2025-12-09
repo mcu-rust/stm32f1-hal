@@ -22,6 +22,7 @@ cfg_if::cfg_if! {
         pub use cortex_m;
         pub use cortex_m_rt;
         pub mod i2c;
+        pub mod raw_os;
     }
 }
 
@@ -31,7 +32,6 @@ pub use common::os;
 pub use common::ringbuf;
 pub use common::simplest_heap::Heap;
 pub use mutex_traits;
-pub use waiter_trait;
 
 pub use embedded_hal;
 pub use embedded_io;

@@ -3,53 +3,56 @@
 use super::*;
 use crate::common::os::*;
 use crate::ringbuf::*;
+use core::marker::PhantomData;
 use embedded_io::{ErrorType, Read, Write};
 
 // TX -------------------------------------------------------------------------
 
-pub struct UartInterruptTx<U, W> {
+pub struct UartInterruptTx<U, OS> {
     uart: U,
+    timeout: MicrosDurationU32,
+    flush_timeout: MicrosDurationU32,
     w: Producer<u8>,
-    timeout: W,
-    flush_timeout: W,
+    _os: PhantomData<OS>,
 }
 
-impl<U, W> UartInterruptTx<U, W>
+impl<U, OS> UartInterruptTx<U, OS>
 where
     U: UartPeriph,
-    W: Waiter,
+    OS: OsInterface,
 {
     pub fn new(
         uart: [U; 2],
         buf_size: usize,
-        timeout: W,
-        flush_timeout: W,
+        baudrate: u32,
+        timeout: MicrosDurationU32,
     ) -> (Self, UartInterruptTxHandler<U>) {
         let [uart, u2] = uart;
         let (w, r) = RingBuffer::<u8>::new(buf_size);
         (
             Self {
                 uart,
-                w,
                 timeout,
-                flush_timeout,
+                flush_timeout: calculate_timeout(baudrate, buf_size + buf_size / 2),
+                w,
+                _os: PhantomData,
             },
             UartInterruptTxHandler::new(u2, r),
         )
     }
 }
 
-impl<U: UartPeriph, W: Waiter> ErrorType for UartInterruptTx<U, W> {
+impl<U: UartPeriph, OS: OsInterface> ErrorType for UartInterruptTx<U, OS> {
     type Error = Error;
 }
 
-impl<U: UartPeriph, W: Waiter> Write for UartInterruptTx<U, W> {
+impl<U: UartPeriph, OS: OsInterface> Write for UartInterruptTx<U, OS> {
     fn write(&mut self, buf: &[u8]) -> Result<usize, Self::Error> {
         if buf.is_empty() {
             return Err(Error::Other);
         }
 
-        let mut t = self.timeout.start();
+        let mut t = OS::start_timeout(self.timeout);
         loop {
             if let n @ 1.. = self.w.push_slice(buf) {
                 self.uart.set_interrupt(Event::TxEmpty, true);
@@ -66,7 +69,7 @@ impl<U: UartPeriph, W: Waiter> Write for UartInterruptTx<U, W> {
     }
 
     fn flush(&mut self) -> Result<(), Self::Error> {
-        let mut t = self.flush_timeout.start();
+        let mut t = OS::start_timeout(self.flush_timeout);
         loop {
             if self.uart.is_tx_complete() && self.w.slots() == self.w.buffer().capacity() {
                 return Ok(());
@@ -113,42 +116,52 @@ where
 
 // RX -------------------------------------------------------------------------
 
-pub struct UartInterruptRx<U, W> {
+pub struct UartInterruptRx<U, OS> {
     uart: U,
+    timeout: MicrosDurationU32,
     r: Consumer<u8>,
-    timeout: W,
+    _os: PhantomData<OS>,
 }
 
-impl<U, W> UartInterruptRx<U, W>
+impl<U, OS> UartInterruptRx<U, OS>
 where
     U: UartPeriph,
-    W: Waiter,
+    OS: OsInterface,
 {
-    pub fn new(uart: [U; 2], buf_size: usize, timeout: W) -> (Self, UartInterruptRxHandler<U>) {
+    pub fn new(
+        uart: [U; 2],
+        buf_size: usize,
+        timeout: MicrosDurationU32,
+    ) -> (Self, UartInterruptRxHandler<U>) {
         let [uart, u2] = uart;
         let (w, r) = RingBuffer::<u8>::new(buf_size);
         (
-            Self { uart, r, timeout },
+            Self {
+                uart,
+                timeout,
+                r,
+                _os: PhantomData,
+            },
             UartInterruptRxHandler::new(u2, w),
         )
     }
 }
 
-impl<U: UartPeriph, W: Waiter> ErrorType for UartInterruptRx<U, W> {
+impl<U: UartPeriph, OS: OsInterface> ErrorType for UartInterruptRx<U, OS> {
     type Error = Error;
 }
 
-impl<U, W> Read for UartInterruptRx<U, W>
+impl<U, OS> Read for UartInterruptRx<U, OS>
 where
     U: UartPeriph,
-    W: Waiter,
+    OS: OsInterface,
 {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
         if buf.is_empty() {
             return Err(Error::Other);
         }
 
-        let mut t = self.timeout.start();
+        let mut t = OS::start_timeout(self.timeout);
         loop {
             if let n @ 1.. = self.r.pop_slice(buf) {
                 return Ok(n);

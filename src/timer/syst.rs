@@ -2,10 +2,10 @@
 
 use super::*;
 use crate::Mcu;
+use crate::os::timeout::TickInstant;
 use core::ops::{Deref, DerefMut};
 use cortex_m::peripheral::{SYST, syst::SystClkSource};
-use fugit::{HertzU32 as Hertz, MicrosDurationU32, TimerDurationU32, TimerInstantU32};
-use waiter_trait::{NonInterval, TickInstant, TickWaiter};
+use fugit::{HertzU32 as Hertz, TimerDurationU32, TimerInstantU32};
 
 pub trait SysTimerInit: Sized {
     /// Creates timer which takes [Hertz] as Duration
@@ -27,6 +27,8 @@ impl SysTimerInit for SYST {
     }
 }
 
+pub static TIMEOUT: TickTimeout<SysTickInstant> = TickTimeout::<SysTickInstant>::empty();
+
 pub struct SystemTimer {
     pub(super) syst: SYST,
     pub(super) clk: Hertz,
@@ -35,19 +37,17 @@ impl SystemTimer {
     /// Initialize SysTick timer
     pub fn syst(mut syst: SYST, mcu: &Mcu) -> Self {
         syst.set_clock_source(SystClkSource::Core);
-        Self {
-            syst,
-            clk: mcu.rcc.clocks.hclk(),
-        }
+        let clk = mcu.rcc.clocks.hclk();
+        TIMEOUT.set(clk.raw());
+        Self { syst, clk }
     }
 
     /// Initialize SysTick timer and set it frequency to `HCLK / 8`
     pub fn syst_external(mut syst: SYST, mcu: &Mcu) -> Self {
         syst.set_clock_source(SystClkSource::External);
-        Self {
-            syst,
-            clk: mcu.rcc.clocks.hclk() / 8,
-        }
+        let clk = mcu.rcc.clocks.hclk() / 8;
+        TIMEOUT.set(clk.raw());
+        Self { syst, clk }
     }
 
     pub fn release(self) -> SYST {
@@ -73,13 +73,6 @@ impl SystemTimer {
         // According to the Cortex-M3 Generic User Guide, the interrupt request is only generated
         // when the counter goes from 1 to 0, so writing zero should not trigger an interrupt
         self.syst.clear_current();
-    }
-
-    pub fn waiter(
-        &self,
-        timeout: MicrosDurationU32,
-    ) -> TickWaiter<SysTickInstant, NonInterval, u32> {
-        TickWaiter::us(timeout, NonInterval::new(), self.clk.raw())
     }
 }
 

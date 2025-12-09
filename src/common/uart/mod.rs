@@ -1,4 +1,5 @@
 mod uart_dma;
+use fugit::MicrosDurationU32;
 pub use uart_dma::*;
 mod uart_it;
 pub use uart_it::*;
@@ -224,4 +225,10 @@ impl Config {
         self.stop_bits = stop_bits;
         self
     }
+}
+
+#[inline]
+const fn calculate_timeout(baudrate: u32, data_len: usize) -> MicrosDurationU32 {
+    let bytes_in_sec = baudrate / 12;
+    MicrosDurationU32::from_ticks((data_len * 1_000_000) as u32 / bytes_in_sec)
 }

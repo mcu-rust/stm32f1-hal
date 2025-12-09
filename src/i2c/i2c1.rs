@@ -1,5 +1,4 @@
 type I2cX = pac::I2C1;
-use pac::i2c1::sr1;
 
 // $sync begin
 

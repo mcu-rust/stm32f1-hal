@@ -17,11 +17,11 @@ use stm32f1_hal::{
     nvic_scb::PriorityGrouping,
     pac::{self, Interrupt},
     prelude::*,
+    raw_os::RawOs as MyOs,
     rcc,
     time::MonoTimer,
     timer::{CountDirection, PwmMode, PwmPolarity, SystemTimer},
     uart::{self, UartConfig},
-    waiter_trait::{self, Counter, prelude::*},
 };
 
 mod led_task;
@@ -112,9 +112,7 @@ fn main() -> ! {
     let mut led = gpiob
         .pb0
         .into_open_drain_output_with_state(&mut gpiob.crl, PinState::High);
-    let mut water = sys_timer.waiter(1.secs());
-    // let water = mono_timer.waiter(1.secs());
-    let mut led_task = LedTask::new(led, water.start());
+    let mut led_task = LedTask::new(led, MyOs::start_timeout(1.secs()));
 
     // PWM --------------------------------------
 
@@ -161,8 +159,8 @@ fn uart_poll_init<U: UartConfig>(
     tx: uart::Tx<U>,
     rx: uart::Rx<U>,
 ) -> UartPollTask<impl embedded_io::Write, impl embedded_io::Read> {
-    let uart_rx = rx.into_poll(Counter::new(0), Counter::new(1_000));
-    let uart_tx = tx.into_poll(Counter::new(0), Counter::new(10_000));
+    let uart_rx = rx.into_poll::<MyOs>(0.micros());
+    let uart_tx = tx.into_poll::<MyOs>(0.micros());
     UartPollTask::new(32, uart_tx, uart_rx)
 }
 
@@ -173,12 +171,8 @@ fn uart_interrupt_init<U: UartConfig + 'static>(
     mcu: &mut Mcu,
     timer: &SystemTimer,
 ) -> UartPollTask<impl embedded_io::Write + 'static, impl embedded_io::Read + 'static> {
-    let (rx, mut rx_it) = rx.into_interrupt(64, timer.waiter(100.micros()));
-    let (tx, mut tx_it) = tx.into_interrupt(
-        32,
-        timer.waiter(0.micros()),
-        timer.waiter(32 * 200.micros()),
-    );
+    let (rx, mut rx_it) = rx.into_interrupt::<MyOs>(64, 100.micros());
+    let (tx, mut tx_it) = tx.into_interrupt::<MyOs>(32, 0.micros());
     interrupt_callback.set(mcu, move || {
         rx_it.handler();
         tx_it.handler();
@@ -195,14 +189,9 @@ fn uart_dma_init<'r, U: UartConfig + UartPeriphWithDma + 'static>(
     mcu: &mut Mcu,
     timer: &SystemTimer,
 ) -> UartPollTask<impl embedded_io::Write + 'static, impl embedded_io::Read + 'r> {
-    let uart_rx = rx.into_dma_circle(dma_rx, 64, timer.waiter(100.micros()));
+    let uart_rx = rx.into_dma_circle(dma_rx, 64, 100.micros(), MyOs {});
     dma_tx.set_interrupt(DmaEvent::TransferComplete, true);
-    let (uart_tx, mut tx_it) = tx.into_dma_ringbuf(
-        dma_tx,
-        32,
-        timer.waiter(0.micros()),
-        timer.waiter(32 * 200.micros()),
-    );
+    let (uart_tx, mut tx_it) = tx.into_dma_ringbuf(dma_tx, 32, 0.micros(), MyOs {});
     interrupt_callback.set(mcu, move || {
         tx_it.interrupt_reload();
     });

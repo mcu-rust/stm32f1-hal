@@ -3,7 +3,6 @@ use super::*;
 use crate::common::os::*;
 use crate::common::ringbuf::{Consumer, Producer, RingBuffer};
 use core::sync::atomic::{AtomicU16, Ordering};
-use waiter_trait::{Waiter, WaiterStatus};
 
 pub struct I2cBusInterrupt<T> {
     i2c: T,

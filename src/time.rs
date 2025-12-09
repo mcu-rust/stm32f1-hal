@@ -32,8 +32,8 @@
 use core::ops;
 use cortex_m::peripheral::{DCB, DWT};
 
+use crate::os::{tick::TickTimeout, timeout::*};
 use crate::rcc::Clocks;
-use waiter_trait::{NonInterval, TickInstant, TickWaiter};
 
 /// Bits per second
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Debug)]
@@ -128,12 +128,14 @@ pub struct MonoTimer {
     frequency: Hertz,
 }
 
+pub static TIMEOUT: TickTimeout<DwtInstant> = TickTimeout::<DwtInstant>::empty();
+
 impl MonoTimer {
     /// Creates a new `Monotonic` timer
     pub fn new(mut dwt: DWT, mut dcb: DCB, clocks: &Clocks) -> Self {
         dcb.enable_trace();
         dwt.enable_cycle_counter();
-
+        TIMEOUT.set(clocks.hclk().raw());
         // now the CYCCNT counter can't be stopped or reset
 
         MonoTimer {
@@ -151,10 +153,6 @@ impl MonoTimer {
         Instant {
             now: DWT::cycle_count(),
         }
-    }
-
-    pub fn waiter(&self, timeout: MicroSeconds) -> TickWaiter<DwtInstant, NonInterval, u32> {
-        TickWaiter::us(timeout, NonInterval::new(), self.frequency.raw())
     }
 }
 
