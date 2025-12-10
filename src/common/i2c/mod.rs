@@ -1,5 +1,7 @@
-pub mod i2c_master_it;
+mod i2c_master_it;
 mod utils;
+
+pub use i2c_master_it::*;
 
 use crate::common::{
     embedded_hal::i2c::{ErrorKind, NoAcknowledgeSource},

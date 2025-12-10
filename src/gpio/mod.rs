@@ -73,16 +73,15 @@
 //! let mut mfrc522 = Mfrc522::new(spi, OldOutputPin::from(nss)).unwrap();
 //! ```
 
-use core::marker::PhantomData;
+mod erased;
+mod impl_hal;
+mod partially_erased;
 
 use crate::{Steal, afio, pac::EXTI, rcc::Rcc};
+use core::marker::PhantomData;
 
-mod partially_erased;
-pub use partially_erased::{PEPin, PartiallyErasedPin};
-mod erased;
 pub use erased::{AnyPin, ErasedPin};
-
-mod impl_hal;
+pub use partially_erased::{PEPin, PartiallyErasedPin};
 
 /// Slew rates available for Output and relevant AlternateMode Pins
 ///

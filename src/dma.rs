@@ -1,9 +1,9 @@
 //! # Direct Memory Access
 
-use crate::{Steal, common::wrap_trait::*, pac, rcc::Rcc};
-
 pub use crate::common::dma::*;
 pub type DmaPriority = pac::dma1::ch::cr::PL;
+
+use crate::{Steal, common::wrap_trait::*, pac, rcc::Rcc};
 
 pub trait DmaInit {
     type Channels;

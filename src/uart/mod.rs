@@ -1,10 +1,11 @@
 #[cfg(any(all(feature = "stm32f103", feature = "high"), feature = "connectivity"))]
 mod uart4;
 #[cfg(any(all(feature = "stm32f103", feature = "high"), feature = "connectivity"))]
-pub mod uart5;
+mod uart5;
 mod usart1;
 mod usart2;
 mod usart3;
+
 pub use crate::common::uart::*;
 
 use crate::{

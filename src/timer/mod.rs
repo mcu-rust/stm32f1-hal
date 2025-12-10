@@ -1,19 +1,6 @@
-use crate::{
-    Mcu, Steal,
-    afio::{RemapMode, timer_remap::*},
-    pac::DBGMCU as DBG,
-    rcc,
-    time::Hertz,
-};
-
-pub use crate::common::timer::*;
-
 #[cfg(feature = "rtic")]
-pub mod monotonic;
-#[cfg(feature = "rtic")]
-pub use monotonic::*;
-pub mod syst;
-pub use syst::*;
+mod monotonic;
+mod syst;
 #[cfg(any(feature = "stm32f100", feature = "stm32f103", feature = "connectivity"))]
 mod timer1;
 #[cfg(feature = "xl")]
@@ -49,6 +36,19 @@ mod timer7;
 mod timer8;
 #[cfg(feature = "xl")]
 mod timer9;
+
+pub use crate::common::timer::*;
+#[cfg(feature = "rtic")]
+pub use monotonic::*;
+pub use syst::*;
+
+use crate::{
+    Mcu, Steal,
+    afio::{RemapMode, timer_remap::*},
+    pac::DBGMCU as DBG,
+    rcc,
+    time::Hertz,
+};
 
 pub trait TimerConfig: rcc::Enable + rcc::Reset + rcc::BusTimerClock + GeneralTimer {}
 

@@ -4,30 +4,39 @@
 #![allow(unused_variables)]
 #![allow(unused_mut)]
 
+mod led_task;
+mod uart_task;
+
 use core::{mem::MaybeUninit, panic::PanicInfo};
+use led_task::LedTask;
+use uart_task::UartPollTask;
+
+// Basic
 use stm32f1_hal::{
-    self as hal, Heap, Mcu, Steal,
-    afio::{NONE_PIN, RemapDefault},
+    self as hal, Mcu,
     cortex_m::asm,
     cortex_m_rt::entry,
+    gpio::{Edge, ExtiPin, PinState},
+    prelude::*,
+    rcc,
+};
+
+use hal::{
+    Heap, Steal,
+    afio::{NONE_PIN, RemapDefault},
     dma::{DmaBindRx, DmaBindTx, DmaEvent, DmaPriority},
     embedded_hal::{self, pwm::SetDutyCycle},
     embedded_io,
-    gpio::{Edge, ExtiPin, PinState},
     nvic_scb::PriorityGrouping,
+    os_trait::TimeoutState,
     pac::{self, Interrupt},
-    prelude::*,
     raw_os::RawOs as MyOs,
-    rcc,
     time::MonoTimer,
     timer::{CountDirection, PwmMode, PwmPolarity, SystemTimer},
     uart::{self, UartConfig},
 };
 
-mod led_task;
-use led_task::LedTask;
-mod uart_task;
-use uart_task::UartPollTask;
+type OsTimeout = <MyOs as OsInterface>::Timeout;
 
 #[global_allocator]
 static HEAP: Heap = Heap::empty();
@@ -112,7 +121,7 @@ fn main() -> ! {
     let mut led = gpiob
         .pb0
         .into_open_drain_output_with_state(&mut gpiob.crl, PinState::High);
-    let mut led_task = LedTask::new(led, MyOs::start_timeout(1.secs()));
+    let mut led_task = LedTask::new(led, OsTimeout::start_ms(200));
 
     // PWM --------------------------------------
 

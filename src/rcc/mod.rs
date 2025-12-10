@@ -1,20 +1,19 @@
 //! # Reset & Control Clock
 
-use core::ops::{Deref, DerefMut};
+mod enable;
 
-use crate::pac::{
-    BKP, PWR, RCC,
-    rcc::{self, RegisterBlock as RccRB},
-};
-
-use crate::flash::ACR;
 #[cfg(any(feature = "stm32f103", feature = "connectivity"))]
 use crate::time::MHz;
-use fugit::{HertzU32 as Hertz, RateExtU32};
-
-use crate::backup_domain::BackupDomain;
-
-mod enable;
+use crate::{
+    backup_domain::BackupDomain,
+    flash::ACR,
+    fugit::{HertzU32 as Hertz, RateExtU32},
+    pac::{
+        BKP, PWR, RCC,
+        rcc::{self, RegisterBlock as RccRB},
+    },
+};
+use core::ops::{Deref, DerefMut};
 
 pub trait RccInit {
     fn init(self) -> Rcc;

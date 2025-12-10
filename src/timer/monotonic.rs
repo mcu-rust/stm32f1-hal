@@ -2,7 +2,6 @@
 
 use super::*;
 use core::ops::{Deref, DerefMut};
-pub use fugit::{self, ExtU32};
 
 pub struct MonoTimer<TIM, const FREQ: u32> {
     pub(super) timer: FTimer<TIM, FREQ>,

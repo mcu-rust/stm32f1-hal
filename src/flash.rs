@@ -2,14 +2,13 @@
 
 use crate::pac::{FLASH, flash};
 
+pub const SZ_1K: u16 = 1024;
 pub const FLASH_START: u32 = 0x0800_0000;
 pub const FLASH_END: u32 = 0x080F_FFFF;
 
 const _RDPRT_KEY: u16 = 0x00A5;
 const KEY1: u32 = 0x45670123;
 const KEY2: u32 = 0xCDEF89AB;
-
-pub const SZ_1K: u16 = 1024;
 
 pub type Result<T> = core::result::Result<T, Error>;
 
