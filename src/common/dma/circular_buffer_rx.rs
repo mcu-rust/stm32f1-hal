@@ -1,6 +1,4 @@
 use super::*;
-#[cfg(not(feature = "std"))]
-use crate::common::os::*;
 
 /// A buffer used for DMA cyclic data reception, continuously read by the user.
 pub struct DmaCircularBufferRx<T: Sized, CH> {

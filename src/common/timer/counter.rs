@@ -1,6 +1,8 @@
 use super::{Error, Event, FTimer, GeneralTimer};
+use crate::common::fugit::{
+    HertzU32 as Hertz, MicrosDurationU32, TimerDurationU32, TimerInstantU32,
+};
 use core::ops::{Deref, DerefMut};
-use fugit::{HertzU32 as Hertz, MicrosDurationU32, TimerDurationU32, TimerInstantU32};
 
 /// Hardware timers
 pub struct CounterHz<TIM> {

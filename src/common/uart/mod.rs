@@ -1,16 +1,14 @@
 mod uart_dma;
-use fugit::MicrosDurationU32;
-pub use uart_dma::*;
 mod uart_it;
-pub use uart_it::*;
 mod uart_poll;
+
+pub use uart_dma::*;
+pub use uart_it::*;
 pub use uart_poll::*;
 
+use crate::common::{embedded_hal_nb as e_nb, embedded_io as e_io, fugit::MicrosDurationU32};
+use crate::os_trait::prelude::*;
 use core::fmt::Display;
-use embedded_hal_nb as e_nb;
-use embedded_io as e_io;
-
-pub use core::convert::Infallible;
 
 // ------------------------------------------------------------------------------------------------
 
@@ -229,6 +227,6 @@ impl Config {
 
 #[inline]
 const fn calculate_timeout(baudrate: u32, data_len: usize) -> MicrosDurationU32 {
-    let bytes_in_sec = baudrate / 12;
-    MicrosDurationU32::from_ticks((data_len * 1_000_000) as u32 / bytes_in_sec)
+    let bytes_per_sec = baudrate / 12;
+    MicrosDurationU32::micros((data_len * 1_000_000) as u32 / bytes_per_sec)
 }

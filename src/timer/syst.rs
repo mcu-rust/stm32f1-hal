@@ -2,10 +2,10 @@
 
 use super::*;
 use crate::Mcu;
-use crate::os::timeout::TickInstant;
+use crate::os_trait::{utils::FrequencyHolder, *};
 use core::ops::{Deref, DerefMut};
 use cortex_m::peripheral::{SYST, syst::SystClkSource};
-use fugit::{HertzU32 as Hertz, TimerDurationU32, TimerInstantU32};
+use fugit::{HertzU32 as Hertz, RateExtU32, TimerDurationU32, TimerInstantU32};
 
 pub trait SysTimerInit: Sized {
     /// Creates timer which takes [Hertz] as Duration
@@ -27,7 +27,8 @@ impl SysTimerInit for SYST {
     }
 }
 
-pub static TIMEOUT: TickTimeout<SysTickInstant> = TickTimeout::<SysTickInstant>::empty();
+pub static FREQUENCY: FrequencyHolder<SysTickInstant> =
+    FrequencyHolder::<SysTickInstant>::new(KilohertzU32::MHz(1));
 
 pub struct SystemTimer {
     pub(super) syst: SYST,
@@ -38,7 +39,7 @@ impl SystemTimer {
     pub fn syst(mut syst: SYST, mcu: &Mcu) -> Self {
         syst.set_clock_source(SystClkSource::Core);
         let clk = mcu.rcc.clocks.hclk();
-        TIMEOUT.set(clk.raw());
+        FREQUENCY.set(clk.to_kHz().kHz());
         Self { syst, clk }
     }
 
@@ -46,7 +47,7 @@ impl SystemTimer {
     pub fn syst_external(mut syst: SYST, mcu: &Mcu) -> Self {
         syst.set_clock_source(SystClkSource::External);
         let clk = mcu.rcc.clocks.hclk() / 8;
-        TIMEOUT.set(clk.raw());
+        FREQUENCY.set(clk.to_kHz().kHz());
         Self { syst, clk }
     }
 
@@ -221,6 +222,10 @@ pub struct SysTickInstant {
     tick: u32,
 }
 impl TickInstant for SysTickInstant {
+    fn frequency() -> KilohertzU32 {
+        FREQUENCY.get()
+    }
+
     #[inline(always)]
     fn now() -> Self {
         Self {

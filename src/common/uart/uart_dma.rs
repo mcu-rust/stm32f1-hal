@@ -1,7 +1,9 @@
 use super::*;
-use crate::common::{dma::*, os::*};
+use crate::common::{
+    dma::*,
+    embedded_io::{ErrorType, Read, Write},
+};
 use core::marker::PhantomData;
-use embedded_io::{ErrorType, Read, Write};
 
 // TX -------------------------------------------------------------------------
 
@@ -33,7 +35,7 @@ where
                 _uart: uart,
                 w,
                 timeout,
-                flush_timeout: calculate_timeout(baudrate, buf_size + buf_size / 2),
+                flush_timeout: calculate_timeout(baudrate, buf_size + 10),
                 _os: PhantomData,
             },
             l,
@@ -62,7 +64,7 @@ where
             return Err(Error::Other);
         }
 
-        let mut t = OS::start_timeout(self.timeout);
+        let mut t = OS::Timeout::start_us(self.timeout.to_micros());
         loop {
             if let n @ 1.. = self.w.write(buf) {
                 return Ok(n);
@@ -74,7 +76,7 @@ where
     }
 
     fn flush(&mut self) -> Result<(), Self::Error> {
-        let mut t = OS::start_timeout(self.flush_timeout);
+        let mut t = OS::Timeout::start_us(self.flush_timeout.to_micros());
         loop {
             if !self.w.in_progress() {
                 return Ok(());
@@ -133,7 +135,7 @@ where
             return Err(Error::Other);
         }
 
-        let mut t = OS::start_timeout(self.timeout);
+        let mut t = OS::Timeout::start_us(self.timeout.to_micros());
         loop {
             if let Some(d) = self.ch.pop_slice(buf.len()) {
                 buf[..d.len()].copy_from_slice(d);

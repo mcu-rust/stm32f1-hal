@@ -5,6 +5,7 @@ pub use crate::common::i2c::*;
 use crate::{
     Steal,
     afio::{RemapMode, i2c_remap::*},
+    embedded_hal::i2c::NoAcknowledgeSource,
     // dma::{DmaBindRx, DmaBindTx, DmaRingbufTxLoader},
     rcc::{BusClock, Enable, Reset},
 };

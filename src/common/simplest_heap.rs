@@ -1,7 +1,9 @@
-use core::alloc::{GlobalAlloc, Layout};
-use core::cell::{Cell, RefCell};
-use core::ptr;
-use critical_section::Mutex;
+use crate::common::critical_section::Mutex;
+use core::{
+    alloc::{GlobalAlloc, Layout},
+    cell::{Cell, RefCell},
+    ptr,
+};
 
 /// The simplest possible heap.
 ///

@@ -32,7 +32,7 @@
 use core::ops;
 use cortex_m::peripheral::{DCB, DWT};
 
-use crate::os::{tick::TickTimeout, timeout::*};
+use crate::os_trait::{KilohertzU32, fugit::RateExtU32, prelude::*, utils::FrequencyHolder};
 use crate::rcc::Clocks;
 
 /// Bits per second
@@ -128,14 +128,15 @@ pub struct MonoTimer {
     frequency: Hertz,
 }
 
-pub static TIMEOUT: TickTimeout<DwtInstant> = TickTimeout::<DwtInstant>::empty();
+pub static FREQUENCY: FrequencyHolder<DwtInstant> =
+    FrequencyHolder::<DwtInstant>::new(KilohertzU32::MHz(1));
 
 impl MonoTimer {
     /// Creates a new `Monotonic` timer
     pub fn new(mut dwt: DWT, mut dcb: DCB, clocks: &Clocks) -> Self {
         dcb.enable_trace();
         dwt.enable_cycle_counter();
-        TIMEOUT.set(clocks.hclk().raw());
+        FREQUENCY.set(clocks.hclk().to_kHz().kHz());
         // now the CYCCNT counter can't be stopped or reset
 
         MonoTimer {
@@ -177,6 +178,10 @@ pub struct DwtInstant {
     tick: u32,
 }
 impl TickInstant for DwtInstant {
+    fn frequency() -> KilohertzU32 {
+        FREQUENCY.get()
+    }
+
     #[inline(always)]
     fn now() -> Self {
         Self {

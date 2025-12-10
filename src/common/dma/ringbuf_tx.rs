@@ -1,7 +1,6 @@
 use super::*;
-use crate::common::{os::*, ringbuf::*};
+use crate::common::{critical_section::Mutex, ringbuf::*};
 use core::cell::RefCell;
-use critical_section::Mutex;
 
 pub struct DmaRingbufTx {}
 

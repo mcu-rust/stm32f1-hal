@@ -1,4 +1,4 @@
-pub use rtrb::{
+pub use crate::common::rtrb::{
     self, Consumer, Producer, RingBuffer,
     chunks::{ReadChunk, WriteChunkUninit},
 };

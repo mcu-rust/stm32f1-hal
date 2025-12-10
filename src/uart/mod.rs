@@ -10,8 +10,8 @@ pub use crate::common::uart::*;
 use crate::{
     Steal,
     afio::{RemapMode, uart_remap::*},
-    common::os::*,
     dma::{DmaBindRx, DmaBindTx, DmaRingbufTxLoader},
+    os_trait::{MicrosDurationU32, prelude::*},
     rcc::{BusClock, Enable, Reset},
 };
 

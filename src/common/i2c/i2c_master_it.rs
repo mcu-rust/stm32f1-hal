@@ -1,6 +1,4 @@
-use super::utils::*;
-use super::*;
-use crate::common::os::*;
+use super::{utils::*, *};
 use crate::common::ringbuf::{Consumer, Producer, RingBuffer};
 use core::sync::atomic::{AtomicU16, Ordering};
 

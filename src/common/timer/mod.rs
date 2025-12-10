@@ -1,11 +1,12 @@
-pub mod pwm;
-pub use pwm::*;
 pub mod counter;
-pub use counter::*;
 pub mod fix_timer;
-pub use fix_timer::*;
+pub mod pwm;
 
-use fugit::HertzU32 as Hertz;
+pub use counter::*;
+pub use fix_timer::*;
+pub use pwm::*;
+
+use crate::common::fugit::HertzU32 as Hertz;
 
 pub trait PwmChannel: embedded_hal::pwm::SetDutyCycle {
     fn config(&mut self, mode: PwmMode, polarity: PwmPolarity);

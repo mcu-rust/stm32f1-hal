@@ -1,8 +1,10 @@
 pub mod i2c_master_it;
 mod utils;
 
-use embedded_hal::i2c::ErrorKind;
-pub use embedded_hal::i2c::NoAcknowledgeSource;
+use crate::common::{
+    embedded_hal::i2c::{ErrorKind, NoAcknowledgeSource},
+    os_trait::prelude::*,
+};
 
 pub trait I2cPeriph {
     fn it_reset(&mut self);

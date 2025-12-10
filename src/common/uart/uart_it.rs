@@ -1,10 +1,11 @@
 //! UART interrupt implementation
 
 use super::*;
-use crate::common::os::*;
-use crate::ringbuf::*;
+use crate::common::{
+    embedded_io::{ErrorType, Read, Write},
+    ringbuf::*,
+};
 use core::marker::PhantomData;
-use embedded_io::{ErrorType, Read, Write};
 
 // TX -------------------------------------------------------------------------
 
@@ -33,7 +34,7 @@ where
             Self {
                 uart,
                 timeout,
-                flush_timeout: calculate_timeout(baudrate, buf_size + buf_size / 2),
+                flush_timeout: calculate_timeout(baudrate, buf_size + 10),
                 w,
                 _os: PhantomData,
             },
@@ -52,7 +53,7 @@ impl<U: UartPeriph, OS: OsInterface> Write for UartInterruptTx<U, OS> {
             return Err(Error::Other);
         }
 
-        let mut t = OS::start_timeout(self.timeout);
+        let mut t = OS::Timeout::start_us(self.timeout.to_micros());
         loop {
             if let n @ 1.. = self.w.push_slice(buf) {
                 self.uart.set_interrupt(Event::TxEmpty, true);
@@ -69,7 +70,7 @@ impl<U: UartPeriph, OS: OsInterface> Write for UartInterruptTx<U, OS> {
     }
 
     fn flush(&mut self) -> Result<(), Self::Error> {
-        let mut t = OS::start_timeout(self.flush_timeout);
+        let mut t = OS::Timeout::start_us(self.flush_timeout.to_micros());
         loop {
             if self.uart.is_tx_complete() && self.w.slots() == self.w.buffer().capacity() {
                 return Ok(());
@@ -161,7 +162,7 @@ where
             return Err(Error::Other);
         }
 
-        let mut t = OS::start_timeout(self.timeout);
+        let mut t = OS::Timeout::start_us(self.timeout.to_micros());
         loop {
             if let n @ 1.. = self.r.pop_slice(buf) {
                 return Ok(n);

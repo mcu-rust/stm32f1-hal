@@ -1,6 +1,6 @@
 use super::*;
+use crate::common::embedded_hal::pwm::{ErrorType, SetDutyCycle};
 use core::convert::Infallible;
-use embedded_hal::pwm::{ErrorType, SetDutyCycle};
 
 pub struct PwmTimer<TIM> {
     tim: TIM,

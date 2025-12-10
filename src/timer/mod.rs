@@ -1,4 +1,3 @@
-use crate::os::timeout::tick::TickTimeout;
 use crate::{
     Mcu, Steal,
     afio::{RemapMode, timer_remap::*},
