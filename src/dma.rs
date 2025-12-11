@@ -96,6 +96,19 @@ where
     }
 }
 
+impl<DMA, const C: u8> Steal for Ch<DMA, C>
+where
+    DMA: RegisterBlock + Steal,
+{
+    unsafe fn steal(&self) -> Self {
+        unsafe {
+            Self {
+                dma: self.dma.steal(),
+            }
+        }
+    }
+}
+
 impl<DMA, const C: u8> DmaChannel for Ch<DMA, C>
 where
     DMA: RegisterBlock,

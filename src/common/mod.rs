@@ -15,3 +15,16 @@ pub use embedded_io;
 pub use fugit;
 pub use os_trait;
 pub use rtrb;
+
+use core::cell::UnsafeCell;
+
+trait UnsafeCellMut<T> {
+    unsafe fn unsafe_get_mut(&self) -> &mut T;
+}
+
+impl<T> UnsafeCellMut<T> for UnsafeCell<T> {
+    #[inline]
+    unsafe fn unsafe_get_mut(&self) -> &mut T {
+        unsafe { &mut *self.get() }
+    }
+}

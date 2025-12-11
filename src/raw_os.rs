@@ -1,4 +1,6 @@
-use crate::os_trait::{AtomicNotifier, FakeRawMutex, TickDelay, TickTimeoutNs, prelude::*};
+use crate::os_trait::{
+    AtomicNotifier, AtomicNotifyWaiter, FakeRawMutex, TickDelay, TickTimeoutNs, prelude::*,
+};
 use crate::timer::SysTickInstant;
 
 /// RawOs implementation
@@ -10,12 +12,21 @@ use crate::timer::SysTickInstant;
 pub struct RawOs;
 impl OsInterface for RawOs {
     type RawMutex = FakeRawMutex;
-    type NotifyBuilder = AtomicNotifier<RawOs>;
+    type Notifier = AtomicNotifier<RawOs>;
+    type NotifyWaiter = AtomicNotifyWaiter<RawOs>;
     type Timeout = TickTimeoutNs<SysTickInstant>;
+
+    fn os() -> Self {
+        Self {}
+    }
 
     fn yield_thread() {}
 
     fn delay() -> impl DelayNs {
         TickDelay::<SysTickInstant>::default()
+    }
+
+    fn notify() -> (Self::Notifier, Self::NotifyWaiter) {
+        AtomicNotifier::<RawOs>::new()
     }
 }

@@ -5,16 +5,15 @@ use crate::common::{
     embedded_io::{ErrorType, Read, Write},
     ringbuf::*,
 };
-use core::marker::PhantomData;
 
 // TX -------------------------------------------------------------------------
 
-pub struct UartInterruptTx<U, OS> {
+pub struct UartInterruptTx<U, OS: OsInterface> {
     uart: U,
     timeout: MicrosDurationU32,
     flush_timeout: MicrosDurationU32,
     w: Producer<u8>,
-    _os: PhantomData<OS>,
+    waiter: OS::NotifyWaiter,
 }
 
 impl<U, OS> UartInterruptTx<U, OS>
@@ -27,7 +26,8 @@ where
         buf_size: usize,
         baudrate: u32,
         timeout: MicrosDurationU32,
-    ) -> (Self, UartInterruptTxHandler<U>) {
+    ) -> (Self, UartInterruptTxHandler<U, OS>) {
+        let (notifier, waiter) = OS::notify();
         let [uart, u2] = uart;
         let (w, r) = RingBuffer::<u8>::new(buf_size);
         (
@@ -36,9 +36,9 @@ where
                 timeout,
                 flush_timeout: calculate_timeout(baudrate, buf_size + 10),
                 w,
-                _os: PhantomData,
+                waiter,
             },
-            UartInterruptTxHandler::new(u2, r),
+            UartInterruptTxHandler::new(u2, r, notifier),
         )
     }
 }
@@ -53,75 +53,77 @@ impl<U: UartPeriph, OS: OsInterface> Write for UartInterruptTx<U, OS> {
             return Err(Error::Other);
         }
 
-        let mut t = OS::Timeout::start_us(self.timeout.to_micros());
-        loop {
-            if let n @ 1.. = self.w.push_slice(buf) {
-                self.uart.set_interrupt(Event::TxEmpty, true);
-                return Ok(n);
-            } else if !self.uart.is_interrupt_enable(Event::TxEmpty) {
-                self.uart.set_interrupt(Event::TxEmpty, true);
-            }
-
-            if t.timeout() {
-                break;
-            }
-        }
-        Err(Error::Busy)
+        self.waiter
+            .wait_with(OS::os(), self.timeout, 2, || {
+                if let n @ 1.. = self.w.push_slice(buf) {
+                    self.uart.set_interrupt(Event::TxEmpty, true);
+                    return Some(n);
+                } else if !self.uart.is_interrupt_enable(Event::TxEmpty) {
+                    self.uart.set_interrupt(Event::TxEmpty, true);
+                }
+                None
+            })
+            .ok_or(Error::Busy)
     }
 
     fn flush(&mut self) -> Result<(), Self::Error> {
-        let mut t = OS::Timeout::start_us(self.flush_timeout.to_micros());
-        loop {
-            if self.uart.is_tx_complete() && self.w.slots() == self.w.buffer().capacity() {
-                return Ok(());
-            } else if t.timeout() {
-                break;
-            } else if !self.uart.is_interrupt_enable(Event::TxEmpty) {
-                self.uart.set_interrupt(Event::TxEmpty, true);
-            }
-        }
-        Err(Error::Other)
+        self.waiter
+            .wait_with(OS::os(), self.flush_timeout, 8, || {
+                if self.uart.is_tx_complete() && self.w.slots() == self.w.buffer().capacity() {
+                    return Some(());
+                } else if !self.uart.is_interrupt_enable(Event::TxEmpty) {
+                    self.uart.set_interrupt(Event::TxEmpty, true);
+                }
+                None
+            })
+            .ok_or(Error::Other)
     }
 }
 
 // TX interrupt -----------------
 
-pub struct UartInterruptTxHandler<U> {
+pub struct UartInterruptTxHandler<U, OS: OsInterface> {
     uart: U,
     r: Consumer<u8>,
+    notifier: OS::Notifier,
 }
 
-impl<U> UartInterruptTxHandler<U>
+impl<U, OS> UartInterruptTxHandler<U, OS>
 where
     U: UartPeriph,
+    OS: OsInterface,
 {
-    pub fn new(uart: U, r: Consumer<u8>) -> Self {
-        Self { uart, r }
+    pub fn new(uart: U, r: Consumer<u8>, notifier: OS::Notifier) -> Self {
+        Self { uart, r, notifier }
     }
 }
 
-impl<U> UartInterruptTxHandler<U>
+impl<U, OS> UartInterruptTxHandler<U, OS>
 where
     U: UartPeriph,
+    OS: OsInterface,
 {
     pub fn handler(&mut self) {
-        if let Ok(data) = self.r.peek() {
-            if self.uart.write(*data as u16).is_ok() {
-                self.r.pop().ok();
+        if let Some(has_data) = self.uart.write_with(|| {
+            let data = self.r.pop();
+            data.map_or(None, |d| Some(d as u16))
+        }) {
+            if has_data {
+                self.notifier.notify();
+            } else if self.uart.is_interrupt_enable(Event::TxEmpty) {
+                self.uart.set_interrupt(Event::TxEmpty, false);
             }
-        } else if self.uart.is_interrupt_enable(Event::TxEmpty) {
-            self.uart.set_interrupt(Event::TxEmpty, false);
         }
     }
 }
 
 // RX -------------------------------------------------------------------------
 
-pub struct UartInterruptRx<U, OS> {
+pub struct UartInterruptRx<U, OS: OsInterface> {
     uart: U,
     timeout: MicrosDurationU32,
     r: Consumer<u8>,
-    _os: PhantomData<OS>,
+    waiter: OS::NotifyWaiter,
 }
 
 impl<U, OS> UartInterruptRx<U, OS>
@@ -133,7 +135,8 @@ where
         uart: [U; 2],
         buf_size: usize,
         timeout: MicrosDurationU32,
-    ) -> (Self, UartInterruptRxHandler<U>) {
+    ) -> (Self, UartInterruptRxHandler<U, OS>) {
+        let (notifier, waiter) = OS::notify();
         let [uart, u2] = uart;
         let (w, r) = RingBuffer::<u8>::new(buf_size);
         (
@@ -141,9 +144,9 @@ where
                 uart,
                 timeout,
                 r,
-                _os: PhantomData,
+                waiter,
             },
-            UartInterruptRxHandler::new(u2, w),
+            UartInterruptRxHandler::new(u2, w, notifier),
         )
     }
 }
@@ -162,39 +165,39 @@ where
             return Err(Error::Other);
         }
 
-        let mut t = OS::Timeout::start_us(self.timeout.to_micros());
-        loop {
-            if let n @ 1.. = self.r.pop_slice(buf) {
-                return Ok(n);
-            } else if !self.uart.is_interrupt_enable(Event::RxNotEmpty) {
-                self.uart.set_interrupt(Event::RxNotEmpty, true);
-            }
-
-            if t.timeout() {
-                break;
-            }
-        }
-        Err(Error::Other)
+        self.waiter
+            .wait_with(OS::os(), self.timeout, 8, || {
+                if let n @ 1.. = self.r.pop_slice(buf) {
+                    return Some(n);
+                } else if !self.uart.is_interrupt_enable(Event::RxNotEmpty) {
+                    self.uart.set_interrupt(Event::RxNotEmpty, true);
+                }
+                None
+            })
+            .ok_or(Error::Other)
     }
 }
 
 // RX interrupt -----------------
 
-pub struct UartInterruptRxHandler<U> {
+pub struct UartInterruptRxHandler<U, OS: OsInterface> {
     uart: U,
     w: Producer<u8>,
+    notifier: OS::Notifier,
     // count: [u32; 10],
 }
 
-impl<U> UartInterruptRxHandler<U>
+impl<U, OS> UartInterruptRxHandler<U, OS>
 where
     U: UartPeriph,
+    OS: OsInterface,
 {
-    pub fn new(mut uart: U, w: Producer<u8>) -> Self {
+    pub fn new(mut uart: U, w: Producer<u8>, notifier: OS::Notifier) -> Self {
         uart.set_interrupt(Event::RxNotEmpty, true);
         Self {
             uart,
             w,
+            notifier,
             // count: [0; 10],
         }
     }
@@ -202,6 +205,7 @@ where
     pub fn handler(&mut self) {
         if let Ok(data) = self.uart.read() {
             self.w.push(data as u8).ok();
+            self.notifier.notify();
         }
 
         // match self.uart.read() {

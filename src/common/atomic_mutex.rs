@@ -1,3 +1,4 @@
+use super::*;
 use core::{
     cell::UnsafeCell,
     fmt::{self, Debug, Formatter},
@@ -61,8 +62,9 @@ impl<T> AtomicMutex<T> {
     //     AtomicMutexGuard { m: &self }
     // }
 
+    #[inline]
     fn get_data_mut(&self) -> &mut T {
-        unsafe { &mut *self.data.get() }
+        unsafe { self.data.unsafe_get_mut() }
     }
 }
 

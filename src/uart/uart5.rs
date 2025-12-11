@@ -88,12 +88,27 @@ impl UartPeriph for UartX {
         sr.txe().bit_is_set() && sr.tc().bit_is_set()
     }
 
+    #[inline]
     fn write(&mut self, word: u16) -> nb::Result<(), Error> {
         if self.is_tx_empty() {
             self.dr().write(|w| unsafe { w.dr().bits(word) });
             Ok(())
         } else {
             Err(nb::Error::WouldBlock)
+        }
+    }
+
+    #[inline]
+    fn write_with(&mut self, f: impl FnOnce() -> Option<u16>) -> Option<bool> {
+        if self.is_tx_empty() {
+            if let Some(data) = f() {
+                self.dr().write(|w| unsafe { w.dr().bits(data) });
+                Some(true)
+            } else {
+                Some(false)
+            }
+        } else {
+            None
         }
     }
 

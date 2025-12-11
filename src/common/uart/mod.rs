@@ -42,6 +42,11 @@ impl<U: UartPeriph> UartIdleInterrupt<U> {
 
 pub trait UartPeriph {
     fn write(&mut self, word: u16) -> nb::Result<(), Error>;
+    /// # Returns
+    /// - `None`: need to wait
+    /// - `Some(true)`: Wrote a data
+    /// - `Some(false)`: No new data
+    fn write_with(&mut self, f: impl FnOnce() -> Option<u16>) -> Option<bool>;
     /// Transfer is empty and completed
     fn is_tx_complete(&self) -> bool;
 

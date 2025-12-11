@@ -71,6 +71,10 @@ impl Nvic {
             NVIC::mask(it);
         }
     }
+
+    pub fn disable_all(&mut self) {
+        // TODO
+    }
 }
 
 pub enum PriorityGrouping {

@@ -14,4 +14,4 @@
     codegen-units = 1
     debug = true
     lto = true
-    opt-level = 0
+    opt-level = 1

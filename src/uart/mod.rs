@@ -88,7 +88,7 @@ impl<U: UartConfig> Tx<U> {
         self,
         buf_size: usize,
         timeout: MicrosDurationU32,
-    ) -> (UartInterruptTx<U, OS>, UartInterruptTxHandler<U>) {
+    ) -> (UartInterruptTx<U, OS>, UartInterruptTxHandler<U, OS>) {
         let u2 = unsafe { self.uart.steal() };
         UartInterruptTx::new([self.uart, u2], buf_size, self.baudrate, timeout)
     }
@@ -108,7 +108,7 @@ impl<U: UartConfig + UartPeriphWithDma> Tx<U> {
         buf_size: usize,
         timeout: MicrosDurationU32,
         _os: OS,
-    ) -> (UartDmaBufTx<U, CH, OS>, DmaRingbufTxLoader<u8, CH>)
+    ) -> (UartDmaBufTx<U, CH, OS>, DmaRingbufTxLoader<u8, CH, OS>)
     where
         CH: DmaBindTx<U>,
         OS: OsInterface,
@@ -138,7 +138,7 @@ impl<U: UartConfig> Rx<U> {
         self,
         buf_size: usize,
         timeout: MicrosDurationU32,
-    ) -> (UartInterruptRx<U, OS>, UartInterruptRxHandler<U>) {
+    ) -> (UartInterruptRx<U, OS>, UartInterruptRxHandler<U, OS>) {
         let u2 = unsafe { self.uart.steal() };
         UartInterruptRx::new([self.uart, u2], buf_size, timeout)
     }
@@ -151,9 +151,9 @@ impl<U: UartConfig + UartPeriphWithDma> Rx<U> {
         buf_size: usize,
         timeout: MicrosDurationU32,
         _os: OS,
-    ) -> UartDmaRx<U, CH, OS>
+    ) -> (UartDmaRx<U, CH, OS>, UartDmaRxNotify<CH, OS>)
     where
-        CH: DmaBindRx<U>,
+        CH: DmaBindRx<U> + Steal,
         OS: OsInterface,
     {
         UartDmaRx::new(self.uart, dma_ch, buf_size, timeout)
