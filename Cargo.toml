@@ -65,8 +65,6 @@
     embedded-io = "0.7"
     fugit = "0.3"
     fugit-timer = "0.1"
-    mutex = "1"
-    mutex-traits = "1"
     nb = "1.1"
     os-trait = "0.1"
     rtic-monotonic = { version = "1.0", optional = true }

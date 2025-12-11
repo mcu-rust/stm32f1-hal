@@ -54,10 +54,10 @@ impl Scb {
 impl Nvic {
     /// p = 0 ~ 15, The smaller the number, the higher the priority.
     /// It combines preemption and sub priority based on the grouping.
-    pub fn set_priority(&mut self, it: Interrupt, p: u8) {
+    pub fn set_priority(&mut self, it: Interrupt, priority: u8) {
         unsafe {
             // only use the highest 4 bits
-            self.nvic.set_priority(it, p << 4);
+            self.nvic.set_priority(it, priority << 4);
         }
     }
 

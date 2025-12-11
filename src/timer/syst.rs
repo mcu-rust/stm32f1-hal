@@ -5,7 +5,7 @@ use crate::Mcu;
 use crate::os_trait::{utils::FrequencyHolder, *};
 use core::ops::{Deref, DerefMut};
 use cortex_m::peripheral::{SYST, syst::SystClkSource};
-use fugit::{HertzU32 as Hertz, RateExtU32, TimerDurationU32, TimerInstantU32};
+use fugit::{HertzU32 as Hertz, TimerDurationU32, TimerInstantU32};
 
 pub trait SysTimerInit: Sized {
     /// Creates timer which takes [Hertz] as Duration
@@ -16,6 +16,8 @@ pub trait SysTimerInit: Sized {
     fn counter_us(self, mcu: &Mcu) -> SysCounterUs {
         self.counter::<1_000_000>(mcu)
     }
+    /// It's important for `TickInstant`
+    fn store_tick_frequency(&mut self, mcu: &Mcu);
 }
 
 impl SysTimerInit for SYST {
@@ -24,6 +26,13 @@ impl SysTimerInit for SYST {
     }
     fn counter<const FREQ: u32>(self, mcu: &Mcu) -> SysCounter<FREQ> {
         SystemTimer::syst(self, mcu).counter()
+    }
+    fn store_tick_frequency(&mut self, mcu: &Mcu) {
+        let clk = match self.get_clock_source() {
+            SystClkSource::Core => mcu.rcc.clocks.hclk(),
+            SystClkSource::External => mcu.rcc.clocks.hclk() / 8,
+        };
+        FREQUENCY.set(KilohertzU32::Hz(clk.to_Hz()));
     }
 }
 
@@ -39,7 +48,7 @@ impl SystemTimer {
     pub fn syst(mut syst: SYST, mcu: &Mcu) -> Self {
         syst.set_clock_source(SystClkSource::Core);
         let clk = mcu.rcc.clocks.hclk();
-        FREQUENCY.set(clk.to_kHz().kHz());
+        FREQUENCY.set(KilohertzU32::Hz(clk.to_Hz()));
         Self { syst, clk }
     }
 
@@ -47,7 +56,7 @@ impl SystemTimer {
     pub fn syst_external(mut syst: SYST, mcu: &Mcu) -> Self {
         syst.set_clock_source(SystClkSource::External);
         let clk = mcu.rcc.clocks.hclk() / 8;
-        FREQUENCY.set(clk.to_kHz().kHz());
+        FREQUENCY.set(KilohertzU32::Hz(clk.to_Hz()));
         Self { syst, clk }
     }
 

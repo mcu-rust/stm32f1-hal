@@ -16,3 +16,21 @@ pub struct Mcu {
     pub rcc: rcc::Rcc,
     pub afio: afio::Afio,
 }
+
+impl Mcu {
+    pub fn new(
+        rcc: rcc::Rcc,
+        afio: afio::Afio,
+        scb: nvic_scb::Scb,
+        nvic: nvic_scb::Nvic,
+        exti: pac::EXTI,
+    ) -> Self {
+        Self {
+            rcc,
+            afio,
+            scb,
+            nvic,
+            exti,
+        }
+    }
+}

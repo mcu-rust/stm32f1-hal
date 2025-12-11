@@ -30,8 +30,8 @@ pub mod common;
 
 pub use common::ringbuf;
 pub use common::simplest_heap::Heap;
+pub use critical_section;
 pub use fugit;
-pub use mutex_traits;
 pub use os_trait;
 
 pub use embedded_hal;

@@ -13,12 +13,7 @@ use uart_task::UartPollTask;
 
 // Basic
 use stm32f1_hal::{
-    self as hal, Mcu,
-    cortex_m::asm,
-    cortex_m_rt::entry,
-    gpio::{Edge, ExtiPin, PinState},
-    prelude::*,
-    rcc,
+    self as hal, Mcu, cortex_m::asm, cortex_m_rt::entry, gpio::PinState, pac, prelude::*, rcc,
 };
 
 use hal::{
@@ -27,12 +22,13 @@ use hal::{
     dma::{DmaBindRx, DmaBindTx, DmaEvent, DmaPriority},
     embedded_hal::{self, pwm::SetDutyCycle},
     embedded_io,
+    gpio::{Edge, ExtiPin},
     nvic_scb::PriorityGrouping,
     os_trait::TimeoutState,
-    pac::{self, Interrupt},
+    pac::Interrupt,
     raw_os::RawOs as MyOs,
     time::MonoTimer,
-    timer::{CountDirection, PwmMode, PwmPolarity, SystemTimer},
+    timer::{CountDirection, PwmMode, PwmPolarity},
     uart::{self, UartConfig},
 };
 
@@ -60,13 +56,7 @@ fn main() -> ! {
     assert_eq!(rcc.clocks.sysclk(), sysclk);
 
     let afio = dp.AFIO.init(&mut rcc);
-    let mut mcu = Mcu {
-        scb,
-        nvic: cp.NVIC.init(),
-        rcc,
-        afio,
-        exti: dp.EXTI,
-    };
+    let mut mcu = Mcu::new(rcc, afio, scb, cp.NVIC.init(), dp.EXTI);
 
     let mut sys_timer = cp.SYST.counter_hz(&mcu);
     sys_timer.start(20.Hz()).unwrap();
@@ -113,7 +103,6 @@ fn main() -> ! {
         uart_rx,
         dma1.5,
         &mut mcu,
-        &sys_timer,
     );
 
     // LED --------------------------------------
@@ -178,7 +167,6 @@ fn uart_interrupt_init<U: UartConfig + 'static>(
     rx: uart::Rx<U>,
     interrupt_callback: &hal::interrupt::Callback,
     mcu: &mut Mcu,
-    timer: &SystemTimer,
 ) -> UartPollTask<impl embedded_io::Write + 'static, impl embedded_io::Read + 'static> {
     let (rx, mut rx_it) = rx.into_interrupt::<MyOs>(64, 100.micros());
     let (tx, mut tx_it) = tx.into_interrupt::<MyOs>(32, 0.micros());
@@ -196,7 +184,6 @@ fn uart_dma_init<'r, U: UartConfig + UartPeriphWithDma + 'static>(
     rx: uart::Rx<U>,
     dma_rx: impl DmaBindRx<U> + 'r,
     mcu: &mut Mcu,
-    timer: &SystemTimer,
 ) -> UartPollTask<impl embedded_io::Write + 'static, impl embedded_io::Read + 'r> {
     let uart_rx = rx.into_dma_circle(dma_rx, 64, 100.micros(), MyOs {});
     dma_tx.set_interrupt(DmaEvent::TransferComplete, true);
