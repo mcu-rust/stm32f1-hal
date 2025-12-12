@@ -1,4 +1,5 @@
 pub mod atomic_mutex;
+pub mod bus_device;
 pub mod dma;
 pub mod i2c;
 pub mod prelude;

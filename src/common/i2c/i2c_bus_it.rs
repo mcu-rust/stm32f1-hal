@@ -1,61 +1,61 @@
 use super::{utils::*, *};
-use crate::common::{
-    bus_device::*,
-    os_trait::Mutex,
-    ringbuf::{Consumer, Producer, RingBuffer},
+use crate::{
+    Steal,
+    common::ringbuf::{Consumer, Producer, PushError, RingBuffer},
 };
 use core::sync::atomic::{AtomicU16, Ordering};
 
-
 // BUS --------------------------------------------------------------
 
-pub struct I2cBusInterrupt<OS: OsInterface, I2C> {
+pub struct I2cBusInterrupt<OS: OsInterface, I2C, A: AddressMode> {
     i2c: I2C,
     mode: Arc<AtomicU16>,
     err_code: Arc<AtomicU16>,
-    cmd_w: Producer<Command>,
+    cmd_w: Producer<Command<A>>,
     data_r: Consumer<u8>,
     waiter: OS::NotifyWaiter,
     seq_id: u8,
 }
 
-impl<OS, I2C> I2cBusInterrupt<OS, I2C>
+impl<OS, I2C, A> I2cBusInterrupt<OS, I2C, A>
 where
     OS: OsInterface,
-    I2C: I2cPeriph,
+    I2C: I2cPeriph + Steal,
+    A: AddressMode,
 {
     pub fn new(
-        i2c: [I2C; 3],
+        i2c: I2C,
         buff_size: usize,
     ) -> (
         Self,
-        I2cBusInterruptHandler<OS, I2C>,
+        I2cBusInterruptHandler<OS, I2C, A>,
         I2cBusErrorInterruptHandler<OS, I2C>,
     ) {
         let (notifier, waiter) = OS::notify();
         let (data_w, data_r) = RingBuffer::<u8>::new(buff_size);
-        let (cmd_w, cmd_r) = RingBuffer::<Command>::new(buff_size + 6);
+        let (cmd_w, cmd_r) = RingBuffer::<Command<A>>::new(buff_size + 6);
         let mode = Arc::new(AtomicU16::new(0));
         let err_code = Arc::new(AtomicU16::new(0));
-        let [i2c1, i2c2, i2c3] = i2c;
+        let i2c1 = unsafe { i2c.steal() };
+        let i2c2 = unsafe { i2c.steal() };
         let it = I2cBusInterruptHandler {
-            i2c: i2c2,
+            i2c: i2c1,
             mode: Arc::clone(&mode),
             cmd_r,
             data_w,
             step: 0,
             read_len: 0,
-            slave_addr: 0,
+            slave_addr: A::from_u16(0),
             notifier: notifier.clone(),
         };
         let it_err = I2cBusErrorInterruptHandler {
-            i2c: i2c3,
+            i2c: i2c2,
             err_code: Arc::clone(&err_code),
             notifier,
         };
         (
             Self {
-                i2c: i2c1,
+                i2c: i2c,
                 mode,
                 err_code,
                 cmd_w,
@@ -68,9 +68,14 @@ where
         )
     }
 
-    pub fn write_read(&mut self, slave_addr: u8, data: &[u8], buf: &mut [u8]) -> Result<(), Error> {
+    pub fn write_and_read(
+        &mut self,
+        slave_addr: A,
+        data: &[&[u8]],
+        buf: &mut [&mut [u8]],
+    ) -> Result<(), Error> {
         if buf.is_empty() && data.is_empty() {
-            return Err(Error::Other);
+            return Err(Error::Buffer);
         }
 
         // check stop, timeout > 25ms
@@ -81,24 +86,21 @@ where
             })
             .is_none()
         {
-            return Err(Error::Timeout);
+            return Err(Error::Busy);
         }
 
         self.i2c.it_reset();
 
         // prepare
         self.seq_id = self.seq_id.wrapping_add(1);
-        self.cmd_w.push(Command::Start(self.seq_id)).unwrap();
-        self.cmd_w.push(Command::SlaveAddr(slave_addr)).unwrap();
+        self.cmd_w.push(Command::Start(self.seq_id))?;
+        self.cmd_w.push(Command::SlaveAddr(slave_addr))?;
         if !data.is_empty() {
-            self.cmd_w.push(Command::WriteMode).unwrap();
-            for d in data {
-                self.cmd_w.push(Command::Data(*d)).unwrap();
-            }
+            self.push_all_data(data)?;
         }
         if !buf.is_empty() {
-            self.cmd_w.push(Command::ReadMode).unwrap();
-            self.cmd_w.push(Command::Len(buf.len() as u8)).unwrap();
+            self.cmd_w.push(Command::ReadMode)?;
+            self.cmd_w.push(Command::Len(self.get_all_len(buf)))?;
         }
         while self.data_r.pop().is_ok() {}
         // reset error code
@@ -108,7 +110,7 @@ where
         self.i2c.it_send_start();
 
         // TODO calculate timeout
-        let mut i = 0;
+        let mut buf_iter = buf.iter_mut().flat_map(|b| b.iter_mut());
         let rst = self.waiter.wait_with(OS::O, 10.millis(), 2, || {
             let mode = self.mode.load(Ordering::Acquire).into();
             let err_code = int_to_err(self.err_code.load(Ordering::Acquire));
@@ -124,11 +126,10 @@ where
                 return Some(Err(Error::Other));
             }
 
-            while i < buf.len()
-                && let Ok(data) = self.data_r.pop()
-            {
-                buf[i] = data;
-                i += 1;
+            while let Ok(data) = self.data_r.pop() {
+                if let Some(b) = buf_iter.next() {
+                    *b = data;
+                }
             }
             None
         });
@@ -136,7 +137,7 @@ where
         match rst {
             None => Err(Error::Timeout),
             Some(rst) => {
-                if i != buf.len() {
+                if buf_iter.next().is_some() {
                     Err(Error::Other)
                 } else {
                     rst
@@ -144,26 +145,66 @@ where
             }
         }
     }
+
+    fn push_all_data(&mut self, data_buf: &[&[u8]]) -> Result<(), Error> {
+        self.cmd_w.push(Command::WriteMode)?;
+        for d in data_buf.iter().flat_map(|d| d.iter()) {
+            self.cmd_w.push(Command::Data(*d))?;
+        }
+        Ok(())
+    }
+
+    fn get_all_len(&self, buf: &[&mut [u8]]) -> u8 {
+        let mut rst = 0;
+        for b in buf.iter() {
+            rst += b.len();
+        }
+        rst as u8
+    }
 }
 
-// Handler ----------------------------------------------------------
+impl<T> From<PushError<T>> for Error {
+    fn from(_value: PushError<T>) -> Self {
+        Self::Buffer
+    }
+}
 
-pub struct I2cBusInterruptHandler<OS: OsInterface, I2C> {
+impl<OS, I2C, A> I2cBusInterface<A> for I2cBusInterrupt<OS, I2C, A>
+where
+    OS: OsInterface,
+    I2C: I2cPeriph + Steal,
+    A: AddressMode,
+{
+    #[inline]
+    fn write_read(
+        &mut self,
+        slave_addr: A,
+        write: &[&[u8]],
+        read: &mut [&mut [u8]],
+    ) -> Result<(), Error> {
+        self.write_and_read(slave_addr, write, read)
+    }
+}
+
+// Interrupt Handler ------------------------------------------------
+
+pub struct I2cBusInterruptHandler<OS: OsInterface, I2C, A: AddressMode> {
     i2c: I2C,
     mode: Arc<AtomicU16>,
-    cmd_r: Consumer<Command>,
+    cmd_r: Consumer<Command<A>>,
     data_w: Producer<u8>,
     notifier: OS::Notifier,
 
     step: u8,
     read_len: u8,
-    slave_addr: u8,
+    slave_addr: A,
 }
 
-impl<OS, I2C> I2cBusInterruptHandler<OS, I2C>
+impl<OS, I2C, A> I2cBusInterruptHandler<OS, I2C, A>
 where
     OS: OsInterface,
-    I2C: I2cPeriph,
+    I2C: I2cPeriphAddress<A>,
+    A: AddressMode,
 {
     pub fn handler(&mut self) {
         let mut mode = Mode::from(self.mode.load(Ordering::Acquire));
@@ -305,6 +346,8 @@ where
     }
 }
 
+// Error Interrupt Handler ------------------------------------------
+
 pub struct I2cBusErrorInterruptHandler<OS: OsInterface, I2C> {
     i2c: I2C,
     err_code: Arc<AtomicU16>,
@@ -326,5 +369,38 @@ where
         } else {
             false
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    fn flat(data: &[&[u8]]) -> Vec<u8> {
+        let mut v = vec![];
+        for d in data.iter().flat_map(|d| d.iter()) {
+            v.push(*d);
+        }
+        v
+    }
+
+    fn flat_mut(buf: &mut [&mut [u8]]) {
+        let mut i = 0;
+        for b in buf.iter_mut().flat_map(|b| b.iter_mut()) {
+            i += 1;
+            *b = i;
+        }
+    }
+
+    #[test]
+    fn test_flat() {
+        let a = [1u8, 2, 3];
+        let b = [4u8, 5];
+        assert_eq!(flat(&[&a, &b]), vec![1u8, 2, 3, 4, 5]);
+
+        let mut a = [0u8; 3];
+        let mut b = [0; 2];
+        let mut c = [a.as_mut_slice(), b.as_mut_slice()];
+        flat_mut(c.as_mut_slice());
+        assert_eq!(a, [1, 2, 3]);
+        assert_eq!(b, [4, 5]);
     }
 }

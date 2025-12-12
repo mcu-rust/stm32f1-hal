@@ -1,6 +1,6 @@
 pub use crate::common::rtrb::{
-    self, Consumer, Producer, RingBuffer,
     chunks::{ChunkError, ReadChunk, WriteChunkUninit},
+    *,
 };
 
 pub trait ProducerExt<T> {

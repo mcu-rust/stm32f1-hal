@@ -40,10 +40,10 @@ impl From<u16> for Mode {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Command {
+pub enum Command<A: AddressMode> {
     /// Start with sequence id
     Start(u8),
-    SlaveAddr(u8),
+    SlaveAddr(A),
     WriteMode,
     Data(u8),
     ReadMode,
@@ -67,7 +67,9 @@ pub fn err_to_int(err: Option<Error>) -> u16 {
             Error::SMBusAlert => 7,
             Error::Timeout => 8,
             Error::SMBusTimeout => 9,
-            Error::Other => 10,
+            Error::Busy => 10,
+            Error::Buffer => 11,
+            Error::Other => 12,
         },
     }
 }
@@ -93,6 +95,8 @@ pub fn int_to_err(err: u16) -> Option<Error> {
             7 => Error::SMBusAlert,
             8 => Error::Timeout,
             9 => Error::SMBusTimeout,
+            10 => Error::Busy,
+            11 => Error::Buffer,
             _ => Error::Other,
         })
     }
@@ -117,14 +121,27 @@ mod tests {
         compare_mode(Mode::Stop);
     }
 
+    fn compare_error(err: Option<Error>) {
+        let i: u16 = err_to_int(err);
+        assert_eq!(err, int_to_err(i));
+    }
+
     #[test]
     fn teat_error() {
-        let err = Some(Error::SMBusAlert);
-        let i: u16 = err_to_int(err);
-        assert_eq!(err, int_to_err(i));
-
-        let err = Some(Error::NoAcknowledge(NoAcknowledgeSource::Data));
-        let i: u16 = err_to_int(err);
-        assert_eq!(err, int_to_err(i));
+        compare_error(None);
+        compare_error(Some(Error::NoAcknowledge(NoAcknowledgeSource::Unknown)));
+        compare_error(Some(Error::NoAcknowledge(NoAcknowledgeSource::Address)));
+        compare_error(Some(Error::NoAcknowledge(NoAcknowledgeSource::Data)));
+        compare_error(Some(Error::SMBusAlert));
+        compare_error(Some(Error::Busy));
+        compare_error(Some(Error::Overrun));
+        compare_error(Some(Error::Timeout));
+        compare_error(Some(Error::Bus));
+        compare_error(Some(Error::Crc));
+        compare_error(Some(Error::ArbitrationLoss));
+        compare_error(Some(Error::Pec));
+        compare_error(Some(Error::SMBusTimeout));
+        compare_error(Some(Error::Buffer));
+        compare_error(Some(Error::Other));
     }
 }

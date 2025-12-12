@@ -6,7 +6,7 @@ pub use crate::common::i2c::*;
 use crate::{
     Steal,
     afio::{RemapMode, i2c_remap::*},
-    // dma::{DmaBindRx, DmaBindTx, DmaRingbufTxLoader},
+    prelude::*,
     rcc::{BusClock, Enable, Reset},
 };
 
@@ -21,7 +21,8 @@ pub trait I2cConfig: I2cPeriph + BusClock + Enable + Reset + Steal {
     fn set_ack(&mut self, en: bool);
     /// Continue after the address has been sent.
     fn continue_after_addr(&mut self);
-    fn send_addr(&mut self, addr: u8, read: bool);
+    fn write_data(&mut self, addr: u8);
+    fn read_data(&self) -> u8;
     fn set_interrupt(&mut self, it: Interrupt, en: bool);
     fn disable_all_interrupt(&mut self);
     fn it_routine(&self);
@@ -35,19 +36,48 @@ pub enum Interrupt {
 }
 
 // wrapper
-pub struct I2c<T> {
-    i2c: T,
+pub struct I2c<I> {
+    i2c: I,
 }
 
-impl<T: I2cConfig> I2c<T> {
-    pub fn into_interrupt<REMAP: RemapMode<T>>(
+impl<I: I2cConfig> I2c<I> {
+    pub fn into_interrupt_bus<OS, A, REMAP>(
         mut self,
         _pins: (impl I2cSclPin<REMAP>, impl I2cSdaPin<REMAP>),
         mode: Mode,
         mcu: &mut Mcu,
-    ) {
+    ) -> I2cDeviceBuilder<OS, I2cBusInterrupt<OS, I, A>, A>
+    where
+        OS: OsInterface,
+        A: AddressMode,
+        REMAP: RemapMode<I>,
+    {
         REMAP::remap(&mut mcu.afio);
         self.i2c.config(mode, mcu);
+        let (bus, it, it_err) = I2cBusInterrupt::<OS, I, A>::new(self.i2c, 10);
+        I2cDeviceBuilder::new(bus)
+    }
+
+    pub fn into_interrupt_sole<OS, A, REMAP>(
+        mut self,
+        _pins: (impl I2cSclPin<REMAP>, impl I2cSdaPin<REMAP>),
+        mode: Mode,
+        mcu: &mut Mcu,
+    ) -> (
+        // I2cSoleDevice<I2cBusInterrupt<OS, I, A>, A>,
+        impl BusDeviceWithAddress<u8>,
+        I2cBusInterruptHandler<OS, I, A>,
+        I2cBusErrorInterruptHandler<OS, I>,
+    )
+    where
+        OS: OsInterface,
+        A: AddressMode,
+        REMAP: RemapMode<I>,
+    {
+        REMAP::remap(&mut mcu.afio);
+        self.i2c.config(mode, mcu);
+        let (bus, it, it_err) = I2cBusInterrupt::<OS, I, A>::new(self.i2c, 10);
+        (I2cSoleDevice::new(bus, A::from_u16(0)), it, it_err)
     }
 }
 

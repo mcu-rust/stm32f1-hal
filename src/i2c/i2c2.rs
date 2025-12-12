@@ -87,9 +87,13 @@ impl I2cConfig for I2cX {
     }
 
     #[inline]
-    fn send_addr(&mut self, addr: u8, read: bool) {
-        self.dr()
-            .write(|w| unsafe { w.dr().bits(addr | u8::from(read)) });
+    fn write_data(&mut self, data: u8) {
+        self.dr().write(|w| unsafe { w.dr().bits(data) });
+    }
+
+    #[inline]
+    fn read_data(&self) -> u8 {
+        self.dr().read().bits() as u8
     }
 
     #[inline]
@@ -117,7 +121,7 @@ impl I2cConfig for I2cX {
     fn it_routine(&self) {
         // Clean useless interrupt flag
         if self.sr1().read().btf().bit_is_set() {
-            let _ = self.dr().read().bits() as u8;
+            let _ = self.read_data();
         }
     }
 }
@@ -141,17 +145,6 @@ impl I2cPeriph for I2cX {
         self.sr1().write(|w| unsafe { w.bits(0) });
         self.cr1().modify(|_, w| w.start().set_bit());
         self.set_interrupt(Interrupt::Error, true);
-    }
-
-    #[inline]
-    fn it_send_slave_addr(&mut self, slave_addr: u8, read: bool) -> bool {
-        // start flag
-        if self.sr1().read().sb().bit_is_set() {
-            self.send_addr(slave_addr, read);
-            true
-        } else {
-            false
-        }
     }
 
     #[inline]
@@ -180,7 +173,7 @@ impl I2cPeriph for I2cX {
     #[inline]
     fn it_read(&mut self, left_len: usize) -> Option<u8> {
         if self.sr1().read().rx_ne().bit_is_set() {
-            let data = self.dr().read().bits() as u8;
+            let data = self.read_data();
             if left_len == 2 {
                 self.set_ack(false);
             }
@@ -193,7 +186,7 @@ impl I2cPeriph for I2cX {
     #[inline]
     fn it_write(&mut self, data: u8) -> bool {
         if self.get_flag(Flag::TxEmpty) {
-            self.dr().write(|w| unsafe { w.dr().bits(data) });
+            self.write_data(data);
             true
         } else {
             false
@@ -204,7 +197,7 @@ impl I2cPeriph for I2cX {
     fn it_write_with(&mut self, f: impl FnOnce() -> Option<u8>) -> Option<bool> {
         if self.get_flag(Flag::TxEmpty) {
             if let Some(data) = f() {
-                self.dr().write(|w| unsafe { w.dr().bits(data) });
+                self.write_data(data);
                 Some(true)
             } else {
                 Some(false)
@@ -270,6 +263,26 @@ impl I2cPeriph for I2cX {
             }
             None
         }
+    }
+}
+
+impl I2cPeriphAddress<SevenBitAddress> for I2cX {
+    #[inline]
+    fn it_send_slave_addr(&mut self, address: SevenBitAddress, read: bool) -> bool {
+        // start flag
+        if self.sr1().read().sb().bit_is_set() {
+            self.write_data(address.into_u16() as u8 | u8::from(read));
+            true
+        } else {
+            false
+        }
+    }
+}
+
+impl I2cPeriphAddress<TenBitAddress> for I2cX {
+    #[inline]
+    fn it_send_slave_addr(&mut self, _address: TenBitAddress, _read: bool) -> bool {
+        todo!()
     }
 }
 
