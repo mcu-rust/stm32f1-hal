@@ -44,14 +44,17 @@ impl Callback {
 macro_rules! interrupt_handler {
     ($(
         ($LINE:ident, $CALLBACK:ident),
-    )+) => {$(
-        pub static $CALLBACK: $crate::interrupt::Callback =
-            $crate::interrupt::Callback::new($crate::pac::Interrupt::$LINE);
+    )+) => {
+        use $crate::pac::interrupt;
+        $(
+            pub static $CALLBACK: $crate::interrupt::Callback =
+                $crate::interrupt::Callback::new($crate::pac::Interrupt::$LINE);
 
-        #[allow(non_snake_case)]
-        #[interrupt]
-        fn $LINE() {
-            unsafe { $CALLBACK.call() }
-        }
-    )+};
+            #[allow(non_snake_case)]
+            #[interrupt]
+            fn $LINE() {
+                unsafe { $CALLBACK.call() }
+            }
+        )+
+    };
 }

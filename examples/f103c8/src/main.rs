@@ -197,7 +197,7 @@ fn uart_dma_init<U: UartConfig + UartPeriphWithDma + 'static>(
 }
 
 mod all_it {
-    use super::hal::{interrupt_handler, pac::interrupt};
+    use super::hal::interrupt_handler;
     interrupt_handler!(
         (USART1, USART1_CB),
         (EXTI1, EXTI1_CB),
