@@ -54,7 +54,7 @@ impl<U: UartPeriph, OS: OsInterface> Write for UartInterruptTx<U, OS> {
         }
 
         self.waiter
-            .wait_with(OS::os(), self.timeout, 2, || {
+            .wait_with(OS::O, self.timeout, 2, || {
                 if let n @ 1.. = self.w.push_slice(buf) {
                     self.uart.set_interrupt(Event::TxEmpty, true);
                     return Some(n);
@@ -68,7 +68,7 @@ impl<U: UartPeriph, OS: OsInterface> Write for UartInterruptTx<U, OS> {
 
     fn flush(&mut self) -> Result<(), Self::Error> {
         self.waiter
-            .wait_with(OS::os(), self.flush_timeout, 8, || {
+            .wait_with(OS::O, self.flush_timeout, 4, || {
                 if self.uart.is_tx_complete() && self.w.slots() == self.w.buffer().capacity() {
                     return Some(());
                 } else if !self.uart.is_interrupt_enable(Event::TxEmpty) {
@@ -166,7 +166,7 @@ where
         }
 
         self.waiter
-            .wait_with(OS::os(), self.timeout, 8, || {
+            .wait_with(OS::O, self.timeout, 2, || {
                 if let n @ 1.. = self.r.pop_slice(buf) {
                     return Some(n);
                 } else if !self.uart.is_interrupt_enable(Event::RxNotEmpty) {

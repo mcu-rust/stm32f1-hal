@@ -20,5 +20,6 @@ fn main() {
         .add("src/timer/timer15.rs", "src/timer/timer9.rs")
         .add("src/timer/timer16.rs", "src/timer/timer10.rs")
         .add("src/timer/timer17.rs", "src/timer/timer10.rs")
+        .add("src/i2c/i2c2.rs", "src/i2c/i2c1.rs")
         .sync();
 }

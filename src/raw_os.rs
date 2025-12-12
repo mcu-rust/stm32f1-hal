@@ -16,9 +16,7 @@ impl OsInterface for RawOs {
     type NotifyWaiter = AtomicNotifyWaiter<RawOs>;
     type Timeout = TickTimeoutNs<SysTickInstant>;
 
-    fn os() -> Self {
-        Self {}
-    }
+    const O: Self = Self {};
 
     fn yield_thread() {}
 

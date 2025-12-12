@@ -73,7 +73,7 @@ impl Nvic {
     }
 
     pub fn disable_all(&mut self) {
-        // TODO
+        // TODO disable
     }
 }
 

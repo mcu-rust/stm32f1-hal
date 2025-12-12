@@ -1,4 +1,4 @@
-type I2cX = pac::I2C1;
+type I2cX = pac::I2C2;
 
 // $sync begin
 

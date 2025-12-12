@@ -23,10 +23,10 @@ pub trait I2cPeriph {
     fn it_read(&mut self, left_len: usize) -> Option<u8>;
 
     fn send_stop(&mut self);
-    fn is_busy(&self) -> bool;
+    fn is_stopped(&mut self, master_mode: bool) -> bool;
+
     /// Read and clean the flag
     fn get_and_clean_error(&mut self) -> Option<Error>;
-
     fn get_flag(&mut self, flag: Flag) -> bool;
 }
 
@@ -34,8 +34,8 @@ pub trait I2cPeriph {
 pub enum Flag {
     /// Start condition generated
     Started,
-    /// Stop detection
-    Stopped,
+    /// Busy
+    Busy,
     /// Address is sent in master mode or received and matches in slave mode
     AddressSent,
     /// Byte transfer finished

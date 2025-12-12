@@ -66,7 +66,7 @@ where
         }
 
         self.waiter
-            .wait_with(OS::os(), self.timeout, 2, || {
+            .wait_with(OS::O, self.timeout, 2, || {
                 if let n @ 1.. = self.w.write(buf) {
                     Some(n)
                 } else {
@@ -78,7 +78,7 @@ where
 
     fn flush(&mut self) -> Result<(), Self::Error> {
         self.waiter
-            .wait_with(OS::os(), self.flush_timeout, 8, || {
+            .wait_with(OS::O, self.flush_timeout, 4, || {
                 if !self.w.in_progress() {
                     Some(())
                 } else {
@@ -149,7 +149,7 @@ where
         }
 
         self.waiter
-            .wait_with(OS::os(), self.timeout, 4, || {
+            .wait_with(OS::O, self.timeout, 2, || {
                 if let Some(d) = self.ch.pop_slice(buf.len()) {
                     buf[..d.len()].copy_from_slice(d);
                     Some(d.len())

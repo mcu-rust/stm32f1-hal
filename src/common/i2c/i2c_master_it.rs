@@ -2,27 +2,30 @@ use super::{utils::*, *};
 use crate::common::ringbuf::{Consumer, Producer, RingBuffer};
 use core::sync::atomic::{AtomicU16, Ordering};
 
-pub struct I2cBusInterrupt<T> {
+pub struct I2cBusInterrupt<T, OS: OsInterface> {
     i2c: T,
     mode: Arc<AtomicU16>,
     err_code: Arc<AtomicU16>,
     cmd_w: Producer<Command>,
     data_r: Consumer<u8>,
+    waiter: OS::NotifyWaiter,
     seq_id: u8,
 }
 
-impl<T> I2cBusInterrupt<T>
+impl<T, OS> I2cBusInterrupt<T, OS>
 where
     T: I2cPeriph,
+    OS: OsInterface,
 {
     pub fn new(
         i2c: [T; 3],
         buff_size: usize,
     ) -> (
         Self,
-        I2cBusInterruptHandler<T>,
-        I2cBusErrorInterruptHandler<T>,
+        I2cBusInterruptHandler<T, OS>,
+        I2cBusErrorInterruptHandler<T, OS>,
     ) {
+        let (notifier, waiter) = OS::notify();
         let (data_w, data_r) = RingBuffer::<u8>::new(buff_size);
         let (cmd_w, cmd_r) = RingBuffer::<Command>::new(buff_size + 4);
         let mode = Arc::new(AtomicU16::new(0));
@@ -36,10 +39,12 @@ where
             step: 0,
             data_len: 0,
             slave_addr: 0,
+            notifier: notifier.clone(),
         };
         let it_err = I2cBusErrorInterruptHandler {
             i2c: i2c3,
             err_code: Arc::clone(&err_code),
+            notifier,
         };
         (
             Self {
@@ -49,6 +54,7 @@ where
                 cmd_w,
                 data_r,
                 seq_id: 0,
+                waiter,
             },
             it,
             it_err,
@@ -60,17 +66,20 @@ where
             return Err(Error::Other);
         }
 
-        // let mut t = self.timeout.start();
-        // time > 25ms
-        while self.i2c.is_busy() {
-            // if t.timeout() {
-            //     return;
-            // }
+        // check stop, timeout > 25ms
+        if self
+            .waiter
+            .wait_with(OS::O, 26.millis(), 16, || {
+                self.i2c.is_stopped(true).then_some(())
+            })
+            .is_none()
+        {
+            return Err(Error::Timeout);
         }
 
         self.i2c.it_reset();
 
-        // Prepare
+        // prepare
         self.seq_id = self.seq_id.wrapping_add(1);
         self.cmd_w.push(Command::Start(self.seq_id)).unwrap();
         self.cmd_w.push(Command::SlaveAddr(slave_addr)).unwrap();
@@ -84,10 +93,19 @@ where
         self.err_code.store(0, Ordering::Release);
         self.i2c.it_send_start();
 
-        while Mode::Stop != self.mode.load(Ordering::Acquire).into() {
-            // if t.timeout() {
-            //     return;
-            // }
+        // TODO calculate timeout
+        if self
+            .waiter
+            .wait_with(OS::O, 10.millis(), 2, || {
+                if Mode::Stop == self.mode.load(Ordering::Acquire).into() {
+                    Some(())
+                } else {
+                    None
+                }
+            })
+            .is_some()
+        {
+            return Ok(());
         }
 
         // get error code
@@ -101,7 +119,7 @@ where
                 Err(err)
             }
         } else {
-            Ok(())
+            Err(Error::Timeout)
         }
     }
 
@@ -110,17 +128,20 @@ where
             return Err(Error::Other);
         }
 
-        // let mut t = self.timeout.start();
-        // time > 25ms
-        while self.i2c.is_busy() {
-            // if t.timeout() {
-            //     return;
-            // }
+        // check stop, timeout > 25ms
+        if self
+            .waiter
+            .wait_with(OS::O, 26.millis(), 16, || {
+                self.i2c.is_stopped(true).then_some(())
+            })
+            .is_none()
+        {
+            return Err(Error::Timeout);
         }
 
         self.i2c.it_reset();
 
-        // Prepare
+        // prepare
         self.seq_id = self.seq_id.wrapping_add(1);
         self.cmd_w.push(Command::Start(self.seq_id)).unwrap();
         self.cmd_w.push(Command::SlaveAddr(slave_addr)).unwrap();
@@ -133,16 +154,23 @@ where
         self.err_code.store(0, Ordering::Release);
         self.i2c.it_send_start();
 
-        for b in buff.as_mut() {
-            loop {
-                if let Ok(data) = self.data_r.pop() {
-                    *b = data;
-                    break;
+        // TODO calculate timeout
+        let mut i = 0;
+        if self
+            .waiter
+            .wait_with(OS::O, 10.millis(), 2, || {
+                while let Ok(data) = self.data_r.pop() {
+                    buff[i] = data;
+                    i += 1;
+                    if i >= buff.len() {
+                        return Some(());
+                    }
                 }
-                // else if t.timeout() {
-                //     return;
-                // }
-            }
+                None
+            })
+            .is_some()
+        {
+            return Ok(());
         }
 
         // get error code
@@ -156,27 +184,29 @@ where
                 Err(err)
             }
         } else {
-            Ok(())
+            Err(Error::Timeout)
         }
     }
 }
 
 // Handler ----------------------------------------------------------
 
-pub struct I2cBusInterruptHandler<T> {
+pub struct I2cBusInterruptHandler<T, OS: OsInterface> {
     i2c: T,
     mode: Arc<AtomicU16>,
     cmd_r: Consumer<Command>,
     data_w: Producer<u8>,
+    notifier: OS::Notifier,
 
     step: u8,
     data_len: u8,
     slave_addr: u8,
 }
 
-impl<T> I2cBusInterruptHandler<T>
+impl<T, OS> I2cBusInterruptHandler<T, OS>
 where
     T: I2cPeriph,
+    OS: OsInterface,
 {
     pub fn handler(&mut self) {
         let mut mode = Mode::from(self.mode.load(Ordering::Acquire));
@@ -200,7 +230,10 @@ where
 
         match mode {
             Mode::Write | Mode::WriteAddr | Mode::WriteData => self.write(),
-            Mode::Read | Mode::ReadAddr | Mode::ReadData => self.read(),
+            Mode::Read | Mode::ReadAddr | Mode::ReadData => {
+                self.read();
+                self.notifier.notify();
+            }
             Mode::Stop => self.i2c.it_reset(),
             Mode::StartWrite(_) | Mode::StartRead(_) => (),
         }
@@ -231,6 +264,7 @@ where
                 }) {
                     self.finish();
                     self.i2c.send_stop();
+                    self.notifier.notify();
                 }
             }
             _ => {}
@@ -315,21 +349,22 @@ where
     #[inline]
     fn finish(&mut self) {
         self.i2c.it_reset();
-        // Clean old commands
+        // clean old commands
         while self.cmd_r.pop().is_ok() {}
-        // self.mode.stop();
         self.mode.store(Mode::Stop.into(), Ordering::Release);
     }
 }
 
-pub struct I2cBusErrorInterruptHandler<T> {
+pub struct I2cBusErrorInterruptHandler<T, OS: OsInterface> {
     i2c: T,
     err_code: Arc<AtomicU16>,
+    notifier: OS::Notifier,
 }
 
-impl<T> I2cBusErrorInterruptHandler<T>
+impl<T, OS> I2cBusErrorInterruptHandler<T, OS>
 where
     T: I2cPeriph,
+    OS: OsInterface,
 {
     pub fn handler(&mut self) -> bool {
         let rst = if let Some(err) = self.i2c.get_and_clean_error() {
@@ -341,6 +376,7 @@ where
         };
 
         self.i2c.it_reset();
+        self.notifier.notify();
         rst
     }
 }

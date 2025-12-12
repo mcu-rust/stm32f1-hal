@@ -102,12 +102,12 @@ impl<U: UartConfig + UartPeriphWithDma> Tx<U> {
     //     UartDmaTx::<U, CH>::new(self.uart, dma_ch)
     // }
 
-    pub fn into_dma_ringbuf<CH, OS>(
+    pub fn into_dma_ringbuf<OS, CH>(
         self,
+        _os: OS,
         dma_ch: CH,
         buf_size: usize,
         timeout: MicrosDurationU32,
-        _os: OS,
     ) -> (UartDmaBufTx<U, CH, OS>, DmaRingbufTxLoader<u8, CH, OS>)
     where
         CH: DmaBindTx<U>,
@@ -147,10 +147,10 @@ impl<U: UartConfig> Rx<U> {
 impl<U: UartConfig + UartPeriphWithDma> Rx<U> {
     pub fn into_dma_circle<OS, CH>(
         self,
+        _os: OS,
         dma_ch: CH,
         buf_size: usize,
         timeout: MicrosDurationU32,
-        _os: OS,
     ) -> (UartDmaRx<U, CH, OS>, UartDmaRxNotify<CH, OS>)
     where
         CH: DmaBindRx<U> + Steal,

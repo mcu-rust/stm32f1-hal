@@ -8,6 +8,7 @@ use core::{
 
 /// A simple atomic mutex for `no_std` environment.
 /// It can be used in interrupt context.
+/// But Most of the time, [`critical-section::Mutex`] is a better choice.
 pub struct AtomicMutex<T> {
     data: UnsafeCell<T>,
     state: AtomicBool,
@@ -46,21 +47,6 @@ impl<T> AtomicMutex<T> {
             None
         }
     }
-
-    /// # Safety
-    ///
-    /// Blocking, cannot be used in interrupt context
-    // pub fn lock(&self) -> AtomicMutexGuard<'_, T> {
-    //     while self
-    //         .state
-    //         .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
-    //         .is_err()
-    //     {
-    //         // os::yield_thread()
-    //     }
-
-    //     AtomicMutexGuard { m: &self }
-    // }
 
     #[inline]
     fn get_data_mut(&self) -> &mut T {
@@ -119,10 +105,5 @@ mod tests {
             assert!(d2.is_none());
             d.a += 1;
         }
-        // {
-        //     let d = l.lock();
-        //     assert_eq!(d.a, 2);
-        //     assert_eq!(d.b, 2);
-        // }
     }
 }

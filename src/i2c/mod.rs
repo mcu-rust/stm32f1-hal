@@ -1,4 +1,5 @@
 mod i2c1;
+mod i2c2;
 
 pub use crate::common::i2c::*;
 
