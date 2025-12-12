@@ -6,7 +6,6 @@ pub use crate::common::i2c::*;
 use crate::{
     Steal,
     afio::{RemapMode, i2c_remap::*},
-    common::embedded_hal::i2c::NoAcknowledgeSource,
     // dma::{DmaBindRx, DmaBindTx, DmaRingbufTxLoader},
     rcc::{BusClock, Enable, Reset},
 };
@@ -25,6 +24,7 @@ pub trait I2cConfig: I2cPeriph + BusClock + Enable + Reset + Steal {
     fn send_addr(&mut self, addr: u8, read: bool);
     fn set_interrupt(&mut self, it: Interrupt, en: bool);
     fn disable_all_interrupt(&mut self);
+    fn it_routine(&self);
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

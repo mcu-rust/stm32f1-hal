@@ -1,9 +1,16 @@
 use super::{utils::*, *};
-use crate::common::ringbuf::{Consumer, Producer, RingBuffer};
+use crate::common::{
+    bus_device::*,
+    os_trait::Mutex,
+    ringbuf::{Consumer, Producer, RingBuffer},
+};
 use core::sync::atomic::{AtomicU16, Ordering};
 
-pub struct I2cBusInterrupt<T, OS: OsInterface> {
-    i2c: T,
+
+// BUS --------------------------------------------------------------
+
+pub struct I2cBusInterrupt<OS: OsInterface, I2C> {
+    i2c: I2C,
     mode: Arc<AtomicU16>,
     err_code: Arc<AtomicU16>,
     cmd_w: Producer<Command>,
@@ -12,22 +19,22 @@ pub struct I2cBusInterrupt<T, OS: OsInterface> {
     seq_id: u8,
 }
 
-impl<T, OS> I2cBusInterrupt<T, OS>
+impl<OS, I2C> I2cBusInterrupt<OS, I2C>
 where
-    T: I2cPeriph,
     OS: OsInterface,
+    I2C: I2cPeriph,
 {
     pub fn new(
-        i2c: [T; 3],
+        i2c: [I2C; 3],
         buff_size: usize,
     ) -> (
         Self,
-        I2cBusInterruptHandler<T, OS>,
-        I2cBusErrorInterruptHandler<T, OS>,
+        I2cBusInterruptHandler<OS, I2C>,
+        I2cBusErrorInterruptHandler<OS, I2C>,
     ) {
         let (notifier, waiter) = OS::notify();
         let (data_w, data_r) = RingBuffer::<u8>::new(buff_size);
-        let (cmd_w, cmd_r) = RingBuffer::<Command>::new(buff_size + 4);
+        let (cmd_w, cmd_r) = RingBuffer::<Command>::new(buff_size + 6);
         let mode = Arc::new(AtomicU16::new(0));
         let err_code = Arc::new(AtomicU16::new(0));
         let [i2c1, i2c2, i2c3] = i2c;
@@ -37,7 +44,7 @@ where
             cmd_r,
             data_w,
             step: 0,
-            data_len: 0,
+            read_len: 0,
             slave_addr: 0,
             notifier: notifier.clone(),
         };
@@ -61,8 +68,8 @@ where
         )
     }
 
-    pub fn write(&mut self, slave_addr: u8, reg_addr: u8, data: &[u8]) -> Result<(), Error> {
-        if data.is_empty() {
+    pub fn write_read(&mut self, slave_addr: u8, data: &[u8], buf: &mut [u8]) -> Result<(), Error> {
+        if buf.is_empty() && data.is_empty() {
             return Err(Error::Other);
         }
 
@@ -83,249 +90,182 @@ where
         self.seq_id = self.seq_id.wrapping_add(1);
         self.cmd_w.push(Command::Start(self.seq_id)).unwrap();
         self.cmd_w.push(Command::SlaveAddr(slave_addr)).unwrap();
-        self.cmd_w.push(Command::Data(reg_addr)).unwrap();
-        for d in data {
-            self.cmd_w.push(Command::Data(*d)).unwrap();
-        }
-        self.mode
-            .store(Mode::StartWrite(self.seq_id).into(), Ordering::Release);
-        // reset error code
-        self.err_code.store(0, Ordering::Release);
-        self.i2c.it_send_start();
-
-        // TODO calculate timeout
-        if self
-            .waiter
-            .wait_with(OS::O, 10.millis(), 2, || {
-                if Mode::Stop == self.mode.load(Ordering::Acquire).into() {
-                    Some(())
-                } else {
-                    None
-                }
-            })
-            .is_some()
-        {
-            return Ok(());
-        }
-
-        // get error code
-        if let Some(err) = int_to_err(self.err_code.load(Ordering::Acquire)) {
-            let mode: Mode = self.mode.load(Ordering::Acquire).into();
-            if mode == Mode::WriteAddr {
-                Err(err.nack_addr())
-            } else if mode == Mode::WriteData {
-                Err(err.nack_data())
-            } else {
-                Err(err)
+        if !data.is_empty() {
+            self.cmd_w.push(Command::WriteMode).unwrap();
+            for d in data {
+                self.cmd_w.push(Command::Data(*d)).unwrap();
             }
-        } else {
-            Err(Error::Timeout)
         }
-    }
-
-    pub fn read(&mut self, slave_addr: u8, reg_addr: u8, buff: &mut [u8]) -> Result<(), Error> {
-        if buff.is_empty() {
-            return Err(Error::Other);
+        if !buf.is_empty() {
+            self.cmd_w.push(Command::ReadMode).unwrap();
+            self.cmd_w.push(Command::Len(buf.len() as u8)).unwrap();
         }
-
-        // check stop, timeout > 25ms
-        if self
-            .waiter
-            .wait_with(OS::O, 26.millis(), 16, || {
-                self.i2c.is_stopped(true).then_some(())
-            })
-            .is_none()
-        {
-            return Err(Error::Timeout);
-        }
-
-        self.i2c.it_reset();
-
-        // prepare
-        self.seq_id = self.seq_id.wrapping_add(1);
-        self.cmd_w.push(Command::Start(self.seq_id)).unwrap();
-        self.cmd_w.push(Command::SlaveAddr(slave_addr)).unwrap();
-        self.cmd_w.push(Command::Data(reg_addr)).unwrap();
-        self.cmd_w.push(Command::Len(buff.len() as u8)).unwrap();
-        self.mode
-            .store(Mode::StartRead(self.seq_id).into(), Ordering::Release);
         while self.data_r.pop().is_ok() {}
         // reset error code
         self.err_code.store(0, Ordering::Release);
+        self.mode
+            .store(Mode::Start(self.seq_id).into(), Ordering::Release);
         self.i2c.it_send_start();
 
         // TODO calculate timeout
         let mut i = 0;
-        if self
-            .waiter
-            .wait_with(OS::O, 10.millis(), 2, || {
-                while let Ok(data) = self.data_r.pop() {
-                    buff[i] = data;
-                    i += 1;
-                    if i >= buff.len() {
-                        return Some(());
-                    }
-                }
-                None
-            })
-            .is_some()
-        {
-            return Ok(());
-        }
-
-        // get error code
-        if let Some(err) = int_to_err(self.err_code.load(Ordering::Acquire)) {
-            let mode: Mode = self.mode.load(Ordering::Acquire).into();
-            if mode == Mode::ReadAddr {
-                Err(err.nack_addr())
-            } else if mode == Mode::ReadData {
-                Err(err.nack_data())
-            } else {
-                Err(err)
+        let rst = self.waiter.wait_with(OS::O, 10.millis(), 2, || {
+            let mode = self.mode.load(Ordering::Acquire).into();
+            let err_code = int_to_err(self.err_code.load(Ordering::Acquire));
+            if Mode::Success == mode {
+                return Some(Ok(()));
+            } else if let Some(err) = err_code {
+                return Some(match mode {
+                    Mode::Addr => Err(err.nack_addr()),
+                    Mode::Data => Err(err.nack_data()),
+                    _ => Err(err),
+                });
+            } else if Mode::Stop == mode {
+                return Some(Err(Error::Other));
             }
-        } else {
-            Err(Error::Timeout)
+
+            while i < buf.len()
+                && let Ok(data) = self.data_r.pop()
+            {
+                buf[i] = data;
+                i += 1;
+            }
+            None
+        });
+
+        match rst {
+            None => Err(Error::Timeout),
+            Some(rst) => {
+                if i != buf.len() {
+                    Err(Error::Other)
+                } else {
+                    rst
+                }
+            }
         }
     }
 }
 
 // Handler ----------------------------------------------------------
 
-pub struct I2cBusInterruptHandler<T, OS: OsInterface> {
-    i2c: T,
+pub struct I2cBusInterruptHandler<OS: OsInterface, I2C> {
+    i2c: I2C,
     mode: Arc<AtomicU16>,
     cmd_r: Consumer<Command>,
     data_w: Producer<u8>,
     notifier: OS::Notifier,
 
     step: u8,
-    data_len: u8,
+    read_len: u8,
     slave_addr: u8,
 }
 
-impl<T, OS> I2cBusInterruptHandler<T, OS>
+impl<OS, I2C> I2cBusInterruptHandler<OS, I2C>
 where
-    T: I2cPeriph,
     OS: OsInterface,
+    I2C: I2cPeriph,
 {
     pub fn handler(&mut self) {
         let mut mode = Mode::from(self.mode.load(Ordering::Acquire));
-        match mode {
-            Mode::StartWrite(seq_id) => {
-                if self.prepare_cmd(seq_id) {
-                    mode = Mode::Write;
+        if let Mode::Start(seq_id) = mode {
+            if self.prepare_cmd(seq_id) {
+                if let Ok(cmd) = self.cmd_r.peek() {
+                    self.step = match cmd {
+                        Command::ReadMode => 4, // jump to read
+                        _ => 0,
+                    };
+                    mode = Mode::Work;
                     self.mode.store(mode.into(), Ordering::Relaxed);
-                    self.step = 0;
                 }
             }
-            Mode::StartRead(seq_id) => {
-                if self.prepare_cmd(seq_id) {
-                    mode = Mode::Read;
-                    self.mode.store(mode.into(), Ordering::Relaxed);
-                    self.step = 0;
+        }
+
+        match mode {
+            Mode::Start(_) | Mode::Stop | Mode::Success => {
+                if self.i2c.get_flag(Flag::Busy) {
+                    self.i2c.send_stop();
                 }
+                self.finish(mode == Mode::Success);
+                self.notifier.notify();
+                return;
             }
             _ => (),
         }
 
-        match mode {
-            Mode::Write | Mode::WriteAddr | Mode::WriteData => self.write(),
-            Mode::Read | Mode::ReadAddr | Mode::ReadData => {
-                self.read();
-                self.notifier.notify();
-            }
-            Mode::Stop => self.i2c.it_reset(),
-            Mode::StartWrite(_) | Mode::StartRead(_) => (),
-        }
-    }
-
-    fn write(&mut self) {
-        match self.step {
-            0 => {
-                if self.i2c.it_send_slave_addr(self.slave_addr, false) {
-                    self.mode.store(Mode::WriteAddr.into(), Ordering::Release);
-                    self.next();
-                }
-            }
-            1 => {
-                if self.i2c.it_start_write_data() {
-                    self.mode.store(Mode::WriteData.into(), Ordering::Release);
-                    self.next();
-                }
-            }
-            2 => {
-                // first data is the register address
-                if let Some(false) = self.i2c.it_write_with(|| {
-                    if let Ok(Command::Data(data)) = self.cmd_r.pop() {
-                        Some(data)
-                    } else {
-                        None
+        loop {
+            match self.step {
+                0 => {
+                    if !self.i2c.it_send_slave_addr(self.slave_addr, false) {
+                        break;
                     }
-                }) {
-                    self.finish();
-                    self.i2c.send_stop();
-                    self.notifier.notify();
-                }
-            }
-            _ => {}
-        };
-    }
-
-    fn read(&mut self) {
-        match self.step {
-            0 => {
-                if self.i2c.it_send_slave_addr(self.slave_addr, false) {
-                    self.mode.store(Mode::ReadAddr.into(), Ordering::Release);
+                    self.mode.store(Mode::Addr.into(), Ordering::Release);
                     self.next();
                 }
-            }
-            1 => {
-                if self.i2c.it_start_write_data() {
-                    self.mode.store(Mode::ReadData.into(), Ordering::Release);
-                    self.next();
-                }
-            }
-            2 => {
-                // first data is the register address
-                if let Some(true) = self.i2c.it_write_with(|| {
-                    if let Ok(Command::Data(data)) = self.cmd_r.pop() {
-                        Some(data)
-                    } else {
-                        None
+                1 => {
+                    if !self.i2c.it_start_write_data() {
+                        break;
                     }
-                }) {
-                    // restart
-                    self.i2c.it_send_start();
+                    self.mode.store(Mode::Data.into(), Ordering::Release);
                     self.next();
                 }
-            }
-            3 => {
-                if self.i2c.it_send_slave_addr(self.slave_addr, true) {
-                    self.mode.store(Mode::ReadAddr.into(), Ordering::Release);
+                2 => {
+                    match self.i2c.it_write_with(|| match self.cmd_r.pop() {
+                        Ok(Command::Data(data)) => Some(data),
+                        _ => None,
+                    }) {
+                        Some(true) | None => break,
+                        Some(false) => self.next(),
+                    }
+                }
+                3 => {
+                    // restart or stop
                     if let Ok(Command::Len(len)) = self.cmd_r.pop() {
-                        self.data_len = len;
+                        self.read_len = len;
+                        self.i2c.it_send_start();
+                        self.next();
+                    } else {
+                        self.end();
+                    }
+                }
+                4 => {
+                    if !self.i2c.it_send_slave_addr(self.slave_addr, true) {
+                        break;
+                    }
+                    self.mode.store(Mode::Addr.into(), Ordering::Release);
+                    if let Ok(Command::Len(len)) = self.cmd_r.pop() {
+                        self.read_len = len;
                     }
                     self.next();
                 }
-            }
-            4 => {
-                if self.i2c.it_start_read_data(self.data_len as usize) {
-                    self.mode.store(Mode::ReadData.into(), Ordering::Release);
+                5 => {
+                    if !self.i2c.it_start_read_data(self.read_len as usize) {
+                        break;
+                    }
+                    self.mode.store(Mode::Data.into(), Ordering::Release);
                     self.next();
                 }
-            }
-            5 => {
-                if let Some(data) = self.i2c.it_read(self.data_len as usize) {
-                    self.data_w.push(data).unwrap();
-                    self.data_len -= 1;
-                    if self.data_len == 0 {
-                        self.finish();
-                        self.i2c.send_stop();
+                6 => {
+                    if let Some(data) = self.i2c.it_read(self.read_len as usize) {
+                        self.data_w.push(data).unwrap();
+                        self.read_len -= 1;
+                        if self.read_len == 0 {
+                            self.next();
+                        }
+                    } else {
+                        break;
                     }
                 }
+                _ => {
+                    self.i2c.send_stop();
+                    self.finish(true);
+                    break;
+                }
             }
-            _ => {}
-        };
+        }
+
+        if self.step >= 6 {
+            self.notifier.notify();
+        }
     }
 
     fn prepare_cmd(&mut self, seq_id: u8) -> bool {
@@ -347,36 +287,44 @@ where
     }
 
     #[inline]
-    fn finish(&mut self) {
+    fn end(&mut self) {
+        self.step = 200;
+    }
+
+    #[inline]
+    fn finish(&mut self, successful: bool) {
         self.i2c.it_reset();
         // clean old commands
         while self.cmd_r.pop().is_ok() {}
-        self.mode.store(Mode::Stop.into(), Ordering::Release);
+        let mode = if successful {
+            Mode::Success
+        } else {
+            Mode::Stop
+        };
+        self.mode.store(mode.into(), Ordering::Release);
     }
 }
 
-pub struct I2cBusErrorInterruptHandler<T, OS: OsInterface> {
-    i2c: T,
+pub struct I2cBusErrorInterruptHandler<OS: OsInterface, I2C> {
+    i2c: I2C,
     err_code: Arc<AtomicU16>,
     notifier: OS::Notifier,
 }
 
-impl<T, OS> I2cBusErrorInterruptHandler<T, OS>
+impl<OS, I2C> I2cBusErrorInterruptHandler<OS, I2C>
 where
-    T: I2cPeriph,
     OS: OsInterface,
+    I2C: I2cPeriph,
 {
     pub fn handler(&mut self) -> bool {
-        let rst = if let Some(err) = self.i2c.get_and_clean_error() {
+        if let Some(err) = self.i2c.get_and_clean_error() {
             self.err_code
                 .store(err_to_int(Some(err)), Ordering::Release);
+            self.i2c.it_reset();
+            self.notifier.notify();
             true
         } else {
             false
-        };
-
-        self.i2c.it_reset();
-        self.notifier.notify();
-        rst
+        }
     }
 }

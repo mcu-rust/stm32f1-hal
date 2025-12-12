@@ -1,12 +1,12 @@
 mod i2c_master_it;
 mod utils;
 
+pub use crate::common::embedded_hal::i2c::{
+    AddressMode, NoAcknowledgeSource, SevenBitAddress, TenBitAddress,
+};
 pub use i2c_master_it::*;
 
-use crate::common::{
-    embedded_hal::i2c::{ErrorKind, NoAcknowledgeSource},
-    os_trait::prelude::*,
-};
+use crate::common::{embedded_hal::i2c::ErrorKind, os_trait::prelude::*};
 
 pub trait I2cPeriph {
     fn it_reset(&mut self);

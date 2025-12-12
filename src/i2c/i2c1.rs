@@ -112,6 +112,14 @@ impl I2cConfig for I2cX {
                 .clear_bit()
         });
     }
+
+    #[inline]
+    fn it_routine(&self) {
+        // Clean useless interrupt flag
+        if self.sr1().read().btf().bit_is_set() {
+            let _ = self.dr().read().bits() as u8;
+        }
+    }
 }
 
 // Implement Peripheral -------------------------------------------------------
@@ -121,11 +129,7 @@ impl I2cPeriph for I2cX {
     fn it_reset(&mut self) {
         self.disable_all_interrupt();
         self.set_ack(false);
-
-        // Clean interrupt flag
-        if self.get_flag(Flag::ByteTransferFinished) {
-            let _ = self.dr().read().bits() as u8;
-        }
+        self.it_routine();
     }
 
     #[inline]

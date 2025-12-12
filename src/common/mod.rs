@@ -12,7 +12,7 @@ pub use critical_section;
 pub use embedded_hal;
 pub use embedded_hal_nb;
 pub use embedded_io;
-pub use fugit;
+pub use fugit::{self, MicrosDurationU32};
 pub use os_trait;
 pub use rtrb;
 
