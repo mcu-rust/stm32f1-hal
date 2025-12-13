@@ -32,7 +32,7 @@ where
     ) {
         let (notifier, waiter) = OS::notify();
         let (data_w, data_r) = RingBuffer::<u8>::new(buff_size);
-        let (cmd_w, cmd_r) = RingBuffer::<Command>::new(buff_size + 6);
+        let (cmd_w, cmd_r) = RingBuffer::<Command>::new(buff_size + 8);
         let mode = Arc::new(AtomicU16::new(0));
         let err_code = Arc::new(AtomicU16::new(0));
         let i2c1 = unsafe { i2c.steal() };
@@ -215,39 +215,26 @@ where
     pub fn handler(&mut self) {
         let mut mode = Mode::from(self.mode.load(Ordering::Acquire));
         if let Mode::Start(seq_id) = mode {
-            if self.prepare_cmd(seq_id) {
-                if let Ok(cmd) = self.cmd_r.peek() {
-                    mode = Mode::Addr;
-                    self.mode.store(mode.into(), Ordering::Relaxed);
-                    self.sub_step = 0;
-                    self.step = match cmd {
-                        Command::Len(len) => {
-                            self.read_len = *len;
-                            2 // jump to reading
-                        }
-                        _ => 0,
-                    };
-                }
+            if let Some(cmd) = self.prepare_cmd(seq_id) {
+                self.step = match cmd {
+                    Command::Len(len) => {
+                        self.read_len = len;
+                        2 // jump to reading
+                    }
+                    Command::WriteMode => 0,
+                    _ => panic!(),
+                };
+                self.sub_step = 0;
+                mode = Mode::Addr;
+                self.mode.store(mode.into(), Ordering::Relaxed);
+            } else {
+                self.step = 200;
             }
-        }
-
-        match mode {
-            Mode::Start(_) | Mode::Stop | Mode::Success => {
-                // abnormal
-                self.finish(mode == Mode::Success);
-                self.notifier.notify();
-                return;
-            }
-            _ => (),
         }
 
         match self.step {
             0 => {
-                if self
-                    .i2c
-                    .it_prepare_write(self.slave_addr, &mut self.sub_step)
-                    .is_ok()
-                {
+                if self.prepare_write() {
                     self.mode.store(Mode::Data.into(), Ordering::Release);
                     self.next_step();
                 }
@@ -266,7 +253,6 @@ where
                         self.read_len = len;
                         self.i2c.it_send_start();
                         self.mode.store(Mode::Addr.into(), Ordering::Release);
-                        // TODO extract sub step
                         self.sub_step = 0;
                         self.next_step();
                     } else {
@@ -275,11 +261,7 @@ where
                 }
             }
             2 => {
-                if self
-                    .i2c
-                    .it_prepare_read(self.slave_addr, self.read_len as usize, &mut self.sub_step)
-                    .is_ok()
-                {
+                if self.prepare_read() {
                     self.mode.store(Mode::Data.into(), Ordering::Release);
                     self.next_step();
                 }
@@ -304,24 +286,42 @@ where
         }
     }
 
-    fn prepare_cmd(&mut self, seq_id: u8) -> bool {
+    fn prepare_cmd(&mut self, seq_id: u8) -> Option<Command> {
         // Clean old commands
         while let Ok(cmd) = self.cmd_r.pop() {
             if cmd == Command::Start(seq_id) {
-                match self.cmd_r.pop() {
+                let ok = match self.cmd_r.pop() {
                     Ok(Command::SlaveAddr(addr)) => {
                         self.slave_addr = Address::Seven(addr);
-                        return true;
+                        true
                     }
                     Ok(Command::SlaveAddr10(addr)) => {
                         self.slave_addr = Address::Ten(addr);
-                        return true;
+                        true
                     }
-                    _ => (),
+                    _ => false,
+                };
+
+                if ok {
+                    return self.cmd_r.pop().ok();
                 }
             }
         }
-        false
+        None
+    }
+
+    #[inline]
+    fn prepare_write(&mut self) -> bool {
+        self.i2c
+            .it_prepare_write(self.slave_addr, &mut self.sub_step)
+            .is_ok()
+    }
+
+    #[inline]
+    fn prepare_read(&mut self) -> bool {
+        self.i2c
+            .it_prepare_read(self.slave_addr, self.read_len as usize, &mut self.sub_step)
+            .is_ok()
     }
 
     #[inline]
