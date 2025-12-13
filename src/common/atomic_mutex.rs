@@ -1,4 +1,3 @@
-use super::*;
 use core::{
     cell::UnsafeCell,
     fmt::{self, Debug, Formatter},
@@ -42,15 +41,16 @@ impl<T> AtomicMutex<T> {
             .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
             .is_ok()
         {
-            Some(AtomicMutexGuard { m: &self })
+            Some(AtomicMutexGuard { m: self })
         } else {
             None
         }
     }
 
+    #[allow(clippy::mut_from_ref)]
     #[inline]
     fn get_data_mut(&self) -> &mut T {
-        unsafe { self.data.unsafe_get_mut() }
+        unsafe { &mut *self.data.get() }
     }
 }
 
@@ -65,13 +65,13 @@ pub struct AtomicMutexGuard<'mutex, T> {
 impl<'mutex, T> Deref for AtomicMutexGuard<'mutex, T> {
     type Target = T;
 
-    fn deref<'a>(&'a self) -> &'a T {
+    fn deref(&self) -> &T {
         self.m.get_data_mut()
     }
 }
 
 impl<'mutex, T> DerefMut for AtomicMutexGuard<'mutex, T> {
-    fn deref_mut<'a>(&'a mut self) -> &'a mut T {
+    fn deref_mut(&mut self) -> &mut T {
         self.m.get_data_mut()
     }
 }

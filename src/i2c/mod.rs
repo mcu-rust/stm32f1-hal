@@ -42,6 +42,7 @@ pub struct I2c<OS: OsInterface, I> {
     _os: PhantomData<OS>,
 }
 
+#[allow(clippy::type_complexity)]
 impl<OS, I> I2c<OS, I>
 where
     OS: OsInterface,
@@ -85,7 +86,6 @@ where
         REMAP::remap(&mut mcu.afio);
         self.i2c.config(mode, mcu);
         let (bus, it, it_err) = I2cBusInterrupt::<OS, I>::new(self.i2c, 10);
-        // TODO
         (
             I2cSoleDevice::new(bus, convert_addr(slave_addr)),
             it,

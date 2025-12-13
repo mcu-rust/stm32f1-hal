@@ -55,7 +55,7 @@ where
         };
         (
             Self {
-                i2c: i2c,
+                i2c,
                 mode,
                 err_code,
                 cmd_w,

@@ -10,14 +10,14 @@ pub enum Mode {
     Stop,
 }
 
-impl Into<u16> for Mode {
-    fn into(self) -> u16 {
-        match self {
+impl From<Mode> for u16 {
+    fn from(mode: Mode) -> Self {
+        match mode {
             Mode::Start(id) => 1 | ((id as u16) << 8),
-            Mode::Addr => 2 as u16,
-            Mode::Data => 3 as u16,
-            Mode::Success => 4 as u16,
-            Mode::Stop => 0 as u16,
+            Mode::Addr => 2,
+            Mode::Data => 3,
+            Mode::Success => 4,
+            Mode::Stop => 0,
         }
     }
 }
