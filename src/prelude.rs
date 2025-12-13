@@ -1,7 +1,4 @@
 pub use crate::afio::AfioInit as _;
-pub use crate::afio::RFrom as _;
-pub use crate::afio::RInto as _;
-pub use crate::afio::Remap as _;
 pub use crate::flash::FlashInit as _;
 pub use crate::gpio::GpioExt as _;
 pub use crate::rcc::BkpInit as _;
