@@ -1,9 +1,6 @@
 pub trait BusDevice<WD: Word> {
     fn write_read(&mut self, write: &[&[WD]], read: &mut [&mut [WD]]) -> Result<(), BusError>;
 
-    /// Write out the data in buffer, and read exactly same length of data back to the same buffer.
-    fn write_read_in_place(&mut self, buf: &mut [WD]) -> Result<(), BusError>;
-
     #[inline]
     fn read(&mut self, buf: &mut [WD]) -> Result<(), BusError> {
         self.write_read(&[&[]], &mut [buf])
@@ -15,8 +12,16 @@ pub trait BusDevice<WD: Word> {
     }
 }
 
+pub trait BusDeviceTransfer<WD: Word>: BusDevice<WD> {
+    /// Read data into the first buffer, while writing data from the second buffer.
+    fn transfer(&mut self, read: &mut [WD], write: &[WD]) -> Result<(), BusError>;
+    /// Write data out while reading data into the provided buffer.
+    fn transfer_in_place(&mut self, buf: &mut [WD]) -> Result<(), BusError>;
+}
+
+pub use super::i2c::Address;
 pub trait BusDeviceWithAddress<WD: Word>: BusDevice<WD> {
-    fn set_address(&mut self, address: u16);
+    fn set_address(&mut self, address: Address);
 }
 
 pub trait Word: Copy + 'static {}

@@ -147,27 +147,117 @@ impl I2cPeriph for I2cX {
         self.set_interrupt(Interrupt::Error, true);
     }
 
-    #[inline]
-    fn it_start_write_data(&mut self) -> bool {
-        if self.get_flag(Flag::AddressSent) {
-            self.continue_after_addr();
-            self.set_interrupt(Interrupt::Buffer, true);
-            true
-        } else {
-            false
+    fn it_prepare_write(&mut self, addr: Address, step: &mut u8) -> Result<(), bool> {
+        match *step {
+            0 => {
+                if !self.get_flag(Flag::Started) {
+                    return Err(false);
+                }
+                match addr {
+                    Address::Seven(addr) => {
+                        self.write_data(addr);
+                        *step = 2;
+                    }
+                    Address::Ten(addr) => {
+                        let [msb, _] = addr.to_be_bytes();
+                        self.write_data(msb);
+                        next(step);
+                    }
+                }
+            }
+            1 => {
+                if !self.get_flag(Flag::Address10Sent) {
+                    return Err(false);
+                }
+                if let Address::Ten(addr) = addr {
+                    let [_, lsb] = addr.to_be_bytes();
+                    self.write_data(lsb);
+                    next(step);
+                } else {
+                    panic!();
+                }
+            }
+            2 => {
+                if !self.get_flag(Flag::AddressSent) {
+                    return Err(false);
+                }
+                self.continue_after_addr();
+                self.set_interrupt(Interrupt::Buffer, true);
+                next(step);
+                return Ok(());
+            }
+            _ => return Ok(()),
         }
+        Err(true)
     }
 
-    #[inline]
-    fn it_start_read_data(&mut self, total_len: usize) -> bool {
-        if self.get_flag(Flag::AddressSent) {
-            self.set_ack(total_len > 1);
-            self.continue_after_addr();
-            self.set_interrupt(Interrupt::Buffer, true);
-            true
-        } else {
-            false
+    fn it_prepare_read(
+        &mut self,
+        addr: Address,
+        total_len: usize,
+        step: &mut u8,
+    ) -> Result<(), bool> {
+        match *step {
+            0 => {
+                if !self.get_flag(Flag::Started) {
+                    return Err(false);
+                }
+                match addr {
+                    Address::Seven(addr) => {
+                        self.write_data(addr | 1);
+                        *step = 4;
+                    }
+                    Address::Ten(addr) => {
+                        let [msb, _] = addr.to_be_bytes();
+                        self.write_data(msb);
+                        next(step);
+                    }
+                }
+            }
+            1 => {
+                if !self.get_flag(Flag::Address10Sent) {
+                    return Err(false);
+                }
+                if let Address::Ten(addr) = addr {
+                    let [_, lsb] = addr.to_be_bytes();
+                    self.write_data(lsb);
+                    next(step);
+                } else {
+                    panic!();
+                }
+            }
+            2 => {
+                if !self.get_flag(Flag::AddressSent) {
+                    return Err(false);
+                }
+                self.it_send_start();
+                next(step);
+            }
+            3 => {
+                if !self.get_flag(Flag::Started) {
+                    return Err(false);
+                }
+                if let Address::Ten(addr) = addr {
+                    let [msb, _] = addr.to_be_bytes();
+                    self.write_data(msb | 1);
+                    next(step);
+                } else {
+                    panic!();
+                }
+            }
+            4 => {
+                if !self.get_flag(Flag::AddressSent) {
+                    return Err(false);
+                }
+                self.set_ack(total_len > 1);
+                self.continue_after_addr();
+                self.set_interrupt(Interrupt::Buffer, true);
+                next(step);
+                return Ok(());
+            }
+            _ => return Ok(()),
         }
+        Err(true)
     }
 
     #[inline]
@@ -184,26 +274,16 @@ impl I2cPeriph for I2cX {
     }
 
     #[inline]
-    fn it_write(&mut self, data: u8) -> bool {
-        if self.get_flag(Flag::TxEmpty) {
-            self.write_data(data);
-            true
-        } else {
-            false
-        }
-    }
-
-    #[inline]
-    fn it_write_with(&mut self, f: impl FnOnce() -> Option<u8>) -> Option<bool> {
+    fn it_write_with(&mut self, f: impl FnOnce() -> Option<u8>) -> Result<(), bool> {
         if self.get_flag(Flag::TxEmpty) {
             if let Some(data) = f() {
                 self.write_data(data);
-                Some(true)
+                Err(true)
             } else {
-                Some(false)
+                Ok(())
             }
         } else {
-            None
+            Err(false)
         }
     }
 
@@ -215,7 +295,7 @@ impl I2cPeriph for I2cX {
     #[inline]
     fn is_stopped(&mut self, master_mode: bool) -> bool {
         if master_mode {
-            self.cr1().read().stop().bit_is_clear()
+            self.cr1().read().stop().bit_is_clear() && !self.get_flag(Flag::Busy)
         } else {
             self.sr1().read().stopf().bit_is_set()
         }
@@ -226,6 +306,7 @@ impl I2cPeriph for I2cX {
         match flag {
             Flag::Started => self.sr1().read().sb().bit_is_set(),
             Flag::AddressSent => self.sr1().read().addr().bit_is_set(),
+            Flag::Address10Sent => self.sr1().read().add10().bit_is_set(),
             Flag::TxEmpty => self.sr1().read().tx_e().bit_is_set(),
             Flag::RxNotEmpty => self.sr1().read().rx_ne().bit_is_set(),
             Flag::ByteTransferFinished => self.sr1().read().btf().bit_is_set(),
@@ -266,24 +347,8 @@ impl I2cPeriph for I2cX {
     }
 }
 
-impl I2cPeriphAddress<SevenBitAddress> for I2cX {
-    #[inline]
-    fn it_send_slave_addr(&mut self, address: SevenBitAddress, read: bool) -> bool {
-        // start flag
-        if self.sr1().read().sb().bit_is_set() {
-            self.write_data(address.into_u16() as u8 | u8::from(read));
-            true
-        } else {
-            false
-        }
-    }
-}
-
-impl I2cPeriphAddress<TenBitAddress> for I2cX {
-    #[inline]
-    fn it_send_slave_addr(&mut self, _address: TenBitAddress, _read: bool) -> bool {
-        todo!()
-    }
+fn next(step: &mut u8) {
+    *step += 1;
 }
 
 // $sync end

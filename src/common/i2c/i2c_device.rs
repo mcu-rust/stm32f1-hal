@@ -1,125 +1,82 @@
 use super::*;
 use crate::common::{bus_device::*, os_trait::Mutex};
-use core::marker::PhantomData;
 
-pub struct I2cDeviceBuilder<OS, BUS, A>
+pub struct I2cBusDevice<OS, BUS>
 where
     OS: OsInterface,
-    A: AddressMode,
-    BUS: I2cBusInterface<A>,
+    BUS: I2cBusInterface,
 {
-    bus: Arc<Mutex<OS, BUS>>,
-    _a: PhantomData<A>,
-}
-
-impl<OS, BUS, A> I2cDeviceBuilder<OS, BUS, A>
-where
-    OS: OsInterface,
-    A: AddressMode,
-    BUS: I2cBusInterface<A>,
-{
-    pub fn new(bus: BUS) -> Self {
-        Self {
-            bus: Arc::new(OS::mutex(bus)),
-            _a: PhantomData,
-        }
-    }
-
-    pub fn new_device(&mut self, slave_addr: A) -> I2cBusDevice<OS, BUS, A> {
-        I2cBusDevice {
-            slave_addr,
-            bus: self.bus.clone(),
-        }
-    }
-}
-
-// ------------------------------------------------------------------
-
-pub struct I2cBusDevice<OS, BUS, A>
-where
-    OS: OsInterface,
-    BUS: I2cBusInterface<A>,
-    A: AddressMode,
-{
-    slave_addr: A,
+    slave_addr: Address,
     bus: Arc<Mutex<OS, BUS>>,
 }
 
-impl<OS, BUS, A> BusDevice<u8> for I2cBusDevice<OS, BUS, A>
+impl<OS, BUS> I2cBusDevice<OS, BUS>
 where
     OS: OsInterface,
-    BUS: I2cBusInterface<A>,
-    A: AddressMode,
+    BUS: I2cBusInterface,
+{
+    pub fn new(slave_addr: Address, bus: Arc<Mutex<OS, BUS>>) -> Self {
+        Self { slave_addr, bus }
+    }
+}
+
+impl<OS, BUS> BusDevice<u8> for I2cBusDevice<OS, BUS>
+where
+    OS: OsInterface,
+    BUS: I2cBusInterface,
 {
     #[inline]
     fn write_read(&mut self, write: &[&[u8]], read: &mut [&mut [u8]]) -> Result<(), BusError> {
         let mut bus = self.bus.lock();
         Ok(bus.write_read(self.slave_addr, write, read)?)
     }
-
-    #[inline]
-    fn write_read_in_place(&mut self, buf: &mut [u8]) -> Result<(), BusError> {
-        let write = unsafe { core::slice::from_raw_parts(buf.as_ptr(), buf.len()) };
-        self.write_read(&[write], &mut [buf])
-    }
 }
 
-impl<OS, BUS, A> BusDeviceWithAddress<u8> for I2cBusDevice<OS, BUS, A>
+impl<OS, BUS> BusDeviceWithAddress<u8> for I2cBusDevice<OS, BUS>
 where
     OS: OsInterface,
-    BUS: I2cBusInterface<A>,
-    A: AddressMode,
+    BUS: I2cBusInterface,
 {
-    fn set_address(&mut self, address: u16) {
-        self.slave_addr = A::from_u16(address);
+    fn set_address(&mut self, address: Address) {
+        self.slave_addr = address;
     }
 }
 
 // ------------------------------------------------------------------
 
-pub struct I2cSoleDevice<BUS, A>
+pub struct I2cSoleDevice<BUS>
 where
-    BUS: I2cBusInterface<A>,
-    A: AddressMode,
+    BUS: I2cBusInterface,
 {
-    slave_addr: A,
+    slave_addr: Address,
     bus: BUS,
 }
 
-impl<BUS, A> I2cSoleDevice<BUS, A>
+impl<BUS> I2cSoleDevice<BUS>
 where
-    BUS: I2cBusInterface<A>,
-    A: AddressMode,
+    BUS: I2cBusInterface,
 {
-    pub fn new(bus: BUS, slave_addr: A) -> Self {
+    pub fn new(bus: BUS, slave_addr: Address) -> Self {
         Self { bus, slave_addr }
     }
 }
 
-impl<BUS, A> BusDevice<u8> for I2cSoleDevice<BUS, A>
+impl<BUS> BusDevice<u8> for I2cSoleDevice<BUS>
 where
-    BUS: I2cBusInterface<A>,
-    A: AddressMode,
+    BUS: I2cBusInterface,
 {
     #[inline]
     fn write_read(&mut self, write: &[&[u8]], read: &mut [&mut [u8]]) -> Result<(), BusError> {
         Ok(self.bus.write_read(self.slave_addr, write, read)?)
     }
-
-    #[inline]
-    fn write_read_in_place(&mut self, buf: &mut [u8]) -> Result<(), BusError> {
-        let write = unsafe { core::slice::from_raw_parts(buf.as_ptr(), buf.len()) };
-        self.write_read(&[write], &mut [buf])
-    }
 }
 
-impl<BUS, A> BusDeviceWithAddress<u8> for I2cSoleDevice<BUS, A>
+impl<BUS> BusDeviceWithAddress<u8> for I2cSoleDevice<BUS>
 where
-    BUS: I2cBusInterface<A>,
-    A: AddressMode,
+    BUS: I2cBusInterface,
 {
-    fn set_address(&mut self, address: u16) {
-        self.slave_addr = A::from_u16(address);
+    fn set_address(&mut self, address: Address) {
+        self.slave_addr = address;
     }
 }
 

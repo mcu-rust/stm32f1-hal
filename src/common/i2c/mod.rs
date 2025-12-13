@@ -13,60 +13,43 @@ use crate::common::{embedded_hal::i2c::ErrorKind, os_trait::prelude::*};
 pub trait I2cPeriph {
     fn it_reset(&mut self);
     fn it_send_start(&mut self);
-    fn it_start_write_data(&mut self) -> bool;
-    fn it_start_read_data(&mut self, total_len: usize) -> bool;
-    fn it_write(&mut self, data: u8) -> bool;
     /// # Returns
-    /// - `None`: need to wait
-    /// - `Some(true)`: Wrote a data
-    /// - `Some(false)`: No new data
-    fn it_write_with(&mut self, f: impl FnOnce() -> Option<u8>) -> Option<bool>;
+    /// - `Ok()`: finished
+    /// - `Err(true)`: did something but hasn't finished
+    /// - `Err(false)`: did nothing and need to wait
+    fn it_prepare_write(&mut self, addr: Address, step: &mut u8) -> Result<(), bool>;
+    /// # Returns
+    /// - `Ok()`: finished
+    /// - `Err(true)`: did something but hasn't finished
+    /// - `Err(false)`: did nothing and need to wait
+    fn it_prepare_read(
+        &mut self,
+        addr: Address,
+        total_len: usize,
+        step: &mut u8,
+    ) -> Result<(), bool>;
+    /// # Returns
+    /// - `Ok()`: finished writing all data
+    /// - `Err(true)`: wrote a data
+    /// - `Err(false)`: did nothing and need to wait
+    fn it_write_with(&mut self, f: impl FnOnce() -> Option<u8>) -> Result<(), bool>;
     fn it_read(&mut self, left_len: usize) -> Option<u8>;
 
     fn send_stop(&mut self);
     fn is_stopped(&mut self, master_mode: bool) -> bool;
 
-    /// Read and clean the flag
+    /// Read and clean the error flag
     fn get_and_clean_error(&mut self) -> Option<Error>;
     fn get_flag(&mut self, flag: Flag) -> bool;
 }
 
-pub trait I2cPeriphAddress<A: AddressMode>: I2cPeriph {
-    fn it_send_slave_addr(&mut self, address: A, read: bool) -> bool;
-}
-
-pub trait I2cBusInterface<A: AddressMode> {
+pub trait I2cBusInterface {
     fn write_read(
         &mut self,
-        slave_addr: A,
+        slave_addr: Address,
         write: &[&[u8]],
         read: &mut [&mut [u8]],
     ) -> Result<(), Error>;
-}
-
-pub trait AddressMode: Copy + PartialEq {
-    fn from_u16(v: u16) -> Self;
-    fn into_u16(self) -> u16;
-}
-impl AddressMode for SevenBitAddress {
-    #[inline]
-    fn from_u16(v: u16) -> Self {
-        v as Self
-    }
-    #[inline]
-    fn into_u16(self) -> u16 {
-        self as u16
-    }
-}
-impl AddressMode for TenBitAddress {
-    #[inline]
-    fn from_u16(v: u16) -> Self {
-        v as Self
-    }
-    #[inline]
-    fn into_u16(self) -> u16 {
-        self as u16
-    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -80,7 +63,7 @@ pub enum Flag {
     /// Byte transfer finished
     ByteTransferFinished,
     /// 10-bit header sent
-    Address10,
+    Address10Sent,
     /// Data register not empty
     RxNotEmpty,
     /// Data register empty

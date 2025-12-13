@@ -40,14 +40,15 @@ impl From<u16> for Mode {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Command<A: AddressMode> {
+pub enum Command {
     /// Start with sequence id
     Start(u8),
-    SlaveAddr(A),
+    SlaveAddr(u8),
+    SlaveAddr10(u16),
     WriteMode,
     Data(u8),
-    ReadMode,
-    Len(u8),
+    EndWrite,
+    Len(u16),
 }
 
 pub fn err_to_int(err: Option<Error>) -> u16 {
