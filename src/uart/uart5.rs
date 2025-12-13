@@ -9,10 +9,13 @@ use crate::{Mcu, pac};
 // Initialization -------------------------------------------------------------
 
 impl UartInit<UartX> for UartX {
-    fn init(self, mcu: &mut Mcu) -> Uart<UartX> {
+    fn init<OS: OsInterface>(self, mcu: &mut Mcu) -> Uart<OS, UartX> {
         mcu.rcc.enable(&self);
         mcu.rcc.reset(&self);
-        Uart { uart: self }
+        Uart {
+            uart: self,
+            _os: PhantomData,
+        }
     }
 }
 

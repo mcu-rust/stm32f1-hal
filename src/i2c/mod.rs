@@ -4,17 +4,17 @@ mod i2c2;
 pub use crate::common::i2c::*;
 
 use crate::{
-    Steal,
+    Mcu, Steal,
     afio::{RemapMode, i2c_remap::*},
     os_trait::Mutex,
     prelude::*,
     rcc::{BusClock, Enable, Reset},
+    time::*,
 };
-
-use crate::{Mcu, time::*};
+use core::marker::PhantomData;
 
 pub trait I2cInit<T> {
-    fn init(self, mcu: &mut Mcu) -> I2c<T>;
+    fn init<OS: OsInterface>(self, mcu: &mut Mcu) -> I2c<OS, T>;
 }
 
 pub trait I2cConfig: I2cPeriph + BusClock + Enable + Reset + Steal {
@@ -37,36 +37,43 @@ pub enum Interrupt {
 }
 
 // wrapper
-pub struct I2c<I> {
+pub struct I2c<OS: OsInterface, I> {
     i2c: I,
+    _os: PhantomData<OS>,
 }
 
-impl<I: I2cConfig> I2c<I> {
-    pub fn into_interrupt_bus<OS, REMAP>(
+impl<OS, I> I2c<OS, I>
+where
+    OS: OsInterface,
+    I: I2cConfig,
+{
+    pub fn into_interrupt_bus<REMAP>(
         mut self,
         _pins: (impl I2cSclPin<REMAP>, impl I2cSdaPin<REMAP>),
         mode: Mode,
         mcu: &mut Mcu,
-    ) -> I2cDeviceBuilder<OS, I2cBusInterrupt<OS, I>>
+    ) -> (
+        I2cDeviceBuilder<OS, I2cBusInterrupt<OS, I>>,
+        I2cBusInterruptHandler<OS, I>,
+        I2cBusErrorInterruptHandler<OS, I>,
+    )
     where
         OS: OsInterface,
         REMAP: RemapMode<I>,
     {
         REMAP::remap(&mut mcu.afio);
         self.i2c.config(mode, mcu);
-        // TODO shift left addr
         let (bus, it, it_err) = I2cBusInterrupt::<OS, I>::new(self.i2c, 10);
-        I2cDeviceBuilder::new(bus)
+        (I2cDeviceBuilder::new(bus), it, it_err)
     }
 
-    pub fn into_interrupt_sole<OS, REMAP>(
+    pub fn into_interrupt_sole<REMAP>(
         mut self,
         _pins: (impl I2cSclPin<REMAP>, impl I2cSdaPin<REMAP>),
         mode: Mode,
         slave_addr: Address,
         mcu: &mut Mcu,
     ) -> (
-        // I2cSoleDevice<I2cBusInterrupt<OS, I, A>, A>,
         impl BusDeviceWithAddress<u8>,
         I2cBusInterruptHandler<OS, I>,
         I2cBusErrorInterruptHandler<OS, I>,

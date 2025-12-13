@@ -84,7 +84,7 @@ fn main() -> ! {
     let config = uart::Config::default();
     let (Some(uart_tx), Some(uart_rx)) =
         dp.USART1
-            .init(&mut mcu)
+            .init::<OS>(&mut mcu)
             .into_tx_rx((pin_tx, pin_rx), config, &mut mcu)
     else {
         panic!()
@@ -152,23 +152,23 @@ fn panic(_info: &PanicInfo) -> ! {
     loop {}
 }
 
-fn uart_poll_init<U: UartConfig>(
-    tx: uart::Tx<U>,
-    rx: uart::Rx<U>,
+fn uart_poll_init<OS: OsInterface, U: UartConfig>(
+    tx: uart::Tx<OS, U>,
+    rx: uart::Rx<OS, U>,
 ) -> UartPollTask<impl embedded_io::Write, impl embedded_io::Read> {
-    let uart_rx = rx.into_poll::<OS>(0.micros());
-    let uart_tx = tx.into_poll::<OS>(0.micros());
+    let uart_rx = rx.into_poll(0.micros());
+    let uart_tx = tx.into_poll(0.micros());
     UartPollTask::new(32, uart_tx, uart_rx)
 }
 
-fn uart_interrupt_init<U: UartConfig + 'static>(
-    tx: uart::Tx<U>,
-    rx: uart::Rx<U>,
+fn uart_interrupt_init<OS: OsInterface, U: UartConfig + 'static>(
+    tx: uart::Tx<OS, U>,
+    rx: uart::Rx<OS, U>,
     interrupt_callback: &hal::interrupt::Callback,
     mcu: &mut Mcu,
 ) -> UartPollTask<impl embedded_io::Write + 'static, impl embedded_io::Read + 'static> {
-    let (rx, mut rx_it) = rx.into_interrupt::<OS>(64, 100.micros());
-    let (tx, mut tx_it) = tx.into_interrupt::<OS>(32, 0.micros());
+    let (rx, mut rx_it) = rx.into_interrupt(64, 100.micros());
+    let (tx, mut tx_it) = tx.into_interrupt(32, 0.micros());
     interrupt_callback.set(mcu, move || {
         rx_it.handler();
         tx_it.handler();
@@ -176,17 +176,17 @@ fn uart_interrupt_init<U: UartConfig + 'static>(
     UartPollTask::new(32, tx, rx)
 }
 
-fn uart_dma_init<U: UartConfig + UartPeriphWithDma + 'static>(
-    tx: uart::Tx<U>,
+fn uart_dma_init<OS: OsInterface, U: UartConfig + UartPeriphWithDma + 'static>(
+    tx: uart::Tx<OS, U>,
     dma_tx: impl DmaBindTx<U> + 'static,
     tx_it_callback: &hal::interrupt::Callback,
-    rx: uart::Rx<U>,
+    rx: uart::Rx<OS, U>,
     dma_rx: impl DmaBindRx<U> + Steal + 'static,
     rx_it_callback: &hal::interrupt::Callback,
     mcu: &mut Mcu,
 ) -> UartPollTask<impl embedded_io::Write + 'static, impl embedded_io::Read + 'static> {
-    let (uart_rx, mut rx_it) = rx.into_dma_circle(OS::O, dma_rx, 64, 100.micros());
-    let (uart_tx, mut tx_it) = tx.into_dma_ringbuf(OS::O, dma_tx, 32, 0.micros());
+    let (uart_rx, mut rx_it) = rx.into_dma_circle(dma_rx, 64, 100.micros());
+    let (uart_tx, mut tx_it) = tx.into_dma_ringbuf(dma_tx, 32, 0.micros());
     tx_it_callback.set(mcu, move || {
         tx_it.interrupt_reload();
     });

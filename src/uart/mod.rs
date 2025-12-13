@@ -9,17 +9,16 @@ mod usart3;
 pub use crate::common::uart::*;
 
 use crate::{
-    Steal,
+    Mcu, Steal,
     afio::{RemapMode, uart_remap::*},
     dma::{DmaBindRx, DmaBindTx, DmaRingbufTxLoader},
     os_trait::{MicrosDurationU32, prelude::*},
     rcc::{BusClock, Enable, Reset},
 };
-
-use crate::Mcu;
+use core::marker::PhantomData;
 
 pub trait UartInit<U> {
-    fn init(self, mcu: &mut Mcu) -> Uart<U>;
+    fn init<OS: OsInterface>(self, mcu: &mut Mcu) -> Uart<OS, U>;
 }
 
 pub trait UartConfig: UartPeriph + BusClock + Enable + Reset + Steal {
@@ -31,17 +30,22 @@ pub trait UartConfig: UartPeriph + BusClock + Enable + Reset + Steal {
 }
 
 // wrapper
-pub struct Uart<U> {
+pub struct Uart<OS: OsInterface, U> {
     uart: U,
+    _os: PhantomData<OS>,
 }
 
-impl<U: UartConfig> Uart<U> {
+impl<OS, U> Uart<OS, U>
+where
+    OS: OsInterface,
+    U: UartConfig,
+{
     pub fn into_tx_rx<REMAP: RemapMode<U>>(
         mut self,
         pins: (impl UartTxPin<REMAP>, impl UartRxPin<REMAP>),
         config: Config,
         mcu: &mut Mcu,
-    ) -> (Option<Tx<U>>, Option<Rx<U>>) {
+    ) -> (Option<Tx<OS, U>>, Option<Rx<OS, U>>) {
         REMAP::remap(&mut mcu.afio);
         let baudrate = config.baudrate;
         self.uart.config(config, mcu);
@@ -70,21 +74,30 @@ impl<U: UartConfig> Uart<U> {
 // ------------------------------------------------------------------------------------------------
 
 /// UART Transmitter
-pub struct Tx<U> {
+pub struct Tx<OS: OsInterface, U> {
     uart: U,
     baudrate: u32,
+    _os: PhantomData<OS>,
 }
 
-impl<U: UartConfig> Tx<U> {
+impl<OS, U> Tx<OS, U>
+where
+    OS: OsInterface,
+    U: UartConfig,
+{
     pub(crate) fn new(uart: U, baudrate: u32) -> Self {
-        Self { uart, baudrate }
+        Self {
+            uart,
+            baudrate,
+            _os: PhantomData,
+        }
     }
 
-    pub fn into_poll<OS: OsInterface>(self, timeout: MicrosDurationU32) -> UartPollTx<U, OS> {
+    pub fn into_poll(self, timeout: MicrosDurationU32) -> UartPollTx<U, OS> {
         UartPollTx::new(self.uart, self.baudrate, timeout)
     }
 
-    pub fn into_interrupt<OS: OsInterface>(
+    pub fn into_interrupt(
         self,
         buf_size: usize,
         timeout: MicrosDurationU32,
@@ -94,17 +107,13 @@ impl<U: UartConfig> Tx<U> {
     }
 }
 
-impl<U: UartConfig + UartPeriphWithDma> Tx<U> {
-    // pub fn into_dma<CH>(self, dma_ch: CH) -> UartDmaTx<U, CH>
-    // where
-    //     CH: BindDmaTx<U>,
-    // {
-    //     UartDmaTx::<U, CH>::new(self.uart, dma_ch)
-    // }
-
-    pub fn into_dma_ringbuf<OS, CH>(
+impl<OS, U> Tx<OS, U>
+where
+    OS: OsInterface,
+    U: UartConfig + UartPeriphWithDma,
+{
+    pub fn into_dma_ringbuf<CH>(
         self,
-        _os: OS,
         dma_ch: CH,
         buf_size: usize,
         timeout: MicrosDurationU32,
@@ -120,21 +129,30 @@ impl<U: UartConfig + UartPeriphWithDma> Tx<U> {
 // ------------------------------------------------------------------------------------------------
 
 /// UART Receiver
-pub struct Rx<U> {
+pub struct Rx<OS: OsInterface, U> {
     uart: U,
     baudrate: u32,
+    _os: PhantomData<OS>,
 }
 
-impl<U: UartConfig> Rx<U> {
+impl<OS, U> Rx<OS, U>
+where
+    OS: OsInterface,
+    U: UartConfig,
+{
     pub(crate) fn new(uart: U, baudrate: u32) -> Self {
-        Self { uart, baudrate }
+        Self {
+            uart,
+            baudrate,
+            _os: PhantomData,
+        }
     }
 
-    pub fn into_poll<OS: OsInterface>(self, timeout: MicrosDurationU32) -> UartPollRx<U, OS> {
+    pub fn into_poll(self, timeout: MicrosDurationU32) -> UartPollRx<U, OS> {
         UartPollRx::new(self.uart, self.baudrate, timeout)
     }
 
-    pub fn into_interrupt<OS: OsInterface>(
+    pub fn into_interrupt(
         self,
         buf_size: usize,
         timeout: MicrosDurationU32,
@@ -144,10 +162,13 @@ impl<U: UartConfig> Rx<U> {
     }
 }
 
-impl<U: UartConfig + UartPeriphWithDma> Rx<U> {
-    pub fn into_dma_circle<OS, CH>(
+impl<OS, U> Rx<OS, U>
+where
+    OS: OsInterface,
+    U: UartConfig + UartPeriphWithDma,
+{
+    pub fn into_dma_circle<CH>(
         self,
-        _os: OS,
         dma_ch: CH,
         buf_size: usize,
         timeout: MicrosDurationU32,

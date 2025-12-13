@@ -8,10 +8,13 @@ use crate::{Mcu, pac};
 // Initialization -------------------------------------------------------------
 
 impl I2cInit<I2cX> for I2cX {
-    fn init(self, mcu: &mut Mcu) -> I2c<I2cX> {
+    fn init<OS: OsInterface>(self, mcu: &mut Mcu) -> I2c<OS, I2cX> {
         mcu.rcc.enable(&self);
         mcu.rcc.reset(&self);
-        I2c { i2c: self }
+        I2c {
+            i2c: self,
+            _os: PhantomData,
+        }
     }
 }
 
