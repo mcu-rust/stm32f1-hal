@@ -201,7 +201,7 @@ impl I2cConfig for I2cX {
 
 impl I2cPeriph for I2cX {
     #[inline]
-    fn it_reset(&mut self) {
+    fn it_disable(&mut self) {
         self.disable_all_interrupt();
         self.set_ack(false);
         self.it_clean_needless_flag();
@@ -357,6 +357,14 @@ impl I2cPeriph for I2cX {
             }
             None
         }
+    }
+
+    /// Perform an I2C software reset
+    fn soft_reset(&mut self) {
+        self.cr1().write(|w| w.pe().set_bit().swrst().set_bit());
+        self.cr1().reset();
+        // self.init();
+        todo!()
     }
 }
 

@@ -11,7 +11,7 @@ pub use i2c_device::*;
 use crate::common::{embedded_hal::i2c::ErrorKind, os_trait::prelude::*};
 
 pub trait I2cPeriph {
-    fn it_reset(&mut self);
+    fn it_disable(&mut self);
     fn it_send_start(&mut self);
     /// # Returns
     /// - `Ok()`: finished
@@ -41,6 +41,8 @@ pub trait I2cPeriph {
     /// Read and clean the error flag
     fn get_and_clean_error(&mut self) -> Option<Error>;
     fn get_flag(&mut self, flag: Flag) -> bool;
+
+    fn soft_reset(&mut self);
 }
 
 pub trait I2cBusInterface {

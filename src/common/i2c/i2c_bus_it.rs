@@ -90,7 +90,7 @@ where
             }
         }
 
-        self.i2c.it_reset();
+        self.i2c.it_disable();
 
         // prepare
         self.seq_id = self.seq_id.wrapping_add(1);
@@ -337,7 +337,7 @@ where
 
     #[inline]
     fn finish(&mut self, successful: bool) {
-        self.i2c.it_reset();
+        self.i2c.it_disable();
         // clean old commands
         while self.cmd_r.pop().is_ok() {}
         let mode = if successful {
@@ -366,7 +366,7 @@ where
         if let Some(err) = self.i2c.get_and_clean_error() {
             self.err_code
                 .store(err_to_int(Some(err)), Ordering::Release);
-            self.i2c.it_reset();
+            self.i2c.it_disable();
             self.notifier.notify();
             true
         } else {
