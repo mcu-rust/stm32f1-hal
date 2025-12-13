@@ -26,7 +26,13 @@ pub trait I2cConfig: I2cPeriph + BusClock + Enable + Reset + Steal {
     fn read_data(&self) -> u8;
     fn set_interrupt(&mut self, it: Interrupt, en: bool);
     fn disable_all_interrupt(&mut self);
-    fn it_routine(&self);
+    fn it_clean_needless_flag(&self);
+    fn it_prepare_read_inner(
+        &mut self,
+        addr: Address,
+        total_len: usize,
+        step: &mut u8,
+    ) -> Result<(), bool>;
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
