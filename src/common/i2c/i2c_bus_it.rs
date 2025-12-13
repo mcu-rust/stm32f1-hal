@@ -78,15 +78,16 @@ where
             return Err(Error::Buffer);
         }
 
-        // check stop, timeout > 25ms
-        if self
-            .waiter
-            .wait_with(OS::O, 26.millis(), 16, || {
-                self.i2c.is_stopped(true).then_some(())
-            })
-            .is_none()
-        {
-            return Err(Error::Busy);
+        // the bus is protected, so it must be stopped
+        if !self.i2c.is_stopped(true) {
+            self.i2c.send_stop();
+            let mut t = OS::Timeout::start_ms(1);
+            while !self.i2c.is_stopped(true) {
+                if t.timeout() {
+                    return Err(Error::Busy);
+                }
+                OS::yield_thread();
+            }
         }
 
         self.i2c.it_reset();
@@ -111,8 +112,9 @@ where
             .store(Mode::Start(self.seq_id).into(), Ordering::Release);
         self.i2c.it_send_start();
 
-        // TODO calculate timeout
         let mut buf_iter = buf.iter_mut().flat_map(|b| b.iter_mut());
+
+        // TODO calculate timeout
         let rst = self.waiter.wait_with(OS::O, 10.millis(), 2, || {
             let mode = self.mode.load(Ordering::Acquire).into();
             let err_code = int_to_err(self.err_code.load(Ordering::Acquire));
@@ -135,6 +137,8 @@ where
             }
             None
         });
+
+        self.i2c.send_stop();
 
         match rst {
             None => Err(Error::Timeout),
@@ -219,8 +223,8 @@ where
                     self.step = match cmd {
                         Command::Len(len) => {
                             self.read_len = *len;
-                            2
-                        } // jump to read
+                            2 // jump to reading
+                        }
                         _ => 0,
                     };
                 }
@@ -229,9 +233,7 @@ where
 
         match mode {
             Mode::Start(_) | Mode::Stop | Mode::Success => {
-                if !self.i2c.is_stopped(true) {
-                    self.i2c.send_stop();
-                }
+                // abnormal
                 self.finish(mode == Mode::Success);
                 self.notifier.notify();
                 return;
@@ -239,31 +241,27 @@ where
             _ => (),
         }
 
-        loop {
-            match self.step {
-                0 => {
-                    if self
-                        .i2c
-                        .it_prepare_write(self.slave_addr, &mut self.sub_step)
-                        .is_err()
-                    {
-                        break;
-                    }
+        match self.step {
+            0 => {
+                if self
+                    .i2c
+                    .it_prepare_write(self.slave_addr, &mut self.sub_step)
+                    .is_ok()
+                {
                     self.mode.store(Mode::Data.into(), Ordering::Release);
                     self.next_step();
                 }
-                1 => {
-                    if self
-                        .i2c
-                        .it_write_with(|| match self.cmd_r.pop() {
-                            Ok(Command::Data(data)) => Some(data),
-                            _ => None,
-                        })
-                        .is_err()
-                    {
-                        break;
-                    }
-                    // restart or stop
+            }
+            1 => {
+                if self
+                    .i2c
+                    .it_write_with(|| match self.cmd_r.pop() {
+                        Ok(Command::Data(data)) => Some(data),
+                        _ => None,
+                    })
+                    .is_ok()
+                {
+                    // restart or end
                     if let Ok(Command::Len(len)) = self.cmd_r.pop() {
                         self.read_len = len;
                         self.i2c.it_send_start();
@@ -275,37 +273,29 @@ where
                         self.end_step();
                     }
                 }
-                2 => {
-                    if self
-                        .i2c
-                        .it_prepare_read(
-                            self.slave_addr,
-                            self.read_len as usize,
-                            &mut self.sub_step,
-                        )
-                        .is_err()
-                    {
-                        break;
-                    }
+            }
+            2 => {
+                if self
+                    .i2c
+                    .it_prepare_read(self.slave_addr, self.read_len as usize, &mut self.sub_step)
+                    .is_ok()
+                {
                     self.mode.store(Mode::Data.into(), Ordering::Release);
                     self.next_step();
                 }
-                3 => {
-                    if let Some(data) = self.i2c.it_read(self.read_len as usize) {
-                        self.data_w.push(data).unwrap();
-                        self.read_len -= 1;
-                        if self.read_len == 0 {
-                            self.end_step();
-                        }
-                    } else {
-                        break;
+            }
+            3 => {
+                if let Some(data) = self.i2c.it_read(self.read_len as usize) {
+                    self.data_w.push(data).unwrap();
+                    self.read_len -= 1;
+                    if self.read_len == 0 {
+                        self.end_step();
                     }
                 }
-                _ => {
-                    self.i2c.send_stop(); // TODO move to task
-                    self.finish(true);
-                    break;
-                }
+            }
+            _ => {
+                // abnormal
+                self.finish(false);
             }
         }
 
@@ -342,6 +332,7 @@ where
     #[inline]
     fn end_step(&mut self) {
         self.step = 200;
+        self.finish(true);
     }
 
     #[inline]

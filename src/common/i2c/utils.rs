@@ -4,7 +4,6 @@ use super::*;
 pub enum Mode {
     /// with sequence id
     Start(u8),
-    Work,
     Addr,
     Data,
     Success,
@@ -15,10 +14,9 @@ impl Into<u16> for Mode {
     fn into(self) -> u16 {
         match self {
             Mode::Start(id) => 1 | ((id as u16) << 8),
-            Mode::Work => 2 as u16,
-            Mode::Addr => 3 as u16,
-            Mode::Data => 4 as u16,
-            Mode::Success => 5 as u16,
+            Mode::Addr => 2 as u16,
+            Mode::Data => 3 as u16,
+            Mode::Success => 4 as u16,
             Mode::Stop => 0 as u16,
         }
     }
@@ -30,10 +28,9 @@ impl From<u16> for Mode {
         let id = (value >> 8) as u8;
         match mode {
             1 => Self::Start(id),
-            2 => Self::Work,
-            3 => Self::Addr,
-            4 => Self::Data,
-            5 => Self::Success,
+            2 => Self::Addr,
+            3 => Self::Data,
+            4 => Self::Success,
             _ => Self::Stop,
         }
     }
@@ -115,7 +112,6 @@ mod tests {
     #[test]
     fn teat_mode() {
         compare_mode(Mode::Start(12));
-        compare_mode(Mode::Work);
         compare_mode(Mode::Addr);
         compare_mode(Mode::Data);
         compare_mode(Mode::Success);
