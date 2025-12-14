@@ -5,6 +5,12 @@
     name = "f103c8"
     version = "0.1.0"
 
+[features]
+    default = ["uart_dma"]
+    uart_dma = []
+    uart_it = []
+    uart_poll = []
+
 [dependencies]
     [dependencies.stm32f1-hal]
         features = ["stm32f103", "x8", "critical-section-single-core"]

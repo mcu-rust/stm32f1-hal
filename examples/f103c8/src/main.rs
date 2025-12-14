@@ -1,8 +1,7 @@
 #![no_std]
 #![no_main]
 #![allow(dead_code)]
-#![allow(unused_variables)]
-#![allow(unused_mut)]
+#![allow(unused)]
 
 mod led_task;
 mod uart_task;
@@ -48,6 +47,7 @@ fn main() -> ! {
     // Initialize the heap BEFORE you use it
     unsafe { HEAP.init(&raw mut HEAP_MEM as usize, HEAP_SIZE) }
 
+    // Clock --------------------------------------------------------
     let dp = pac::Peripherals::take().unwrap();
     let mut flash = dp.FLASH.init();
     let sysclk = 72.MHz();
@@ -62,6 +62,8 @@ fn main() -> ! {
     sys_timer.start(20.Hz()).unwrap();
     let mono_timer = MonoTimer::new(cp.DWT, cp.DCB, &mcu.rcc.clocks);
 
+    // Prepare ------------------------------------------------------
+
     // Keep them in one place for easier management
     mcu.nvic.disable_all(); // Optional
     mcu.nvic.set_priority(Interrupt::USART1, 2);
@@ -73,12 +75,12 @@ fn main() -> ! {
     let mut gpiob = dp.GPIOB.split(&mut mcu.rcc);
     let mut dma1 = dp.DMA1.split(&mut mcu.rcc);
 
-    // UART -------------------------------------
+    // UART ---------------------------------------------------------
 
-    // let pin_tx = gpioa.pa9.into_alternate_push_pull(&mut gpioa.crh);
-    // let pin_rx = gpioa.pa10.into_pull_up_input(&mut gpioa.crh);
-    let pin_tx = gpiob.pb6.into_alternate_push_pull(&mut gpiob.crl);
-    let pin_rx = gpiob.pb7.into_pull_up_input(&mut gpiob.crl);
+    let pin_tx = gpioa.pa9.into_alternate_push_pull(&mut gpioa.crh);
+    let pin_rx = gpioa.pa10.into_pull_up_input(&mut gpioa.crh);
+    // let pin_tx = gpiob.pb6.into_alternate_push_pull(&mut gpiob.crl);
+    // let pin_rx = gpiob.pb7.into_pull_up_input(&mut gpiob.crl);
     // let pin_rx = hal::afio::NONE_PIN;
 
     let config = uart::Config::default();
@@ -90,28 +92,45 @@ fn main() -> ! {
         panic!()
     };
 
-    // let mut uart_task = uart_poll_init(uart_tx, uart_rx);
-    // let mut uart_task = uart_interrupt_init(uart_tx, uart_rx, &all_it::USART1_CB, &mut mcu);
-    dma1.4.set_priority(DmaPriority::Medium);
-    dma1.5.set_priority(DmaPriority::Medium);
-    let mut uart_task = uart_dma_init(
-        uart_tx,
-        dma1.4,
-        &all_it::DMA1_CH4_CB,
-        uart_rx,
-        dma1.5,
-        &all_it::DMA1_CH5_CB,
-        &mut mcu,
-    );
+    #[cfg(feature = "uart_dma")]
+    let (tx, rx) = {
+        dma1.4.set_priority(DmaPriority::Medium);
+        dma1.5.set_priority(DmaPriority::Medium);
+        let (tx, mut tx_it) = uart_tx.into_dma_ringbuf(dma1.4, 32, 0.micros());
+        all_it::DMA1_CH4_CB.set(&mut mcu, move || {
+            tx_it.interrupt_reload();
+        });
+        let (rx, mut rx_it) = uart_rx.into_dma_circle(dma1.5, 64, 100.micros());
+        all_it::DMA1_CH5_CB.set(&mut mcu, move || {
+            rx_it.interrupt_notify();
+        });
+        (tx, rx)
+    };
 
-    // LED --------------------------------------
+    #[cfg(feature = "uart_it")]
+    let (tx, rx) = {
+        let (tx, mut tx_it) = uart_tx.into_interrupt(32, 0.micros());
+        let (rx, mut rx_it) = uart_rx.into_interrupt(64, 100.micros());
+        all_it::USART1_CB.set(&mut mcu, move || {
+            rx_it.handler();
+            tx_it.handler();
+        });
+        (tx, rx)
+    };
+
+    #[cfg(feature = "uart_poll")]
+    let (tx, rx) = (uart_tx.into_poll(0.micros()), uart_rx.into_poll(0.micros()));
+
+    let mut uart_task = UartPollTask::new(32, tx, rx);
+
+    // LED ----------------------------------------------------------
 
     let mut led = gpiob
         .pb0
         .into_open_drain_output_with_state(&mut gpiob.crl, PinState::High);
     let mut led_task = LedTask::new(led, OsTimeout::start_ms(200));
 
-    // PWM --------------------------------------
+    // PWM ----------------------------------------------------------
 
     let c1 = gpioa.pa8.into_alternate_push_pull(&mut gpioa.crh);
     let mut tim1 = dp.TIM1.init(&mut mcu);
@@ -127,10 +146,9 @@ fn main() -> ! {
 
     bt.start();
 
-    // External interruption --------------------
+    // External interrupt -------------------------------------------
 
     let mut ex = gpiob.pb1.into_pull_up_input(&mut gpiob.crl);
-    let ex1_ctl = unsafe { ex.steal() }; // Optional
     ex.make_interrupt_source(&mut mcu.afio);
     ex.trigger_on_edge(Edge::Rising);
     ex.enable_interrupt();
@@ -146,56 +164,6 @@ fn main() -> ! {
     }
 }
 
-#[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
-    asm::bkpt();
-    loop {}
-}
-
-fn uart_poll_init<OS: OsInterface, U: UartConfig>(
-    tx: uart::Tx<OS, U>,
-    rx: uart::Rx<OS, U>,
-) -> UartPollTask<impl embedded_io::Write, impl embedded_io::Read> {
-    let uart_rx = rx.into_poll(0.micros());
-    let uart_tx = tx.into_poll(0.micros());
-    UartPollTask::new(32, uart_tx, uart_rx)
-}
-
-fn uart_interrupt_init<OS: OsInterface, U: UartConfig + 'static>(
-    tx: uart::Tx<OS, U>,
-    rx: uart::Rx<OS, U>,
-    interrupt_callback: &hal::interrupt::Callback,
-    mcu: &mut Mcu,
-) -> UartPollTask<impl embedded_io::Write + 'static, impl embedded_io::Read + 'static> {
-    let (rx, mut rx_it) = rx.into_interrupt(64, 100.micros());
-    let (tx, mut tx_it) = tx.into_interrupt(32, 0.micros());
-    interrupt_callback.set(mcu, move || {
-        rx_it.handler();
-        tx_it.handler();
-    });
-    UartPollTask::new(32, tx, rx)
-}
-
-fn uart_dma_init<OS: OsInterface, U: UartConfig + UartPeriphWithDma + 'static>(
-    tx: uart::Tx<OS, U>,
-    dma_tx: impl DmaBindTx<U> + 'static,
-    tx_it_callback: &hal::interrupt::Callback,
-    rx: uart::Rx<OS, U>,
-    dma_rx: impl DmaBindRx<U> + Steal + 'static,
-    rx_it_callback: &hal::interrupt::Callback,
-    mcu: &mut Mcu,
-) -> UartPollTask<impl embedded_io::Write + 'static, impl embedded_io::Read + 'static> {
-    let (uart_rx, mut rx_it) = rx.into_dma_circle(dma_rx, 64, 100.micros());
-    let (uart_tx, mut tx_it) = tx.into_dma_ringbuf(dma_tx, 32, 0.micros());
-    tx_it_callback.set(mcu, move || {
-        tx_it.interrupt_reload();
-    });
-    rx_it_callback.set(mcu, move || {
-        rx_it.interrupt_notify();
-    });
-    UartPollTask::new(32, uart_tx, uart_rx)
-}
-
 mod all_it {
     use super::hal::interrupt_handler;
     interrupt_handler!(
@@ -204,4 +172,10 @@ mod all_it {
         (DMA1_CHANNEL4, DMA1_CH4_CB),
         (DMA1_CHANNEL5, DMA1_CH5_CB),
     );
+}
+
+#[panic_handler]
+fn panic(_info: &PanicInfo) -> ! {
+    asm::bkpt();
+    loop {}
 }
