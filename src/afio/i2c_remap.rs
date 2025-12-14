@@ -8,30 +8,8 @@ use crate::{gpio::*, pac::*};
 
 // Binder types ------------------
 
-pub trait I2cSclPin<REMAP> {
-    #[inline(always)]
-    fn is_pin(&self) -> bool {
-        true
-    }
-}
-impl<T> I2cSclPin<T> for NonePin {
-    #[inline(always)]
-    fn is_pin(&self) -> bool {
-        false
-    }
-}
-pub trait I2cSdaPin<REMAP> {
-    #[inline(always)]
-    fn is_pin(&self) -> bool {
-        true
-    }
-}
-impl<T> I2cSdaPin<T> for NonePin {
-    #[inline(always)]
-    fn is_pin(&self) -> bool {
-        false
-    }
-}
+pub trait I2cSclPin<REMAP> {}
+pub trait I2cSdaPin<REMAP> {}
 
 // Bind pins ---------------------
 

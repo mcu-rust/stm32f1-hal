@@ -99,8 +99,12 @@ def write_binder_type(d: dict, filter: str, w: Write) -> None:
     func_list = sorted(list(set(func_list)))
     for func in func_list:
         name = func_pin_name(filter, func)
-        w.write(f"pub trait {name}<REMAP>" + BINDER_BODY.format(v="true"))
-        w.write(f"impl<T> {name}<T> for NonePin" + BINDER_BODY.format(v="false"))
+        if filter in ["UART", "TIM"]:
+            w.write(f"pub trait {name}<REMAP>" + BINDER_BODY.format(v="true"))
+            w.write(f"impl<T> {name}<T> for NonePin" + BINDER_BODY.format(v="false"))
+        else:
+            w.write(f"pub trait {name}<REMAP>{{}}")
+
     w.write("\n")
 
 
