@@ -26,9 +26,9 @@ where
     BUS: I2cBusInterface,
 {
     #[inline]
-    fn write_read(&mut self, write: &[&[u8]], read: &mut [&mut [u8]]) -> Result<(), BusError> {
+    fn transaction(&mut self, operations: &mut [Operation<'_, u8>]) -> Result<(), BusError> {
         let mut bus = self.bus.lock();
-        Ok(bus.write_read(self.slave_addr, write, read)?)
+        Ok(bus.transaction(self.slave_addr, operations)?)
     }
 }
 
@@ -66,8 +66,8 @@ where
     BUS: I2cBusInterface,
 {
     #[inline]
-    fn write_read(&mut self, write: &[&[u8]], read: &mut [&mut [u8]]) -> Result<(), BusError> {
-        Ok(self.bus.write_read(self.slave_addr, write, read)?)
+    fn transaction(&mut self, operations: &mut [Operation<'_, u8>]) -> Result<(), BusError> {
+        Ok(self.bus.transaction(self.slave_addr, operations)?)
     }
 }
 

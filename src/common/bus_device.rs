@@ -1,14 +1,23 @@
+pub use crate::common::embedded_hal::spi::Operation;
+
+use crate::common::embedded_hal::i2c;
+
 pub trait BusDevice<WD: Word> {
-    fn write_read(&mut self, write: &[&[WD]], read: &mut [&mut [WD]]) -> Result<(), BusError>;
+    fn transaction(&mut self, operations: &mut [Operation<'_, WD>]) -> Result<(), BusError>;
+
+    #[inline]
+    fn write_read(&mut self, write: &[WD], read: &mut [WD]) -> Result<(), BusError> {
+        self.transaction(&mut [Operation::Write(write), Operation::Read(read)])
+    }
 
     #[inline]
     fn read(&mut self, buf: &mut [WD]) -> Result<(), BusError> {
-        self.write_read(&[&[]], &mut [buf])
+        self.transaction(&mut [Operation::Read(buf)])
     }
 
     #[inline]
     fn write(&mut self, buf: &[WD]) -> Result<(), BusError> {
-        self.write_read(&[buf], &mut [&mut []])
+        self.transaction(&mut [Operation::Write(buf)])
     }
 }
 
@@ -27,6 +36,14 @@ pub trait BusDeviceWithAddress<WD: Word>: BusDevice<WD> {
 pub trait Word: Copy + 'static {}
 impl Word for u8 {}
 impl Word for u16 {}
+
+pub fn from_spi_to_i2c_operation<'a>(value: Operation<'a, u8>) -> i2c::Operation<'a> {
+    match value {
+        Operation::Write(buf) => i2c::Operation::Write(buf),
+        Operation::Read(buf) => i2c::Operation::Read(buf),
+        _ => panic!(),
+    }
+}
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum BusError {

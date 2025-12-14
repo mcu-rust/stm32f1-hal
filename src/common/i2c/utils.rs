@@ -42,10 +42,11 @@ pub enum Command {
     Start(u8),
     SlaveAddr(u8),
     SlaveAddr10(u16),
-    WriteMode,
-    Data(u8),
-    EndWrite,
-    Len(u16),
+    Write(*const u8, usize),
+    WriteEnd,
+    /// With length
+    Read(usize),
+    ReadBuf(*mut u8, usize),
 }
 
 pub fn err_to_int(err: Option<Error>) -> u16 {

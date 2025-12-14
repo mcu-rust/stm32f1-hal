@@ -2,9 +2,7 @@ mod i2c_bus_it;
 mod i2c_device;
 mod utils;
 
-pub use crate::common::embedded_hal::i2c::{
-    self, NoAcknowledgeSource, SevenBitAddress, TenBitAddress,
-};
+pub use crate::common::{bus_device::Operation, embedded_hal::i2c::NoAcknowledgeSource};
 pub use i2c_bus_it::*;
 pub use i2c_device::*;
 
@@ -46,11 +44,10 @@ pub trait I2cPeriph {
 }
 
 pub trait I2cBusInterface {
-    fn write_read(
+    fn transaction(
         &mut self,
         slave_addr: Address,
-        write: &[&[u8]],
-        read: &mut [&mut [u8]],
+        operations: &mut [Operation<'_, u8>],
     ) -> Result<(), Error>;
 }
 
