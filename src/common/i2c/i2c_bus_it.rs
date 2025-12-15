@@ -56,6 +56,7 @@ where
             read_len: 0,
             slave_addr: Address::Seven(0),
             notifier: notifier.clone(),
+            last_operation: false,
             // count: [0; 4],
             // reg: [0; 16],
         };
@@ -260,10 +261,11 @@ pub struct I2cBusInterruptHandler<OS: OsInterface, I2C> {
 
     step: Step,
     sub_step: u8,
+    slave_addr: Address,
     data_iter: Option<Iter<'static, u8>>,
     buf_iter: Option<IterMut<'static, u8>>,
     read_len: usize,
-    slave_addr: Address,
+    last_operation: bool,
     // count: [u32; 4],
     // reg: [u32; 16],
 }
@@ -323,27 +325,14 @@ where
             }
             Step::PrepareRead => {
                 if self.prepare_read() {
-                    if self.read_len == 1 {
-                        if self.cmd().peek().is_ok() {
-                            self.i2c.it_send_start();
-                        } else {
-                            self.i2c.send_stop();
-                        }
-                    }
                     self.step_to(Step::Read);
                 }
             }
             Step::Read => {
-                if let Some(data) = self.i2c.it_read(self.read_len) {
+                if let Some(data) = self.i2c.it_read(self.read_len, self.last_operation) {
                     self.store_data(data);
                     self.read_len -= 1;
-                    if self.read_len == 1 {
-                        if self.cmd().peek().is_ok() {
-                            self.i2c.it_send_start();
-                        } else {
-                            self.i2c.send_stop();
-                        }
-                    } else if self.read_len == 0 {
+                    if self.read_len == 0 {
                         self.i2c.disable_data_interrupt();
                         match self.cmd().pop() {
                             Ok(Command::Write(p, l)) => {
@@ -375,7 +364,12 @@ where
     #[inline]
     fn prepare_read(&mut self) -> bool {
         self.i2c
-            .it_prepare_read(self.slave_addr, self.read_len, &mut self.sub_step)
+            .it_prepare_read(
+                self.slave_addr,
+                self.read_len,
+                self.last_operation,
+                &mut self.sub_step,
+            )
             .is_ok()
     }
 
@@ -414,6 +408,7 @@ where
             let data = unsafe { slice::from_raw_parts_mut(p, l) };
             self.buf_iter.replace(data.iter_mut());
         }
+        self.last_operation = !self.cmd().peek().is_ok();
         self.step_to(Step::PrepareRead);
     }
 
@@ -427,6 +422,7 @@ where
                     let mut iter = data.iter_mut();
                     let b = iter.next();
                     self.buf_iter.replace(iter);
+                    self.last_operation = !self.cmd().peek().is_ok();
                     b
                 }
                 _ => None,

@@ -27,6 +27,7 @@ pub trait I2cPeriph {
         &mut self,
         addr: Address,
         total_len: usize,
+        last_operation: bool,
         step: &mut u8,
     ) -> Result<(), bool>;
     /// # Returns
@@ -34,7 +35,7 @@ pub trait I2cPeriph {
     /// - `Err(true)`: wrote some data
     /// - `Err(false)`: did nothing and need to wait
     fn it_write_with(&mut self, f: impl FnMut() -> Option<u8>) -> Result<(), bool>;
-    fn it_read(&mut self, left_len: usize) -> Option<u8>;
+    fn it_read(&mut self, left_len: usize, last_operation: bool) -> Option<u8>;
 
     fn send_stop(&mut self);
     fn is_stopped(&mut self) -> bool;

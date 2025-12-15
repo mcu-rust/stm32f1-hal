@@ -193,6 +193,7 @@ impl I2cPeriph for I2cX {
         &mut self,
         addr: Address,
         total_len: usize,
+        last_operation: bool,
         step: &mut u8,
     ) -> Result<(), bool> {
         self.it_clean_needless_flag();
@@ -251,6 +252,13 @@ impl I2cPeriph for I2cX {
                 }
                 self.set_ack(total_len > 1);
                 self.continue_after_addr();
+                if total_len <= 1 {
+                    if last_operation {
+                        self.send_stop();
+                    } else {
+                        self.it_send_start();
+                    }
+                }
                 self.set_interrupt(Interrupt::Buffer, true);
                 next(step);
                 return Ok(());
@@ -261,10 +269,18 @@ impl I2cPeriph for I2cX {
     }
 
     #[inline]
-    fn it_read(&mut self, left_len: usize) -> Option<u8> {
+    fn it_read(&mut self, left_len: usize, last_operation: bool) -> Option<u8> {
         if self.sr1().read().rx_ne().bit_is_set() {
             if left_len == 2 {
-                self.set_ack(false);
+                if last_operation {
+                    // stop
+                    self.cr1()
+                        .modify(|_, w| w.stop().set_bit().ack().clear_bit());
+                } else {
+                    // restart
+                    self.cr1()
+                        .modify(|_, w| w.start().set_bit().ack().clear_bit());
+                }
             }
             let data = self.read_data();
             Some(data)
@@ -289,8 +305,8 @@ impl I2cPeriph for I2cX {
 
     #[inline]
     fn send_stop(&mut self) {
-        self.cr1().modify(|_, w| w.stop().set_bit());
-        self.set_ack(false);
+        self.cr1()
+            .modify(|_, w| w.stop().set_bit().ack().clear_bit());
         // Clear all pending error bits
         self.sr1().write(|w| unsafe { w.bits(0) });
     }
