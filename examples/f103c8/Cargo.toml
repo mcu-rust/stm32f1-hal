@@ -6,10 +6,15 @@
     version = "0.1.0"
 
 [features]
-    default = ["uart_dma"]
-    uart_dma = []
-    uart_it = []
-    uart_poll = []
+    default = ["i2c_it"]
+    exti = []
+    i2c = []
+    i2c_it = ["i2c"]
+    timer = []
+    uart = []
+    uart_dma = ["uart"]
+    uart_it = ["uart"]
+    uart_poll = ["uart"]
 
 [dependencies]
     [dependencies.stm32f1-hal]
@@ -20,4 +25,4 @@
     codegen-units = 1
     debug = true
     lto = true
-    opt-level = 1
+    opt-level = 0

@@ -1,17 +1,20 @@
-use crate::{TimeoutState, embedded_hal::digital::StatefulOutputPin};
+use crate::{embedded_hal::digital::StatefulOutputPin, os::*};
 
-pub struct LedTask<P, T> {
+pub struct LedTask<P> {
     led: P,
-    timeout: T,
+    interval: OsTimeoutState,
 }
 
-impl<P: StatefulOutputPin, T: TimeoutState> LedTask<P, T> {
-    pub fn new(led: P, timeout: T) -> Self {
-        Self { led, timeout }
+impl<P: StatefulOutputPin> LedTask<P> {
+    pub fn new(led: P) -> Self {
+        Self {
+            led,
+            interval: OsTimeout::start_ms(300),
+        }
     }
 
     pub fn poll(&mut self) {
-        if self.timeout.timeout() {
+        if self.interval.timeout() {
             self.led.toggle().ok();
         }
     }

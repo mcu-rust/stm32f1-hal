@@ -18,7 +18,6 @@ pub struct I2cBusInterrupt<OS: OsInterface, I2C> {
     mode: Arc<AtomicU16>,
     err_code: Arc<AtomicU16>,
     cmd_w: Producer<Command>,
-    data_r: Consumer<u8>,
     waiter: OS::NotifyWaiter,
     seq_id: u8,
 }
@@ -37,7 +36,6 @@ where
         I2cBusErrorInterruptHandler<OS, I2C>,
     ) {
         let (notifier, waiter) = OS::notify();
-        let (data_w, data_r) = RingBuffer::<u8>::new(max_operation);
         let (cmd_w, cmd_r) = RingBuffer::<Command>::new(max_operation + 8);
         let mode = Arc::new(AtomicU16::new(0));
         let err_code = Arc::new(AtomicU16::new(0));
@@ -47,7 +45,6 @@ where
             i2c: i2c1,
             mode: Arc::clone(&mode),
             cmd_r,
-            data_w,
             step: Step::End,
             sub_step: 0,
             data_iter: None,
@@ -55,6 +52,8 @@ where
             read_len: 0,
             slave_addr: Address::Seven(0),
             notifier: notifier.clone(),
+            // count: [0; 4],
+            // reg: [0; 16],
         };
         let it_err = I2cBusErrorInterruptHandler {
             i2c: i2c2,
@@ -67,7 +66,6 @@ where
                 mode,
                 err_code,
                 cmd_w,
-                data_r,
                 seq_id: 0,
                 waiter,
             },
@@ -86,7 +84,7 @@ where
             return Err(Error::Busy);
         }
 
-        self.i2c.it_disable();
+        self.i2c.disable_all_interrupt();
 
         // prepare
         self.seq_id = self.seq_id.wrapping_add(1);
@@ -153,7 +151,6 @@ where
             }
         }
 
-        while self.data_r.pop().is_ok() {}
         // reset error code
         self.err_code.store(0, Ordering::Release);
         self.mode
@@ -179,7 +176,9 @@ where
         });
 
         self.mode.store(Mode::Stop.into(), Ordering::Release);
-        self.i2c.send_stop();
+        if !self.i2c.is_stopped() {
+            self.i2c.send_stop();
+        }
 
         match rst {
             None => Err(Error::Timeout),
@@ -188,9 +187,9 @@ where
     }
 
     fn check_stopped(&mut self) -> bool {
-        if !self.i2c.is_stopped(true) {
+        if !self.i2c.is_stopped() {
             let mut t = OS::Timeout::start_ms(1);
-            while !self.i2c.is_stopped(true) {
+            while !self.i2c.is_stopped() {
                 if t.timeout() {
                     self.i2c.send_stop();
                     break;
@@ -198,7 +197,7 @@ where
                 OS::yield_thread();
             }
 
-            while !self.i2c.is_stopped(true) {
+            while !self.i2c.is_stopped() {
                 if t.timeout() {
                     return false;
                 }
@@ -236,7 +235,6 @@ pub struct I2cBusInterruptHandler<OS: OsInterface, I2C> {
     i2c: I2C,
     mode: Arc<AtomicU16>,
     cmd_r: Consumer<Command>,
-    data_w: Producer<u8>,
     notifier: OS::Notifier,
 
     step: Step,
@@ -245,6 +243,8 @@ pub struct I2cBusInterruptHandler<OS: OsInterface, I2C> {
     buf_iter: Option<IterMut<'static, u8>>,
     read_len: usize,
     slave_addr: Address,
+    // count: [u32; 4],
+    // reg: [u32; 16],
 }
 
 impl<OS, I2C> I2cBusInterruptHandler<OS, I2C>
@@ -253,11 +253,22 @@ where
     I2C: I2cPeriph,
 {
     pub fn handler(&mut self) {
+        // self.reg[self.count[0] as usize] = self.i2c.read_sr();
+        // self.count[0] = (self.count[0] + 1) & 0x0F;
+
         if let Mode::Start(seq_id) = Mode::from(self.mode.load(Ordering::Acquire)) {
             if self.prepare_cmd(seq_id) {
-                self.choose_step(false);
-            } else {
-                self.step = Step::End;
+                match self.cmd_r.pop() {
+                    Ok(Command::Write(p, l)) => {
+                        self.to_prepare_write(p, l);
+                    }
+                    Ok(Command::Read(len)) => {
+                        self.to_prepare_read(len);
+                    }
+                    _ => {
+                        self.step = Step::End;
+                    }
+                }
             }
         }
 
@@ -274,25 +285,53 @@ where
                     .it_write_with(|| Self::load_data(&mut self.data_iter, &mut self.cmd_r))
                     .is_ok()
                 {
-                    self.choose_step(true);
+                    match self.cmd_r.pop() {
+                        Ok(Command::Read(len)) => {
+                            self.to_prepare_read(len);
+                            self.i2c.disable_data_interrupt();
+                            self.i2c.it_send_start();
+                        }
+                        _ => {
+                            self.i2c.send_stop();
+                            self.step_to(Step::End);
+                        }
+                    }
                 }
             }
             Step::PrepareRead => {
                 if self.prepare_read() {
-                    self.mode.store(Mode::Data.into(), Ordering::Release);
-                    self.step = Step::Read;
+                    if self.read_len == 1 {
+                        if self.cmd_r.peek().is_ok() {
+                            self.i2c.it_send_start();
+                        } else {
+                            self.i2c.send_stop();
+                        }
+                    }
+                    self.step_to(Step::Read);
                 }
             }
             Step::Read => {
                 if let Some(data) = self.i2c.it_read(self.read_len) {
                     self.store_data(data);
                     self.read_len -= 1;
-                    if self.read_len == 0 {
-                        self.choose_step(true);
+                    if self.read_len == 1 {
+                        if self.cmd_r.peek().is_ok() {
+                            self.i2c.it_send_start();
+                        } else {
+                            self.i2c.send_stop();
+                        }
+                    } else if self.read_len == 0 {
+                        self.i2c.disable_data_interrupt();
+                        match self.cmd_r.pop() {
+                            Ok(Command::Write(p, l)) => {
+                                self.to_prepare_write(p, l);
+                            }
+                            _ => self.step_to(Step::End),
+                        }
                     }
                 }
             }
-            _ => {
+            Step::End => {
                 // abnormal
                 self.finish(false);
             }
@@ -303,7 +342,95 @@ where
         }
     }
 
+    #[inline]
+    fn prepare_write(&mut self) -> bool {
+        self.i2c
+            .it_prepare_write(self.slave_addr, &mut self.sub_step)
+            .is_ok()
+    }
+
+    #[inline]
+    fn prepare_read(&mut self) -> bool {
+        self.i2c
+            .it_prepare_read(self.slave_addr, self.read_len, &mut self.sub_step)
+            .is_ok()
+    }
+
+    fn to_prepare_write(&mut self, p: *const u8, len: usize) {
+        let data = unsafe { slice::from_raw_parts(p, len) };
+        self.data_iter = Some(data.iter());
+        self.step_to(Step::PrepareWrite);
+    }
+
+    #[inline]
+    fn load_data(
+        data_iter: &mut Option<Iter<'static, u8>>,
+        cmd_r: &mut Consumer<Command>,
+    ) -> Option<u8> {
+        match data_iter.as_mut() {
+            Some(iter) => match iter.next() {
+                Some(data) => Some(*data),
+                None => match cmd_r.pop() {
+                    Ok(Command::Write(p, l)) => {
+                        let data = unsafe { slice::from_raw_parts(p, l) };
+                        let mut iter = data.iter();
+                        let data = iter.next().map(|d| *d);
+                        data_iter.replace(iter);
+                        data
+                    }
+                    _ => None,
+                },
+            },
+            None => None,
+        }
+    }
+
+    fn to_prepare_read(&mut self, len: usize) {
+        self.read_len = len;
+        if let Ok(Command::ReadBuf(p, l)) = self.cmd_r.pop() {
+            let data = unsafe { slice::from_raw_parts_mut(p, l) };
+            self.buf_iter.replace(data.iter_mut());
+        }
+        self.step_to(Step::PrepareRead);
+    }
+
+    #[inline]
+    fn store_data(&mut self, data: u8) {
+        let byte = match &mut self.buf_iter {
+            Some(iter) => iter.next(),
+            None => match self.cmd_r.pop() {
+                Ok(Command::ReadBuf(p, l)) => {
+                    let data = unsafe { slice::from_raw_parts_mut(p, l) };
+                    let mut iter = data.iter_mut();
+                    let b = iter.next();
+                    self.buf_iter.replace(iter);
+                    b
+                }
+                _ => None,
+            },
+        };
+        byte.map(|b| *b = data);
+    }
+
+    fn step_to(&mut self, step: Step) {
+        self.step = step;
+        match step {
+            Step::PrepareWrite | Step::PrepareRead => {
+                self.mode.store(Mode::Addr.into(), Ordering::Release);
+                self.sub_step = 0;
+            }
+            Step::Write | Step::Read => {
+                self.mode.store(Mode::Data.into(), Ordering::Release);
+            }
+            Step::End => self.finish(true),
+        }
+    }
+
     fn prepare_cmd(&mut self, seq_id: u8) -> bool {
+        self.step = Step::End;
+        self.data_iter = None;
+        self.buf_iter = None;
+
         // Clean old commands
         while let Ok(cmd) = self.cmd_r.pop() {
             if cmd == Command::Start(seq_id) {
@@ -324,100 +451,10 @@ where
     }
 
     #[inline]
-    fn prepare_write(&mut self) -> bool {
-        self.i2c
-            .it_prepare_write(self.slave_addr, &mut self.sub_step)
-            .is_ok()
-    }
-
-    #[inline]
-    fn prepare_read(&mut self) -> bool {
-        self.i2c
-            .it_prepare_read(self.slave_addr, self.read_len, &mut self.sub_step)
-            .is_ok()
-    }
-
-    #[inline]
-    fn load_data(
-        data_iter: &mut Option<Iter<'static, u8>>,
-        cmd_r: &mut Consumer<Command>,
-    ) -> Option<u8> {
-        match data_iter.as_mut() {
-            Some(iter) => iter.next().map(|d| *d),
-            None => match cmd_r.pop() {
-                Ok(Command::Write(p, l)) => {
-                    let data = unsafe { slice::from_raw_parts(p, l) };
-                    let mut iter = data.iter();
-                    let data = iter.next().map(|d| *d);
-                    data_iter.replace(iter);
-                    data
-                }
-                _ => None,
-            },
-        }
-        // match self.cmd_r.pop() {
-        //     Ok(Command::Data(data)) => Some(data),
-        //     _ => None,
-        // }
-    }
-
-    #[inline]
-    fn store_data(&mut self, data: u8) {
-        let byte = match &mut self.buf_iter {
-            Some(iter) => iter.next(),
-            None => match self.cmd_r.pop() {
-                Ok(Command::ReadBuf(p, l)) => {
-                    let data = unsafe { slice::from_raw_parts_mut(p, l) };
-                    let mut iter = data.iter_mut();
-                    let b = iter.next();
-                    self.buf_iter.replace(iter);
-                    b
-                }
-                _ => None,
-            },
-        };
-        byte.map(|b| *b = data);
-        // self.data_w.push(data).unwrap();
-    }
-
-    fn choose_step(&mut self, first: bool) {
-        // restart or end
-        match self.cmd_r.pop() {
-            Ok(Command::Write(p, l)) => {
-                let data = unsafe { slice::from_raw_parts(p, l) };
-                self.data_iter = Some(data.iter());
-                if self.step != Step::Write {
-                    if !first {
-                        self.i2c.it_send_start();
-                    }
-                    self.mode.store(Mode::Addr.into(), Ordering::Release);
-                    self.sub_step = 0;
-                    self.step = Step::PrepareWrite;
-                }
-            }
-            Ok(Command::Read(len)) => {
-                self.read_len = len;
-                if self.step != Step::Read {
-                    if !first {
-                        self.i2c.it_send_start();
-                    }
-                    self.mode.store(Mode::Addr.into(), Ordering::Release);
-                    self.sub_step = 0;
-                    self.step = Step::PrepareRead;
-                }
-            }
-            _ => {
-                self.step = Step::End;
-                self.finish(!first);
-            }
-        }
-    }
-
-    #[inline]
     fn finish(&mut self, successful: bool) {
-        self.i2c.it_disable();
-        self.data_iter.take();
-        self.buf_iter.take();
+        self.i2c.disable_all_interrupt();
+        self.data_iter = None;
+        self.buf_iter = None;
         // clean old commands
         while self.cmd_r.pop().is_ok() {}
         let mode = if successful {
@@ -463,15 +500,12 @@ where
     OS: OsInterface,
     I2C: I2cPeriph,
 {
-    pub fn handler(&mut self) -> bool {
+    pub fn handler(&mut self) {
         if let Some(err) = self.i2c.get_and_clean_error() {
             self.err_code
                 .store(err_to_int(Some(err)), Ordering::Release);
-            self.i2c.it_disable();
+            self.i2c.disable_all_interrupt();
             self.notifier.notify();
-            true
-        } else {
-            false
         }
     }
 }

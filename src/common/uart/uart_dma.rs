@@ -171,13 +171,11 @@ where
     CH: DmaChannel,
     OS: OsInterface,
 {
-    pub fn interrupt_notify(&mut self) -> bool {
+    pub fn interrupt_notify(&mut self) {
         if self.ch.is_interrupted(DmaEvent::HalfTransfer)
             || self.ch.is_interrupted(DmaEvent::TransferComplete)
         {
-            self.notifier.notify()
-        } else {
-            false
+            self.notifier.notify();
         }
     }
 }

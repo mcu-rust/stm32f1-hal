@@ -9,7 +9,10 @@ pub use i2c_device::*;
 use crate::common::{embedded_hal::i2c::ErrorKind, os_trait::prelude::*};
 
 pub trait I2cPeriph {
-    fn it_disable(&mut self);
+    /// Disable all interrupt
+    fn disable_all_interrupt(&mut self);
+    /// Disable receiving data interrupt
+    fn disable_data_interrupt(&mut self);
     fn it_send_start(&mut self);
     /// # Returns
     /// - `Ok()`: finished
@@ -28,19 +31,21 @@ pub trait I2cPeriph {
     ) -> Result<(), bool>;
     /// # Returns
     /// - `Ok()`: finished writing all data
-    /// - `Err(true)`: wrote a data
+    /// - `Err(true)`: wrote some data
     /// - `Err(false)`: did nothing and need to wait
-    fn it_write_with(&mut self, f: impl FnOnce() -> Option<u8>) -> Result<(), bool>;
+    fn it_write_with(&mut self, f: impl FnMut() -> Option<u8>) -> Result<(), bool>;
     fn it_read(&mut self, left_len: usize) -> Option<u8>;
 
     fn send_stop(&mut self);
-    fn is_stopped(&mut self, master_mode: bool) -> bool;
+    fn is_stopped(&mut self) -> bool;
+    fn is_slave_stopped(&mut self) -> bool;
 
     /// Read and clean the error flag
     fn get_and_clean_error(&mut self) -> Option<Error>;
     fn get_flag(&mut self, flag: Flag) -> bool;
 
     fn soft_reset(&mut self);
+    // fn read_sr(&mut self) -> u32;
 }
 
 pub trait I2cBusInterface {
