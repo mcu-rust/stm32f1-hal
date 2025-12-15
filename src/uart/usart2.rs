@@ -19,7 +19,7 @@ impl UartInit<UartX> for UartX {
     }
 }
 
-impl UartConfig for UartX {
+impl UartPeriphConfig for UartX {
     fn config(&mut self, config: Config, mcu: &mut Mcu) {
         // Configure baud rate
         let brr = mcu.rcc.get_clock(self).raw() / config.baudrate;

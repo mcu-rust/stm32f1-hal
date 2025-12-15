@@ -17,7 +17,7 @@ pub trait I2cInit<T> {
     fn init<OS: OsInterface>(self, mcu: &mut Mcu) -> I2c<OS, T>;
 }
 
-pub trait I2cConfig: I2cPeriph + BusClock + Enable + Reset + Steal {
+pub trait I2cPeriphConfig: I2cPeriph + BusClock + Enable + Reset + Steal {
     fn config(&mut self, mode: Mode);
     fn set_ack(&mut self, en: bool);
     /// Continue after the address has been sent.
@@ -45,7 +45,7 @@ pub struct I2c<OS: OsInterface, I> {
 impl<OS, I> I2c<OS, I>
 where
     OS: OsInterface,
-    I: I2cConfig,
+    I: I2cPeriphConfig,
 {
     pub fn into_interrupt_bus<REMAP>(
         self,

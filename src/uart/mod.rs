@@ -21,7 +21,7 @@ pub trait UartInit<U> {
     fn init<OS: OsInterface>(self, mcu: &mut Mcu) -> Uart<OS, U>;
 }
 
-pub trait UartConfig: UartPeriph + BusClock + Enable + Reset + Steal {
+pub trait UartPeriphConfig: UartPeriph + BusClock + Enable + Reset + Steal {
     fn config(&mut self, config: Config, mcu: &mut Mcu);
     fn enable_comm(&mut self, tx: bool, rx: bool);
     fn set_stop_bits(&mut self, bits: StopBits);
@@ -39,7 +39,7 @@ pub struct Uart<OS: OsInterface, U> {
 impl<OS, U> Uart<OS, U>
 where
     OS: OsInterface,
-    U: UartConfig,
+    U: UartPeriphConfig,
 {
     pub fn into_tx_rx<REMAP: RemapMode<U>>(
         mut self,
@@ -84,7 +84,7 @@ pub struct Tx<OS: OsInterface, U> {
 impl<OS, U> Tx<OS, U>
 where
     OS: OsInterface,
-    U: UartConfig,
+    U: UartPeriphConfig,
 {
     pub(crate) fn new(uart: U, baudrate: u32) -> Self {
         Self {
@@ -111,7 +111,7 @@ where
 impl<OS, U> Tx<OS, U>
 where
     OS: OsInterface,
-    U: UartConfig + UartPeriphWithDma,
+    U: UartPeriphConfig + UartPeriphWithDma,
 {
     pub fn into_dma_ringbuf<CH>(
         self,
@@ -139,7 +139,7 @@ pub struct Rx<OS: OsInterface, U> {
 impl<OS, U> Rx<OS, U>
 where
     OS: OsInterface,
-    U: UartConfig,
+    U: UartPeriphConfig,
 {
     pub(crate) fn new(uart: U, baudrate: u32) -> Self {
         Self {
@@ -166,7 +166,7 @@ where
 impl<OS, U> Rx<OS, U>
 where
     OS: OsInterface,
-    U: UartConfig + UartPeriphWithDma,
+    U: UartPeriphConfig + UartPeriphWithDma,
 {
     pub fn into_dma_circle<CH>(
         self,
