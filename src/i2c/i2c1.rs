@@ -5,12 +5,16 @@ type I2cX = pac::I2C1;
 use super::*;
 use crate::{Mcu, pac};
 
+static CLOCK: FrequencyHolder = FrequencyHolder::new(KiloHertz::from_raw(0));
+
 // Initialization -------------------------------------------------------------
 
 impl I2cInit<I2cX> for I2cX {
     fn init<OS: OsInterface>(self, mcu: &mut Mcu) -> I2c<OS, I2cX> {
         mcu.rcc.enable(&self);
         mcu.rcc.reset(&self);
+        CLOCK.set(mcu.rcc.get_clock(&self).convert());
+
         I2c {
             i2c: self,
             _os: PhantomData,
@@ -19,12 +23,11 @@ impl I2cInit<I2cX> for I2cX {
 }
 
 impl I2cConfig for I2cX {
-    fn config(&mut self, mode: Mode, mcu: &mut Mcu) {
-        assert!(mode.get_frequency() <= kHz(400));
-
-        // Calculate settings for I2C speed modes
-        let clock = mcu.rcc.get_clock(self).raw();
+    fn config(&mut self, mode: Mode) {
+        let clock = CLOCK.get().to_Hz();
         let clc_mhz = clock / 1_000_000;
+
+        self.cr1().modify(|_, w| w.pe().clear_bit());
 
         // Configure bus frequency into I2C peripheral
         self.cr2()
@@ -91,7 +94,7 @@ impl I2cConfig for I2cX {
 
     #[inline]
     fn write_data(&mut self, data: u8) {
-        self.dr().write(|w| unsafe { w.bits(data as u16) });
+        self.dr().write(|w| unsafe { w.dr().bits(data) });
     }
 
     #[inline]
@@ -347,6 +350,10 @@ impl I2cPeriph for I2cX {
             }
             None
         }
+    }
+
+    fn set_speed(&mut self, speed: Hertz) {
+        self.config(Mode::from(speed));
     }
 
     /// Perform an I2C software reset

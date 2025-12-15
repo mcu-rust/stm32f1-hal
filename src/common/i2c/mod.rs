@@ -6,7 +6,7 @@ pub use crate::common::{bus_device::Operation, embedded_hal::i2c::NoAcknowledgeS
 pub use i2c_bus_it::*;
 pub use i2c_device::*;
 
-use crate::common::{embedded_hal::i2c::ErrorKind, os_trait::prelude::*};
+use crate::common::{embedded_hal::i2c::ErrorKind, fugit::HertzU32, os_trait::prelude::*};
 
 pub trait I2cPeriph {
     /// Disable all interrupt
@@ -44,6 +44,7 @@ pub trait I2cPeriph {
     fn get_and_clean_error(&mut self) -> Option<Error>;
     fn get_flag(&mut self, flag: Flag) -> bool;
 
+    fn set_speed(&mut self, speed: HertzU32);
     fn soft_reset(&mut self);
     // fn read_sr(&mut self) -> u32;
 }
@@ -52,6 +53,7 @@ pub trait I2cBusInterface {
     fn transaction(
         &mut self,
         slave_addr: Address,
+        speed: HertzU32,
         operations: &mut [Operation<'_, u8>],
     ) -> Result<(), Error>;
 }

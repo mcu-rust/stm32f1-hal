@@ -128,8 +128,7 @@ pub struct MonoTimer {
     frequency: Hertz,
 }
 
-pub static FREQUENCY: FrequencyHolder<DwtInstant> =
-    FrequencyHolder::<DwtInstant>::new(KilohertzU32::MHz(1));
+pub static FREQUENCY: FrequencyHolder = FrequencyHolder::new(KilohertzU32::MHz(1));
 
 impl MonoTimer {
     /// Creates a new `Monotonic` timer

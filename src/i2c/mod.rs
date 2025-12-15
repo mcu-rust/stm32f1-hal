@@ -6,7 +6,7 @@ pub use crate::common::i2c::*;
 use crate::{
     Mcu, Steal,
     afio::{RemapMode, i2c_remap::*},
-    os_trait::Mutex,
+    os_trait::{Mutex, utils::FrequencyHolder},
     prelude::*,
     rcc::{BusClock, Enable, Reset},
     time::*,
@@ -18,7 +18,7 @@ pub trait I2cInit<T> {
 }
 
 pub trait I2cConfig: I2cPeriph + BusClock + Enable + Reset + Steal {
-    fn config(&mut self, mode: Mode, mcu: &mut Mcu);
+    fn config(&mut self, mode: Mode);
     fn set_ack(&mut self, en: bool);
     /// Continue after the address has been sent.
     fn continue_after_addr(&mut self);
@@ -48,9 +48,8 @@ where
     I: I2cConfig,
 {
     pub fn into_interrupt_bus<REMAP>(
-        mut self,
+        self,
         _pins: (impl I2cSclPin<REMAP>, impl I2cSdaPin<REMAP>),
-        mode: Mode,
         mcu: &mut Mcu,
     ) -> (
         I2cDeviceBuilder<OS, I2cBusInterrupt<OS, I>>,
@@ -62,16 +61,15 @@ where
         REMAP: RemapMode<I>,
     {
         REMAP::remap(&mut mcu.afio);
-        self.i2c.config(mode, mcu);
         let (bus, it, it_err) = I2cBusInterrupt::<OS, I>::new(self.i2c, 10);
         (I2cDeviceBuilder::new(bus), it, it_err)
     }
 
     pub fn into_interrupt_sole<REMAP>(
-        mut self,
+        self,
         _pins: (impl I2cSclPin<REMAP>, impl I2cSdaPin<REMAP>),
-        mode: Mode,
         slave_addr: Address,
+        speed: Hertz,
         mcu: &mut Mcu,
     ) -> (
         impl BusDeviceWithAddress<u8>,
@@ -83,10 +81,10 @@ where
         REMAP: RemapMode<I>,
     {
         REMAP::remap(&mut mcu.afio);
-        self.i2c.config(mode, mcu);
+        assert!(speed <= kHz(400));
         let (bus, it, it_err) = I2cBusInterrupt::<OS, I>::new(self.i2c, 10);
         (
-            I2cSoleDevice::new(bus, convert_addr(slave_addr)),
+            I2cSoleDevice::new(bus, convert_addr(slave_addr), speed),
             it,
             it_err,
         )
@@ -112,8 +110,9 @@ where
         }
     }
 
-    pub fn new_device(&self, slave_addr: Address) -> I2cBusDevice<OS, BUS> {
-        I2cBusDevice::new(convert_addr(slave_addr), self.bus.clone())
+    pub fn new_device(&self, slave_addr: Address, speed: Hertz) -> I2cBusDevice<OS, BUS> {
+        assert!(speed <= kHz(400));
+        I2cBusDevice::new(self.bus.clone(), convert_addr(slave_addr), speed)
     }
 }
 

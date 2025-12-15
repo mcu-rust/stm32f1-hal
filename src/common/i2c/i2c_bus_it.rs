@@ -4,6 +4,7 @@ use crate::{
     common::{
         atomic_cell::{AtomicCell, Ordering},
         bus_device::Operation,
+        fugit::NanosDurationU32,
         ringbuf::{Consumer, Producer, PushError, RingBuffer},
     },
 };
@@ -21,6 +22,7 @@ pub struct I2cBusInterrupt<OS: OsInterface, I2C> {
     cmd_w: Producer<Command>,
     cmd_r: Arc<UnsafeCell<Consumer<Command>>>,
     waiter: OS::NotifyWaiter,
+    speed: HertzU32,
 }
 
 impl<OS, I2C> I2cBusInterrupt<OS, I2C>
@@ -65,6 +67,7 @@ where
         (
             Self {
                 i2c,
+                speed: HertzU32::from_raw(0),
                 mode,
                 err_code,
                 cmd_w,
@@ -76,9 +79,38 @@ where
         )
     }
 
-    pub fn i2c_transaction(
+    fn check_stopped(&mut self) -> bool {
+        if !self.i2c.is_stopped() {
+            let mut t = OS::Timeout::start_ms(1);
+            while !self.i2c.is_stopped() {
+                if t.timeout() {
+                    self.i2c.send_stop();
+                    break;
+                }
+                OS::yield_thread();
+            }
+
+            while !self.i2c.is_stopped() {
+                if t.timeout() {
+                    return false;
+                }
+                OS::yield_thread();
+            }
+        }
+        true
+    }
+}
+
+impl<OS, I2C> I2cBusInterface for I2cBusInterrupt<OS, I2C>
+where
+    OS: OsInterface,
+    I2C: I2cPeriph + Steal,
+{
+    #[inline]
+    fn transaction(
         &mut self,
         slave_addr: Address,
+        speed: HertzU32,
         operations: &mut [Operation<'_, u8>],
     ) -> Result<(), Error> {
         // the bus is protected, so it must be stopped
@@ -98,6 +130,8 @@ where
             Address::Ten(addr) => self.cmd_w.push(Command::SlaveAddr10(addr))?,
         }
 
+        let period = (speed.into_duration() as NanosDurationU32).ticks() * 12;
+        let mut timeout_ns = 0;
         let mut i = 0;
         while i < operations.len() {
             // Unsupported operations
@@ -111,19 +145,23 @@ where
             }
 
             // push writing buffer
-            let mut has_write = false;
+            let mut write_len = 0;
             for op in operations[i..].iter() {
                 if let Operation::Write(data) = op {
                     let d: &[u8] = data;
+                    if d.len() == 0 {
+                        return Err(Error::Buffer);
+                    }
+                    write_len += d.len();
                     self.cmd_w.push(Command::Write(d.as_ptr(), d.len()))?;
-                    has_write = true;
                     i += 1;
                 } else {
                     break;
                 }
             }
 
-            if has_write {
+            if write_len > 0 {
+                timeout_ns += (write_len as u32 + 2) * period;
                 self.cmd_w.push(Command::WriteEnd)?;
             }
 
@@ -142,6 +180,7 @@ where
 
             // push reading buffer
             if buf_len > 0 {
+                timeout_ns += (buf_len as u32 + 2) * period;
                 self.cmd_w.push(Command::Read(buf_len))?;
                 for op in operations[i..].iter_mut() {
                     if let Operation::Read(buf) = op {
@@ -155,13 +194,18 @@ where
             }
         }
 
+        // change speed
+        if self.speed != speed {
+            self.speed = speed;
+            self.i2c.set_speed(speed);
+        }
+
         // reset error code
         self.err_code.store(None, Ordering::Release);
         self.mode.store(Work::Start, Ordering::Release);
         self.i2c.it_send_start();
 
-        // TODO calculate timeout
-        let rst = self.waiter.wait_with(OS::O, 10.millis(), 2, || {
+        let rst = self.waiter.wait_with(OS::O, timeout_ns.nanos(), 2, || {
             let mode = self.mode.load(Ordering::Acquire);
             let err_code = self.err_code.load(Ordering::Acquire);
             if Work::Success == mode {
@@ -190,47 +234,11 @@ where
             Some(rst) => rst,
         }
     }
-
-    fn check_stopped(&mut self) -> bool {
-        if !self.i2c.is_stopped() {
-            let mut t = OS::Timeout::start_ms(1);
-            while !self.i2c.is_stopped() {
-                if t.timeout() {
-                    self.i2c.send_stop();
-                    break;
-                }
-                OS::yield_thread();
-            }
-
-            while !self.i2c.is_stopped() {
-                if t.timeout() {
-                    return false;
-                }
-                OS::yield_thread();
-            }
-        }
-        true
-    }
 }
 
 impl<T> From<PushError<T>> for Error {
     fn from(_value: PushError<T>) -> Self {
         Self::Buffer
-    }
-}
-
-impl<OS, I2C> I2cBusInterface for I2cBusInterrupt<OS, I2C>
-where
-    OS: OsInterface,
-    I2C: I2cPeriph + Steal,
-{
-    #[inline]
-    fn transaction(
-        &mut self,
-        slave_addr: Address,
-        operations: &mut [Operation<'_, u8>],
-    ) -> Result<(), Error> {
-        self.i2c_transaction(slave_addr, operations)
     }
 }
 
@@ -504,34 +512,23 @@ where
 
 #[cfg(test)]
 mod tests {
-    fn flat(data: &[&[u8]]) -> Vec<u8> {
-        let mut v = vec![];
-        for d in data.iter().flat_map(|d| d.iter()) {
-            v.push(*d);
-        }
-        v
-    }
-
-    fn flat_mut(buf: &mut [&mut [u8]]) {
-        let mut i = 0;
-        for b in buf.iter_mut().flat_map(|b| b.iter_mut()) {
-            i += 1;
-            *b = i;
-        }
-    }
+    use fugit::{KilohertzU32, MicrosDurationU32, NanosDurationU32, RateExtU32};
 
     #[test]
-    fn test_flat() {
-        let a = [1u8, 2, 3];
-        let b = [4u8, 5];
-        assert_eq!(flat(&[&a, &b]), vec![1u8, 2, 3, 4, 5]);
+    fn test_dur() {
+        let speed: KilohertzU32 = 200.kHz();
+        let dur = (speed.into_duration() as MicrosDurationU32).ticks();
+        assert_eq!(dur, 5);
+        let dur = (speed.into_duration() as NanosDurationU32).ticks();
+        assert_eq!(dur, 5000);
 
-        let mut a = [0u8; 3];
-        let mut b = [0; 2];
-        let mut c = [a.as_mut_slice(), b.as_mut_slice()];
-        flat_mut(c.as_mut_slice());
-        assert_eq!(a, [1, 2, 3]);
-        assert_eq!(b, [4, 5]);
+        let speed: KilohertzU32 = 20.kHz();
+        let dur = (speed.into_duration() as NanosDurationU32).ticks();
+        assert_eq!(dur, 50000);
+
+        let speed: KilohertzU32 = 400.kHz();
+        let dur = (speed.into_duration() as NanosDurationU32).ticks();
+        assert_eq!(dur, 2500);
     }
 
     #[test]

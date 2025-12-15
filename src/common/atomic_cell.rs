@@ -13,7 +13,7 @@ unsafe impl<M: AtomicCellMember> Sync for AtomicCell<M> {}
 impl<M: AtomicCellMember> AtomicCell<M> {
     pub fn new(value: M) -> Self {
         Self {
-            value: AtomicUsize::new(value.as_num()),
+            value: AtomicUsize::new(value.to_num()),
             _m: PhantomData,
         }
     }
@@ -32,11 +32,11 @@ impl<M: AtomicCellMember> AtomicCell<M> {
 
     #[inline]
     pub fn store(&self, value: M, order: Ordering) {
-        self.value.store(value.as_num(), order);
+        self.value.store(value.to_num(), order);
     }
 }
 
 pub trait AtomicCellMember: Copy {
-    fn as_num(self) -> usize;
+    fn to_num(self) -> usize;
     unsafe fn from_num(value: usize) -> Self;
 }

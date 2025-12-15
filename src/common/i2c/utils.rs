@@ -12,7 +12,7 @@ pub enum Work {
 
 impl AtomicCellMember for Work {
     #[inline]
-    fn as_num(self) -> usize {
+    fn to_num(self) -> usize {
         self as usize
     }
 
@@ -35,7 +35,7 @@ pub enum Command {
 
 impl AtomicCellMember for Option<Error> {
     #[inline]
-    fn as_num(self) -> usize {
+    fn to_num(self) -> usize {
         match self {
             None => 0,
             Some(err) => match err {

@@ -36,8 +36,7 @@ impl SysTimerInit for SYST {
     }
 }
 
-pub static FREQUENCY: FrequencyHolder<SysTickInstant> =
-    FrequencyHolder::<SysTickInstant>::new(KilohertzU32::MHz(1));
+pub static FREQUENCY: FrequencyHolder = FrequencyHolder::new(KilohertzU32::MHz(1));
 
 pub struct SystemTimer {
     pub(super) syst: SYST,
