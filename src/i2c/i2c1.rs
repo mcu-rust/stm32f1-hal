@@ -27,8 +27,6 @@ impl I2cPeriphConfig for I2cX {
         let clock = CLOCK.get().to_Hz();
         let clc_mhz = clock / 1_000_000;
 
-        self.cr1().modify(|_, w| w.pe().clear_bit());
-
         // Configure bus frequency into I2C peripheral
         self.cr2()
             .write(|w| unsafe { w.freq().bits(clc_mhz as u8) });
@@ -352,16 +350,34 @@ impl I2cPeriph for I2cX {
         }
     }
 
+    fn handle_error(&mut self, _err: Error) {
+        if self.sr2().read().busy().bit_is_set() {
+            // TODO recover from busy
+            self.soft_reset();
+        } else {
+            self.soft_reset();
+        }
+    }
+
     fn set_speed(&mut self, speed: Hertz) {
+        self.cr1().modify(|_, w| w.pe().clear_bit());
         self.config(Mode::from(speed));
     }
 
-    /// Perform an I2C software reset
     fn soft_reset(&mut self) {
+        // backup
+        let cr2 = self.cr2().read().bits();
+        let t_rise = self.trise().read().bits();
+        let ccr = self.ccr().read().bits();
+        // software reset
         self.cr1().write(|w| w.pe().set_bit().swrst().set_bit());
         self.cr1().reset();
-        // self.init();
-        todo!()
+        // restore
+        self.cr2().write(|w| unsafe { w.bits(cr2) });
+        self.trise().write(|w| unsafe { w.bits(t_rise) });
+        self.ccr().write(|w| unsafe { w.bits(ccr) });
+        // enable
+        self.cr1().modify(|_, w| w.pe().set_bit().pos().clear_bit());
     }
 
     // fn read_sr(&mut self) -> u32 {

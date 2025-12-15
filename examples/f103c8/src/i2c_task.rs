@@ -40,6 +40,9 @@ where
                 self.step += 1;
             } else {
                 self.dev
+                    .write_read(&[REG_WHO_AM_I], &mut self.buf[..1])
+                    .unwrap();
+                self.dev
                     .write_read(&[REG_TEMPERATURE], &mut self.buf[1..3])
                     .unwrap();
                 self.dev

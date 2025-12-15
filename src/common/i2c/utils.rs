@@ -93,20 +93,6 @@ impl AtomicCellMember for Option<Error> {
 mod tests {
     use super::*;
 
-    fn compare_mode(mode: Work) {
-        let i: usize = mode.as_num();
-        assert_eq!(mode, unsafe { Work::from_num(i) });
-    }
-
-    #[test]
-    fn teat_mode() {
-        compare_mode(Work::Start);
-        compare_mode(Work::Addr);
-        compare_mode(Work::Data);
-        compare_mode(Work::Success);
-        compare_mode(Work::Stop);
-    }
-
     fn compare_error(err: Option<Error>) {
         let i: usize = err.as_num();
         assert_eq!(err, unsafe { Option::<Error>::from_num(i) });

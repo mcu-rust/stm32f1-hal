@@ -45,7 +45,9 @@ pub trait I2cPeriph {
     fn get_flag(&mut self, flag: Flag) -> bool;
 
     fn set_speed(&mut self, speed: HertzU32);
+    /// Perform an I2C software reset
     fn soft_reset(&mut self);
+    fn handle_error(&mut self, err: Error);
     // fn read_sr(&mut self) -> u32;
 }
 

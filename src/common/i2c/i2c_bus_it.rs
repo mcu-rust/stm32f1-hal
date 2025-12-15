@@ -80,24 +80,28 @@ where
     }
 
     fn check_stopped(&mut self) -> bool {
-        if !self.i2c.is_stopped() {
+        if self.i2c.is_stopped() {
+            true
+        } else {
             let mut t = OS::Timeout::start_ms(1);
-            while !self.i2c.is_stopped() {
-                if t.timeout() {
-                    self.i2c.send_stop();
-                    break;
+            let mut i = 0;
+            loop {
+                if self.i2c.is_stopped() {
+                    return true;
+                } else if t.timeout() {
+                    match i {
+                        0 => {
+                            self.i2c.handle_error(Error::Busy);
+                            i += 1;
+                        }
+                        _ => break,
+                    }
+                } else {
+                    OS::yield_thread();
                 }
-                OS::yield_thread();
             }
-
-            while !self.i2c.is_stopped() {
-                if t.timeout() {
-                    return false;
-                }
-                OS::yield_thread();
-            }
+            false
         }
-        true
     }
 }
 
@@ -229,10 +233,14 @@ where
             self.i2c.send_stop();
         }
 
-        match rst {
+        let rst = match rst {
             None => Err(Error::Timeout),
             Some(rst) => rst,
+        };
+        if let Err(err) = rst {
+            self.i2c.handle_error(err);
         }
+        rst
     }
 }
 
