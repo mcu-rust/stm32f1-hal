@@ -5,7 +5,7 @@ type I2cX = pac::I2C2;
 use super::*;
 use crate::{Mcu, pac};
 
-static CLOCK: FrequencyHolder = FrequencyHolder::new(KiloHertz::from_raw(0));
+static CLOCK: FrequencyHolder = FrequencyHolder::new(KilohertzU32::from_raw(0));
 
 // Initialization -------------------------------------------------------------
 
@@ -375,7 +375,7 @@ impl I2cPeriph for I2cX {
         }
     }
 
-    fn set_speed(&mut self, speed: Hertz) {
+    fn set_speed(&mut self, speed: HertzU32) {
         self.cr1().modify(|_, w| w.pe().clear_bit());
         self.config(Mode::from(speed));
     }

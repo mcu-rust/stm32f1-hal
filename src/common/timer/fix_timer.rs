@@ -5,7 +5,7 @@ use super::*;
 /// Uses `fugit::TimerDurationU32` for most of operations
 pub struct FTimer<TIM, const FREQ: u32> {
     pub(crate) tim: TIM,
-    clk: Hertz,
+    clk: HertzU32,
 }
 
 /// `FTimer` with precision of 1 μs (1 MHz sampling)
@@ -18,7 +18,7 @@ pub type FTimerMs<TIM> = FTimer<TIM, 1_000>;
 
 impl<TIM: GeneralTimer, const FREQ: u32> FTimer<TIM, FREQ> {
     /// Initialize timer
-    pub fn new(tim: TIM, clk: Hertz) -> Self {
+    pub fn new(tim: TIM, clk: HertzU32) -> Self {
         let mut t = Self { tim, clk };
         t.configure();
         t

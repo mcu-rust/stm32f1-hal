@@ -4,10 +4,10 @@ use core::convert::Infallible;
 
 pub struct PwmTimer<TIM> {
     tim: TIM,
-    clk: Hertz,
+    clk: HertzU32,
 }
 impl<TIM: TimerWithPwm> PwmTimer<TIM> {
-    pub fn new(tim: TIM, clk: Hertz) -> Self {
+    pub fn new(tim: TIM, clk: HertzU32) -> Self {
         Self { tim, clk }
     }
 
@@ -32,7 +32,7 @@ impl<TIM: TimerWithPwm> PwmTimer<TIM> {
     }
 
     #[inline]
-    pub fn config_freq(&mut self, update_freq: Hertz) {
+    pub fn config_freq(&mut self, update_freq: HertzU32) {
         self.tim.config_freq(self.clk, update_freq);
     }
 }

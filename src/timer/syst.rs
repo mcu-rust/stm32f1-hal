@@ -5,10 +5,10 @@ use crate::Mcu;
 use crate::os_trait::{utils::FrequencyHolder, *};
 use core::ops::{Deref, DerefMut};
 use cortex_m::peripheral::{SYST, syst::SystClkSource};
-use fugit::{HertzU32 as Hertz, TimerDurationU32, TimerInstantU32};
+use fugit::{HertzU32, TimerDurationU32, TimerInstantU32};
 
 pub trait SysTimerInit: Sized {
-    /// Creates timer which takes [Hertz] as Duration
+    /// Creates timer which takes [HertzU32] as Duration
     fn counter_hz(self, mcu: &Mcu) -> SysCounterHz;
     /// Creates timer with custom precision (core frequency recommended is known)
     fn counter<const FREQ: u32>(self, mcu: &Mcu) -> SysCounter<FREQ>;
@@ -40,7 +40,7 @@ pub static FREQUENCY: FrequencyHolder = FrequencyHolder::new(KilohertzU32::MHz(1
 
 pub struct SystemTimer {
     pub(super) syst: SYST,
-    pub(super) clk: Hertz,
+    pub(super) clk: HertzU32,
 }
 impl SystemTimer {
     /// Initialize SysTick timer
@@ -88,7 +88,7 @@ impl SystemTimer {
 // Counter --------------------------------------------------------------------
 
 impl SystemTimer {
-    /// Creates [SysCounterHz] which takes [Hertz] as Duration
+    /// Creates [SysCounterHz] which takes [HertzU32] as Duration
     pub fn counter_hz(self) -> SysCounterHz {
         SysCounterHz(self)
     }
@@ -121,7 +121,7 @@ impl DerefMut for SysCounterHz {
 }
 
 impl SysCounterHz {
-    pub fn start(&mut self, timeout: Hertz) -> Result<(), Error> {
+    pub fn start(&mut self, timeout: HertzU32) -> Result<(), Error> {
         let rvr = self.clk.raw() / timeout.raw() - 1;
 
         if rvr >= (1 << 24) {

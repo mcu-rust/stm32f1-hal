@@ -7,7 +7,7 @@ use crate::time::MHz;
 use crate::{
     backup_domain::BackupDomain,
     flash::ACR,
-    fugit::{HertzU32 as Hertz, RateExtU32},
+    fugit::{HertzU32, RateExtU32},
     pac::{
         BKP, PWR, RCC,
         rcc::{self, RegisterBlock as RccRB},
@@ -170,11 +170,11 @@ impl Rcc {
         T::reset(self);
     }
 
-    pub fn get_clock<T: BusClock>(&self, _periph: &T) -> Hertz {
+    pub fn get_clock<T: BusClock>(&self, _periph: &T) -> HertzU32 {
         T::clock(&self.clocks)
     }
 
-    pub fn get_timer_clock<T: BusTimerClock>(&self, _periph: &T) -> Hertz {
+    pub fn get_timer_clock<T: BusTimerClock>(&self, _periph: &T) -> HertzU32 {
         T::timer_clock(&self.clocks)
     }
 }
@@ -256,7 +256,7 @@ impl Config {
         Self::DEFAULT
     }
 
-    pub fn hse(freq: Hertz) -> Self {
+    pub fn hse(freq: HertzU32) -> Self {
         Self::DEFAULT.use_hse(freq)
     }
 
@@ -264,7 +264,7 @@ impl Config {
     /// Will result in a hang if an external oscillator is not connected or it fails to start.
     /// The frequency specified must be the frequency of the external oscillator
     #[inline(always)]
-    pub fn use_hse(mut self, freq: Hertz) -> Self {
+    pub fn use_hse(mut self, freq: HertzU32) -> Self {
         self.hse = Some(freq.raw());
         self
     }
@@ -285,35 +285,35 @@ impl Config {
 
     /// Sets the desired frequency for the HCLK clock
     #[inline(always)]
-    pub fn hclk(mut self, freq: Hertz) -> Self {
+    pub fn hclk(mut self, freq: HertzU32) -> Self {
         self.hclk = Some(freq.raw());
         self
     }
 
     /// Sets the desired frequency for the PCKL1 clock
     #[inline(always)]
-    pub fn pclk1(mut self, freq: Hertz) -> Self {
+    pub fn pclk1(mut self, freq: HertzU32) -> Self {
         self.pclk1 = Some(freq.raw());
         self
     }
 
     /// Sets the desired frequency for the PCLK2 clock
     #[inline(always)]
-    pub fn pclk2(mut self, freq: Hertz) -> Self {
+    pub fn pclk2(mut self, freq: HertzU32) -> Self {
         self.pclk2 = Some(freq.raw());
         self
     }
 
     /// Sets the desired frequency for the SYSCLK clock
     #[inline(always)]
-    pub fn sysclk(mut self, freq: Hertz) -> Self {
+    pub fn sysclk(mut self, freq: HertzU32) -> Self {
         self.sysclk = Some(freq.raw());
         self
     }
 
     /// Sets the desired frequency for the ADCCLK clock
     #[inline(always)]
-    pub fn adcclk(mut self, freq: Hertz) -> Self {
+    pub fn adcclk(mut self, freq: HertzU32) -> Self {
         self.adcclk = Some(freq.raw());
         self
     }
@@ -353,13 +353,13 @@ impl BkpInit for BKP {
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Clocks {
-    hclk: Hertz,
-    pclk1: Hertz,
-    pclk2: Hertz,
+    hclk: HertzU32,
+    pclk1: HertzU32,
+    pclk2: HertzU32,
     ppre1: u8,
     ppre2: u8,
-    sysclk: Hertz,
-    adcclk: Hertz,
+    sysclk: HertzU32,
+    adcclk: HertzU32,
     #[cfg(any(feature = "stm32f103", feature = "connectivity"))]
     usbclk_valid: bool,
 }
@@ -383,28 +383,28 @@ impl Default for Clocks {
 
 impl Clocks {
     /// Returns the frequency of the AHB
-    pub const fn hclk(&self) -> Hertz {
+    pub const fn hclk(&self) -> HertzU32 {
         self.hclk
     }
 
     /// Returns the frequency of the APB1
-    pub const fn pclk1(&self) -> Hertz {
+    pub const fn pclk1(&self) -> HertzU32 {
         self.pclk1
     }
 
     /// Returns the frequency of the APB2
-    pub const fn pclk2(&self) -> Hertz {
+    pub const fn pclk2(&self) -> HertzU32 {
         self.pclk2
     }
 
     /// Returns the frequency of the APB1 Timers
-    pub const fn pclk1_tim(&self) -> Hertz {
-        Hertz::from_raw(self.pclk1.raw() * if self.ppre1() == 1 { 1 } else { 2 })
+    pub const fn pclk1_tim(&self) -> HertzU32 {
+        HertzU32::from_raw(self.pclk1.raw() * if self.ppre1() == 1 { 1 } else { 2 })
     }
 
     /// Returns the frequency of the APB2 Timers
-    pub const fn pclk2_tim(&self) -> Hertz {
-        Hertz::from_raw(self.pclk2.raw() * if self.ppre2() == 1 { 1 } else { 2 })
+    pub const fn pclk2_tim(&self) -> HertzU32 {
+        HertzU32::from_raw(self.pclk2.raw() * if self.ppre2() == 1 { 1 } else { 2 })
     }
 
     pub(crate) const fn ppre1(&self) -> u8 {
@@ -418,12 +418,12 @@ impl Clocks {
     }
 
     /// Returns the system (core) frequency
-    pub const fn sysclk(&self) -> Hertz {
+    pub const fn sysclk(&self) -> HertzU32 {
         self.sysclk
     }
 
     /// Returns the adc clock frequency
-    pub const fn adcclk(&self) -> Hertz {
+    pub const fn adcclk(&self) -> HertzU32 {
         self.adcclk
     }
 
@@ -437,13 +437,13 @@ impl Clocks {
 /// Frequency on bus that peripheral is connected in
 pub trait BusClock {
     /// Calculates frequency depending on `Clock` state
-    fn clock(clocks: &Clocks) -> Hertz;
+    fn clock(clocks: &Clocks) -> HertzU32;
 }
 
 /// Frequency on bus that timer is connected in
 pub trait BusTimerClock {
     /// Calculates base frequency of timer depending on `Clock` state
-    fn timer_clock(clocks: &Clocks) -> Hertz;
+    fn timer_clock(clocks: &Clocks) -> HertzU32;
 }
 
 impl<T> BusClock for T
@@ -451,7 +451,7 @@ where
     T: RccBus,
     T::Bus: BusClock,
 {
-    fn clock(clocks: &Clocks) -> Hertz {
+    fn clock(clocks: &Clocks) -> HertzU32 {
         T::Bus::clock(clocks)
     }
 }
@@ -461,37 +461,37 @@ where
     T: RccBus,
     T::Bus: BusTimerClock,
 {
-    fn timer_clock(clocks: &Clocks) -> Hertz {
+    fn timer_clock(clocks: &Clocks) -> HertzU32 {
         T::Bus::timer_clock(clocks)
     }
 }
 
 impl BusClock for AHB {
-    fn clock(clocks: &Clocks) -> Hertz {
+    fn clock(clocks: &Clocks) -> HertzU32 {
         clocks.hclk
     }
 }
 
 impl BusClock for APB1 {
-    fn clock(clocks: &Clocks) -> Hertz {
+    fn clock(clocks: &Clocks) -> HertzU32 {
         clocks.pclk1
     }
 }
 
 impl BusClock for APB2 {
-    fn clock(clocks: &Clocks) -> Hertz {
+    fn clock(clocks: &Clocks) -> HertzU32 {
         clocks.pclk2
     }
 }
 
 impl BusTimerClock for APB1 {
-    fn timer_clock(clocks: &Clocks) -> Hertz {
+    fn timer_clock(clocks: &Clocks) -> HertzU32 {
         clocks.pclk1_tim()
     }
 }
 
 impl BusTimerClock for APB2 {
-    fn timer_clock(clocks: &Clocks) -> Hertz {
+    fn timer_clock(clocks: &Clocks) -> HertzU32 {
         clocks.pclk2_tim()
     }
 }

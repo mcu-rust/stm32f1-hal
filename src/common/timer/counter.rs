@@ -1,17 +1,15 @@
 use super::{Error, Event, FTimer, GeneralTimer};
-use crate::common::fugit::{
-    HertzU32 as Hertz, MicrosDurationU32, TimerDurationU32, TimerInstantU32,
-};
+use crate::common::fugit::{HertzU32, MicrosDurationU32, TimerDurationU32, TimerInstantU32};
 use core::ops::{Deref, DerefMut};
 
 /// Hardware timers
 pub struct CounterHz<TIM> {
     pub(crate) tim: TIM,
-    pub(crate) clk: Hertz,
+    pub(crate) clk: HertzU32,
 }
 
 impl<TIM: GeneralTimer> CounterHz<TIM> {
-    pub fn start(&mut self, timeout: Hertz) -> Result<(), Error> {
+    pub fn start(&mut self, timeout: HertzU32) -> Result<(), Error> {
         // pause
         self.tim.disable_counter();
 

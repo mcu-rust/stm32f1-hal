@@ -47,7 +47,7 @@ use crate::{
     afio::{RemapMode, timer_remap::*},
     pac::DBGMCU as DBG,
     rcc,
-    time::Hertz,
+    time::HertzU32,
 };
 
 pub trait TimerConfig: rcc::Enable + rcc::Reset + rcc::BusTimerClock + GeneralTimer {}
@@ -61,7 +61,7 @@ pub trait TimerInit<TIM> {
 /// Timer wrapper
 pub struct Timer<TIM> {
     tim: TIM,
-    clk: Hertz,
+    clk: HertzU32,
 }
 
 impl<TIM: TimerConfig + Steal> Timer<TIM> {
@@ -98,7 +98,7 @@ impl<TIM: TimerConfig + Steal> Timer<TIM> {
         self.counter::<1_000_000>()
     }
 
-    /// Non-blocking [Counter] with dynamic precision which uses `Hertz` as Duration units
+    /// Non-blocking [Counter] with dynamic precision which uses `HertzU32` as Duration units
     pub fn counter_hz(self) -> CounterHz<TIM> {
         CounterHz {
             tim: self.tim,
@@ -159,7 +159,7 @@ impl<'a, TIM: TimerConfig + TimerWithPwm1Ch + Steal + 'a> Timer<TIM> {
     pub fn into_pwm1<REMAP: RemapMode<TIM>>(
         mut self,
         _pin: impl TimCh1Pin<REMAP>,
-        update_freq: Hertz,
+        update_freq: HertzU32,
         preload: bool,
         mcu: &mut Mcu,
     ) -> (PwmTimer<TIM>, impl PwmChannel + 'a) {
@@ -177,7 +177,7 @@ impl<'a, TIM: TimerConfig + TimerWithPwm2Ch + Steal + 'a> Timer<TIM> {
     pub fn into_pwm2<REMAP: RemapMode<TIM>>(
         mut self,
         pins: (impl TimCh1Pin<REMAP>, impl TimCh2Pin<REMAP>),
-        update_freq: Hertz,
+        update_freq: HertzU32,
         preload: bool,
         mcu: &mut Mcu,
     ) -> (
@@ -213,7 +213,7 @@ impl<'a, TIM: TimerConfig + TimerWithPwm4Ch + Steal + 'a> Timer<TIM> {
             impl TimCh3Pin<REMAP>,
             impl TimCh4Pin<REMAP>,
         ),
-        update_freq: Hertz,
+        update_freq: HertzU32,
         preload: bool,
         mcu: &mut Mcu,
     ) -> (

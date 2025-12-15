@@ -1,6 +1,6 @@
 //! Time units
 //!
-//! See [`Hertz`], [`KiloHertz`] and [`MegaHertz`] for creating increasingly higher frequencies.
+//! See [`HertzU32`], [`KilohertzU32`] and [`MegahertzU32`] for creating increasingly higher frequencies.
 //!
 //! The [`fugit::ExtU32`] [`U32Ext`] trait adds various methods like `.Hz()`, `.MHz()`, etc to the `u32` primitive type,
 //! allowing it to be converted into frequencies.
@@ -14,7 +14,7 @@
 //!
 //! ```rust
 //! use stm32f1xx_hal::{
-//!     time::Hertz,
+//!     time::HertzU32,
 //!     // Imports U32Ext trait
 //!     prelude::*,
 //! };
@@ -32,7 +32,7 @@
 use core::ops;
 use cortex_m::peripheral::{DCB, DWT};
 
-use crate::os_trait::{KilohertzU32, fugit::RateExtU32, prelude::*, utils::FrequencyHolder};
+use crate::os_trait::{prelude::*, utils::FrequencyHolder};
 use crate::rcc::Clocks;
 
 /// Bits per second
@@ -40,8 +40,8 @@ use crate::rcc::Clocks;
 pub struct Bps(pub u32);
 
 pub use fugit::{
-    Duration, HertzU32 as Hertz, KilohertzU32 as KiloHertz, MegahertzU32 as MegaHertz,
-    MicrosDurationU32 as MicroSeconds, MillisDurationU32 as MilliSeconds,
+    Duration, HertzU32, KilohertzU32, MegahertzU32, MicrosDurationU32, MillisDurationU32,
+    RateExtU32,
 };
 
 /// Extension trait that adds convenience methods to the `u32` type
@@ -56,24 +56,24 @@ impl U32Ext for u32 {
     }
 }
 
-pub const fn Hz(val: u32) -> Hertz {
-    Hertz::from_raw(val)
+pub const fn Hz(val: u32) -> HertzU32 {
+    HertzU32::from_raw(val)
 }
 
-pub const fn kHz(val: u32) -> KiloHertz {
-    KiloHertz::from_raw(val)
+pub const fn kHz(val: u32) -> KilohertzU32 {
+    KilohertzU32::from_raw(val)
 }
 
-pub const fn MHz(val: u32) -> MegaHertz {
-    MegaHertz::from_raw(val)
+pub const fn MHz(val: u32) -> MegahertzU32 {
+    MegahertzU32::from_raw(val)
 }
 
-pub const fn ms(val: u32) -> MilliSeconds {
-    MilliSeconds::from_ticks(val)
+pub const fn ms(val: u32) -> MillisDurationU32 {
+    MillisDurationU32::from_ticks(val)
 }
 
-pub const fn us(val: u32) -> MicroSeconds {
-    MicroSeconds::from_ticks(val)
+pub const fn us(val: u32) -> MicrosDurationU32 {
+    MicrosDurationU32::from_ticks(val)
 }
 
 /// Macro to implement arithmetic operations (e.g. multiplication, division)
@@ -125,7 +125,7 @@ impl_arithmetic!(Bps, u32);
 /// while printing
 #[derive(Clone, Copy)]
 pub struct MonoTimer {
-    frequency: Hertz,
+    frequency: HertzU32,
 }
 
 pub static FREQUENCY: FrequencyHolder = FrequencyHolder::new(KilohertzU32::MHz(1));
@@ -144,7 +144,7 @@ impl MonoTimer {
     }
 
     /// Returns the frequency at which the monotonic timer is operating at
-    pub fn frequency(self) -> Hertz {
+    pub fn frequency(self) -> HertzU32 {
         self.frequency
     }
 

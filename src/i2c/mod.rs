@@ -70,7 +70,7 @@ where
         self,
         _pins: (impl I2cSclPin<REMAP>, impl I2cSdaPin<REMAP>),
         slave_addr: Address,
-        speed: Hertz,
+        speed: HertzU32,
         max_operation: usize,
         mcu: &mut Mcu,
     ) -> (
@@ -112,7 +112,7 @@ where
         }
     }
 
-    pub fn new_device(&self, slave_addr: Address, speed: Hertz) -> I2cBusDevice<OS, BUS> {
+    pub fn new_device(&self, slave_addr: Address, speed: HertzU32) -> I2cBusDevice<OS, BUS> {
         assert!(speed <= kHz(400));
         I2cBusDevice::new(self.bus.clone(), convert_addr(slave_addr), speed)
     }
@@ -138,27 +138,27 @@ pub enum DutyCycle {
 #[derive(Debug, PartialEq, Eq)]
 pub enum Mode {
     Standard {
-        frequency: Hertz,
+        frequency: HertzU32,
     },
     Fast {
-        frequency: Hertz,
+        frequency: HertzU32,
         duty_cycle: DutyCycle,
     },
 }
 
 impl Mode {
-    pub fn standard(frequency: Hertz) -> Self {
+    pub fn standard(frequency: HertzU32) -> Self {
         Mode::Standard { frequency }
     }
 
-    pub fn fast(frequency: Hertz, duty_cycle: DutyCycle) -> Self {
+    pub fn fast(frequency: HertzU32, duty_cycle: DutyCycle) -> Self {
         Mode::Fast {
             frequency,
             duty_cycle,
         }
     }
 
-    pub fn get_frequency(&self) -> Hertz {
+    pub fn get_frequency(&self) -> HertzU32 {
         match *self {
             Mode::Standard { frequency } => frequency,
             Mode::Fast { frequency, .. } => frequency,
@@ -166,8 +166,8 @@ impl Mode {
     }
 }
 
-impl From<Hertz> for Mode {
-    fn from(frequency: Hertz) -> Self {
+impl From<HertzU32> for Mode {
+    fn from(frequency: HertzU32) -> Self {
         if frequency <= kHz(100) {
             Self::Standard { frequency }
         } else {

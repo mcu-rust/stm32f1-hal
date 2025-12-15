@@ -96,7 +96,7 @@ impl GeneralTimer for TimerX {
     }
 
     #[inline]
-    fn config_freq(&mut self, clock: Hertz, update_freq: Hertz) {
+    fn config_freq(&mut self, clock: HertzU32, update_freq: HertzU32) {
         let (prescaler, arr) = compute_prescaler_arr(clock.raw(), update_freq.raw());
         self.set_prescaler(prescaler as u16);
         self.set_auto_reload(arr).unwrap();
