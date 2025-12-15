@@ -50,6 +50,7 @@ where
     pub fn into_interrupt_bus<REMAP>(
         self,
         _pins: (impl I2cSclPin<REMAP>, impl I2cSdaPin<REMAP>),
+        max_operation: usize,
         mcu: &mut Mcu,
     ) -> (
         I2cDeviceBuilder<OS, I2cBusInterrupt<OS, I>>,
@@ -61,7 +62,7 @@ where
         REMAP: RemapMode<I>,
     {
         REMAP::remap(&mut mcu.afio);
-        let (bus, it, it_err) = I2cBusInterrupt::<OS, I>::new(self.i2c, 10);
+        let (bus, it, it_err) = I2cBusInterrupt::<OS, I>::new(self.i2c, max_operation);
         (I2cDeviceBuilder::new(bus), it, it_err)
     }
 
@@ -70,6 +71,7 @@ where
         _pins: (impl I2cSclPin<REMAP>, impl I2cSdaPin<REMAP>),
         slave_addr: Address,
         speed: Hertz,
+        max_operation: usize,
         mcu: &mut Mcu,
     ) -> (
         impl BusDeviceWithAddress<u8>,
@@ -82,7 +84,7 @@ where
     {
         REMAP::remap(&mut mcu.afio);
         assert!(speed <= kHz(400));
-        let (bus, it, it_err) = I2cBusInterrupt::<OS, I>::new(self.i2c, 10);
+        let (bus, it, it_err) = I2cBusInterrupt::<OS, I>::new(self.i2c, max_operation);
         (
             I2cSoleDevice::new(bus, convert_addr(slave_addr), speed),
             it,

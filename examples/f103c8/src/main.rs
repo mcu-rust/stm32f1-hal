@@ -135,10 +135,10 @@ fn main() -> ! {
     let dev = {
         let scl = gpiob.pb6.into_alternate_open_drain(&mut gpiob.crl);
         let sda = gpiob.pb7.into_alternate_open_drain(&mut gpiob.crl);
-        let (bus, mut it, mut it_err) = dp
-            .I2C1
-            .init::<OS>(&mut mcu)
-            .into_interrupt_bus((scl, sda), &mut mcu);
+        let (bus, mut it, mut it_err) =
+            dp.I2C1
+                .init::<OS>(&mut mcu)
+                .into_interrupt_bus((scl, sda), 4, &mut mcu);
         all_it::I2C1_EVENT_CB.set(&mut mcu, move || it.handler());
         all_it::I2C1_ERR_CB.set(&mut mcu, move || it_err.handler());
         bus.new_device(i2c::Address::Seven(0b1101000), 200.kHz())

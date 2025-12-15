@@ -266,8 +266,8 @@ where
     I2C: I2cPeriph,
 {
     pub fn handler(&mut self) {
-        // self.reg[self.count[0] as usize] = self.i2c.read_sr();
-        // self.count[0] = (self.count[0] + 1) & 0x0F;
+        // self.reg[(self.count[0] & 0x0F) as usize] = self.i2c.read_sr();
+        // self.count[0] += 1;
 
         if Work::Start == self.mode.load(Ordering::Acquire) {
             if self.prepare_cmd() {
