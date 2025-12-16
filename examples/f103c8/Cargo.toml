@@ -6,10 +6,11 @@
     version = "0.1.0"
 
 [features]
-    default = ["i2c_it"]
+    default = ["i2c_it_sole"]
     exti = []
     i2c = []
-    i2c_it = ["i2c"]
+    i2c_it_bus = ["i2c"]
+    i2c_it_sole = ["i2c"]
     timer = []
     uart = []
     uart_dma = ["uart"]

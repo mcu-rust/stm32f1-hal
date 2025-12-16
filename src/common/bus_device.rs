@@ -2,7 +2,7 @@ pub use crate::common::embedded_hal::spi::Operation;
 
 use crate::common::embedded_hal::i2c;
 
-pub trait BusDevice<WD: Word> {
+pub trait BusDevice<WD: Word>: Send {
     fn transaction(&mut self, operations: &mut [Operation<'_, WD>]) -> Result<(), BusError>;
 
     #[inline]

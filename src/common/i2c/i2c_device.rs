@@ -11,6 +11,13 @@ where
     bus: Arc<Mutex<OS, BUS>>,
 }
 
+unsafe impl<OS, BUS> Send for I2cBusDevice<OS, BUS>
+where
+    OS: OsInterface,
+    BUS: I2cBusInterface,
+{
+}
+
 impl<OS, BUS> I2cBusDevice<OS, BUS>
 where
     OS: OsInterface,
@@ -70,6 +77,8 @@ where
         }
     }
 }
+
+unsafe impl<BUS> Send for I2cSoleDevice<BUS> where BUS: I2cBusInterface {}
 
 impl<BUS> BusDevice<u8> for I2cSoleDevice<BUS>
 where

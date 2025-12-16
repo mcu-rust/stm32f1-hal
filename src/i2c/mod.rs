@@ -66,19 +66,20 @@ where
         (I2cDeviceBuilder::new(bus), it, it_err)
     }
 
-    pub fn into_interrupt_sole<REMAP>(
+    pub fn into_interrupt_sole<'a, 'b, REMAP>(
         self,
         _pins: (impl I2cSclPin<REMAP>, impl I2cSdaPin<REMAP>),
         slave_addr: Address,
         speed: HertzU32,
         max_operation: usize,
-        mcu: &mut Mcu,
+        mcu: &'a mut Mcu,
     ) -> (
-        impl BusDeviceWithAddress<u8>,
+        impl BusDeviceWithAddress<u8> + 'b,
         I2cBusInterruptHandler<OS, I>,
         I2cBusErrorInterruptHandler<OS, I>,
     )
     where
+        I: 'b,
         OS: OsInterface,
         REMAP: RemapMode<I>,
     {
