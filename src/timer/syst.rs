@@ -23,7 +23,7 @@ pub trait SysTimerInit: Sized {
         self.counter::<1_000_000>(mcu)
     }
     /// It's important for `TickInstant`
-    fn store_tick_frequency(&mut self);
+    fn init_sys_tick_instant(self);
 }
 
 impl SysTimerInit for SYST {
@@ -33,7 +33,7 @@ impl SysTimerInit for SYST {
     fn counter<const FREQ: u32>(self, mcu: &Mcu) -> SysCounter<FREQ> {
         SystemTimer::syst(self, mcu).counter()
     }
-    fn store_tick_frequency(&mut self) {
+    fn init_sys_tick_instant(mut self) {
         let factor = match self.get_clock_source() {
             SystClkSource::Core => 0,
             SystClkSource::External => 3, // frequency >> 3

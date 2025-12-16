@@ -60,12 +60,12 @@ fn main() -> ! {
 
     // Keep them in one place for easier management
     mcu.scb.set_priority_grouping(PriorityGrouping::Group4);
-    mcu.nvic.set_priority(Interrupt::USART1, 2, true);
-    mcu.nvic.set_priority(Interrupt::EXTI1, 1, true);
-    mcu.nvic.set_priority(Interrupt::DMA1_CHANNEL4, 2, true);
-    mcu.nvic.set_priority(Interrupt::DMA1_CHANNEL5, 2, true);
-    mcu.nvic.set_priority(Interrupt::I2C1_EV, 3, true);
-    mcu.nvic.set_priority(Interrupt::I2C1_ER, 3, true);
+    mcu.nvic.set_priority(Interrupt::I2C1_EV, 1, true);
+    mcu.nvic.set_priority(Interrupt::I2C1_ER, 1, true);
+    mcu.nvic.set_priority(Interrupt::EXTI1, 2, true);
+    mcu.nvic.set_priority(Interrupt::USART1, 3, true);
+    mcu.nvic.set_priority(Interrupt::DMA1_CHANNEL4, 3, true);
+    mcu.nvic.set_priority(Interrupt::DMA1_CHANNEL5, 3, true);
 
     // Peripherals --------------------------------------------------
 
