@@ -440,32 +440,6 @@ pub trait BusClock {
     fn clock(clocks: &Clocks) -> HertzU32;
 }
 
-/// Frequency on bus that timer is connected in
-pub trait BusTimerClock {
-    /// Calculates base frequency of timer depending on `Clock` state
-    fn timer_clock(clocks: &Clocks) -> HertzU32;
-}
-
-impl<T> BusClock for T
-where
-    T: RccBus,
-    T::Bus: BusClock,
-{
-    fn clock(clocks: &Clocks) -> HertzU32 {
-        T::Bus::clock(clocks)
-    }
-}
-
-impl<T> BusTimerClock for T
-where
-    T: RccBus,
-    T::Bus: BusTimerClock,
-{
-    fn timer_clock(clocks: &Clocks) -> HertzU32 {
-        T::Bus::timer_clock(clocks)
-    }
-}
-
 impl BusClock for AHB {
     fn clock(clocks: &Clocks) -> HertzU32 {
         clocks.hclk
@@ -484,6 +458,22 @@ impl BusClock for APB2 {
     }
 }
 
+impl<T> BusClock for T
+where
+    T: RccBus,
+    T::Bus: BusClock,
+{
+    fn clock(clocks: &Clocks) -> HertzU32 {
+        T::Bus::clock(clocks)
+    }
+}
+
+/// Frequency on bus that timer is connected in
+pub trait BusTimerClock {
+    /// Calculates base frequency of timer depending on `Clock` state
+    fn timer_clock(clocks: &Clocks) -> HertzU32;
+}
+
 impl BusTimerClock for APB1 {
     fn timer_clock(clocks: &Clocks) -> HertzU32 {
         clocks.pclk1_tim()
@@ -493,6 +483,16 @@ impl BusTimerClock for APB1 {
 impl BusTimerClock for APB2 {
     fn timer_clock(clocks: &Clocks) -> HertzU32 {
         clocks.pclk2_tim()
+    }
+}
+
+impl<T> BusTimerClock for T
+where
+    T: RccBus,
+    T::Bus: BusTimerClock,
+{
+    fn timer_clock(clocks: &Clocks) -> HertzU32 {
+        T::Bus::timer_clock(clocks)
     }
 }
 
