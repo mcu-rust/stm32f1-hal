@@ -1,6 +1,6 @@
-#[cfg(any(all(feature = "stm32f103", feature = "high"), feature = "connectivity"))]
+#[cfg(any(all(feature = "f103", feature = "high"), feature = "connectivity"))]
 mod uart4;
-#[cfg(any(all(feature = "stm32f103", feature = "high"), feature = "connectivity"))]
+#[cfg(any(all(feature = "f103", feature = "high"), feature = "connectivity"))]
 mod uart5;
 mod usart1;
 mod usart2;

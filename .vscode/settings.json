@@ -4,7 +4,7 @@
     "rust-analyzer.cargo.target": "thumbv7m-none-eabi",
     "rust-analyzer.cargo.features": [
         "critical-section-single-core",
-        "stm32f103",
+        "f103",
         "xG",
         "rtic"
     ],

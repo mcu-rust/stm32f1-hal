@@ -37,7 +37,7 @@ def main() -> int:
         if opts.release:
             cmd.append("--release")
 
-        cmd.append(f"--features=stm32f103,xG")
+        cmd.append(f"--features=f103,xG")
         run_cmd(cmd)
 
     return 0

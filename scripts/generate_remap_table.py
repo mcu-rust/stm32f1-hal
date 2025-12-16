@@ -17,21 +17,21 @@ REMAP_MODES = {
 }
 
 CFG_TABLE = {
-    "TIM1": '#[cfg(any(feature = "stm32f100", feature = "stm32f103", feature = "connectivity"))]',
+    "TIM1": '#[cfg(any(feature = "f100", feature = "f103", feature = "connectivity"))]',
     "TIM4": '#[cfg(feature = "medium")]',
     "TIM5": '#[cfg(any(feature = "high", feature = "connectivity"))]',
-    "TIM6": '#[cfg(any(feature = "stm32f100", feature = "high", feature = "connectivity"))]',
-    "TIM7": '#[cfg(any(all(feature = "high", any(feature = "stm32f101", feature = "stm32f103")),any(feature = "stm32f100", feature = "connectivity")))]',
-    "TIM8": '#[cfg(all(feature = "stm32f103", feature = "high"))]',
+    "TIM6": '#[cfg(any(feature = "f100", feature = "high", feature = "connectivity"))]',
+    "TIM7": '#[cfg(any(all(feature = "high", any(feature = "f101", feature = "f103")),any(feature = "f100", feature = "connectivity")))]',
+    "TIM8": '#[cfg(all(feature = "f103", feature = "high"))]',
     "TIM9": '#[cfg(feature = "xl")]',
     "TIM10": '#[cfg(feature = "xl")]',
     "TIM11": '#[cfg(feature = "xl")]',
-    "TIM12": '#[cfg(any(feature = "xl", all(feature = "stm32f100", feature = "high",)))]',
-    "TIM13": '#[cfg(any(feature = "xl", all(feature = "stm32f100", feature = "high",)))]',
-    "TIM14": '#[cfg(any(feature = "xl", all(feature = "stm32f100", feature = "high",)))]',
-    "TIM15": '#[cfg(feature = "stm32f100")]',
-    "TIM16": '#[cfg(feature = "stm32f100")]',
-    "TIM17": '#[cfg(feature = "stm32f100")]',
+    "TIM12": '#[cfg(any(feature = "xl", all(feature = "f100", feature = "high",)))]',
+    "TIM13": '#[cfg(any(feature = "xl", all(feature = "f100", feature = "high",)))]',
+    "TIM14": '#[cfg(any(feature = "xl", all(feature = "f100", feature = "high",)))]',
+    "TIM15": '#[cfg(feature = "f100")]',
+    "TIM16": '#[cfg(feature = "f100")]',
+    "TIM17": '#[cfg(feature = "f100")]',
 }
 
 

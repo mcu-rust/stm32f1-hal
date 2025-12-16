@@ -1,23 +1,23 @@
 #[cfg(feature = "rtic")]
 mod monotonic;
 mod syst;
-#[cfg(any(feature = "stm32f100", feature = "stm32f103", feature = "connectivity"))]
+#[cfg(any(feature = "f100", feature = "f103", feature = "connectivity"))]
 mod timer1;
 #[cfg(feature = "xl")]
 mod timer10;
 #[cfg(feature = "xl")]
 mod timer11;
-#[cfg(any(feature = "xl", all(feature = "stm32f100", feature = "high",)))]
+#[cfg(any(feature = "xl", all(feature = "f100", feature = "high",)))]
 mod timer12;
-#[cfg(any(feature = "xl", all(feature = "stm32f100", feature = "high",)))]
+#[cfg(any(feature = "xl", all(feature = "f100", feature = "high",)))]
 mod timer13;
-#[cfg(any(feature = "xl", all(feature = "stm32f100", feature = "high",)))]
+#[cfg(any(feature = "xl", all(feature = "f100", feature = "high",)))]
 mod timer14;
-#[cfg(feature = "stm32f100")]
+#[cfg(feature = "f100")]
 mod timer15;
-#[cfg(feature = "stm32f100")]
+#[cfg(feature = "f100")]
 mod timer16;
-#[cfg(feature = "stm32f100")]
+#[cfg(feature = "f100")]
 mod timer17;
 mod timer2;
 mod timer3;
@@ -25,14 +25,14 @@ mod timer3;
 mod timer4;
 #[cfg(any(feature = "high", feature = "connectivity"))]
 mod timer5;
-#[cfg(any(feature = "stm32f100", feature = "high", feature = "connectivity"))]
+#[cfg(any(feature = "f100", feature = "high", feature = "connectivity"))]
 mod timer6;
 #[cfg(any(
-    all(feature = "high", any(feature = "stm32f101", feature = "stm32f103")),
-    any(feature = "stm32f100", feature = "connectivity")
+    all(feature = "high", any(feature = "f101", feature = "f103")),
+    any(feature = "f100", feature = "connectivity")
 ))]
 mod timer7;
-#[cfg(all(feature = "stm32f103", feature = "high"))]
+#[cfg(all(feature = "f103", feature = "high"))]
 mod timer8;
 #[cfg(feature = "xl")]
 mod timer9;

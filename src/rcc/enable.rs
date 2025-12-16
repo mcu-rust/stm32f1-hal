@@ -54,7 +54,7 @@ macro_rules! bus {
     }
 }
 
-#[cfg(feature = "stm32f103")]
+#[cfg(feature = "f103")]
 bus! {
     ADC2 => (APB2, 10),
     CAN => (APB1, 25),
@@ -69,7 +69,7 @@ bus! {
 bus! {
     DAC => (APB1, 29),
 }
-#[cfg(any(all(feature = "stm32f103", feature = "high"), feature = "connectivity"))]
+#[cfg(any(all(feature = "f103", feature = "high"), feature = "connectivity"))]
 bus! {
     ADC3 => (APB2, 15),
     UART4 => (APB1, 19),
@@ -131,25 +131,25 @@ bus! {
     TIM3 => (APB1, 1),
 }
 
-#[cfg(any(feature = "stm32f100", feature = "stm32f103", feature = "connectivity"))]
+#[cfg(any(feature = "f100", feature = "f103", feature = "connectivity"))]
 bus! {
     TIM1 => (APB2, 11),
 }
 
-#[cfg(any(feature = "stm32f100", feature = "high", feature = "connectivity"))]
+#[cfg(any(feature = "f100", feature = "high", feature = "connectivity"))]
 bus! {
     TIM6 => (APB1, 4),
 }
 
 #[cfg(any(
-    all(feature = "high", any(feature = "stm32f101", feature = "stm32f103")),
-    any(feature = "stm32f100", feature = "connectivity")
+    all(feature = "high", any(feature = "f101", feature = "f103")),
+    any(feature = "f100", feature = "connectivity")
 ))]
 bus! {
     TIM7 => (APB1, 5),
 }
 
-#[cfg(feature = "stm32f100")]
+#[cfg(feature = "f100")]
 bus! {
     TIM15 => (APB2, 16),
     TIM16 => (APB2, 17),
@@ -166,14 +166,14 @@ bus! {
     TIM5 => (APB1, 3),
 }
 
-#[cfg(any(feature = "xl", all(feature = "stm32f100", feature = "high")))]
+#[cfg(any(feature = "xl", all(feature = "f100", feature = "high")))]
 bus! {
     TIM12 => (APB1, 6),
     TIM13 => (APB1, 7),
     TIM14 => (APB1, 8),
 }
 
-#[cfg(all(feature = "stm32f103", feature = "high"))]
+#[cfg(all(feature = "f103", feature = "high"))]
 bus! {
     TIM8 => (APB2, 13),
 }
@@ -185,7 +185,7 @@ bus! {
     TIM11 => (APB2, 21),
 }
 
-#[cfg(feature = "stm32f103")] // feature = "stm32f102"
+#[cfg(feature = "f103")] // feature = "stm32f102"
 bus! {
     USB => (APB1, 23),
 }

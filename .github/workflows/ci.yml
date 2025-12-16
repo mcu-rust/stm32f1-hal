@@ -28,7 +28,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
-      - run: cargo build --release --features=stm32f100,xC
+      - run: cargo build --release --features=f100,xC
       - run: python3.13 scripts/build.py build --release
       - run: python3.13 scripts/build.py clippy
       - run: python3.13 scripts/build.py test

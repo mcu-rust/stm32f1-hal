@@ -2,7 +2,7 @@
 
 mod enable;
 
-#[cfg(any(feature = "stm32f103", feature = "connectivity"))]
+#[cfg(any(feature = "f103", feature = "connectivity"))]
 use crate::time::MHz;
 use crate::{
     backup_domain::BackupDomain,
@@ -61,7 +61,7 @@ impl Rcc {
         let cfg = cfg.into();
         let clocks = cfg.get_clocks();
         // adjust flash wait states
-        #[cfg(any(feature = "stm32f103", feature = "connectivity"))]
+        #[cfg(any(feature = "f103", feature = "connectivity"))]
         unsafe {
             acr.acr().write(|w| {
                 w.latency().bits(if clocks.sysclk <= MHz(24) {
@@ -122,7 +122,7 @@ impl Rcc {
             })
         });
 
-        #[cfg(feature = "stm32f103")]
+        #[cfg(feature = "f103")]
         rcc.cfgr().modify(|_, w| unsafe {
             w.adcpre().variant(cfg.adcpre);
             w.ppre2().bits(cfg.ppre2 as u8);
@@ -138,7 +138,7 @@ impl Rcc {
             })
         });
 
-        #[cfg(any(feature = "stm32f100", feature = "stm32f101"))]
+        #[cfg(any(feature = "f100", feature = "f101"))]
         rcc.cfgr().modify(|_, w| unsafe {
             w.adcpre().variant(cfg.adcpre);
             w.ppre2().bits(cfg.ppre2 as u8);
@@ -359,7 +359,7 @@ pub struct Clocks {
     ppre2: u8,
     sysclk: HertzU32,
     adcclk: HertzU32,
-    #[cfg(any(feature = "stm32f103", feature = "connectivity"))]
+    #[cfg(any(feature = "f103", feature = "connectivity"))]
     usbclk_valid: bool,
 }
 
@@ -374,7 +374,7 @@ impl Clocks {
             ppre2: 1,
             sysclk: freq,
             adcclk: HertzU32::from_raw(HSI / 2),
-            #[cfg(any(feature = "stm32f103", feature = "connectivity"))]
+            #[cfg(any(feature = "f103", feature = "connectivity"))]
             usbclk_valid: false,
         }
     }
@@ -433,7 +433,7 @@ impl Clocks {
     }
 
     /// Returns whether the USBCLK clock frequency is valid for the USB peripheral
-    #[cfg(any(feature = "stm32f103", feature = "connectivity"))]
+    #[cfg(any(feature = "f103", feature = "connectivity"))]
     pub const fn usbclk_valid(&self) -> bool {
         self.usbclk_valid
     }
@@ -578,7 +578,7 @@ pub struct RawConfig {
     pub hpre: HPre,
     pub ppre1: PPre,
     pub ppre2: PPre,
-    #[cfg(any(feature = "stm32f103", feature = "connectivity"))]
+    #[cfg(any(feature = "f103", feature = "connectivity"))]
     pub usbpre: UsbPre,
     pub adcpre: AdcPre,
     pub allow_overclock: bool,
@@ -593,7 +593,7 @@ impl Default for RawConfig {
             hpre: HPre::Div1,
             ppre1: PPre::Div1,
             ppre2: PPre::Div1,
-            #[cfg(any(feature = "stm32f103", feature = "connectivity"))]
+            #[cfg(any(feature = "f103", feature = "connectivity"))]
             usbpre: UsbPre::Div1_5,
             adcpre: AdcPre::Div2,
             allow_overclock: false,
@@ -639,7 +639,7 @@ pub enum PPre {
     Div16 = 7,
 }
 
-#[cfg(feature = "stm32f103")]
+#[cfg(feature = "f103")]
 pub type UsbPre = rcc::cfgr::USBPRE;
 #[cfg(feature = "connectivity")]
 pub type UsbPre = rcc::cfgr::OTGFSPRE;
@@ -737,7 +737,7 @@ impl RawConfig {
         let pclk2 = hclk / (ppre2 as u32);
 
         // usbpre == false: divide clock by 1.5, otherwise no division
-        #[cfg(any(feature = "stm32f103", feature = "connectivity"))]
+        #[cfg(any(feature = "f103", feature = "connectivity"))]
         let usbpre = match (hse, pllmul_bits, sysclk) {
             (Some(_), Some(_), 72_000_000) => UsbPre::Div1_5,
             _ => UsbPre::Div1,
@@ -761,7 +761,7 @@ impl RawConfig {
             hpre: hpre_bits,
             ppre1: ppre1_bits,
             ppre2: ppre2_bits,
-            #[cfg(any(feature = "stm32f103", feature = "connectivity"))]
+            #[cfg(any(feature = "f103", feature = "connectivity"))]
             usbpre,
             adcpre: apre_bits,
             allow_overclock: false,
@@ -801,7 +801,7 @@ impl RawConfig {
 
         // the USB clock is only valid if an external crystal is used, the PLL is enabled, and the
         // PLL output frequency is a supported one.
-        #[cfg(any(feature = "stm32f103", feature = "connectivity"))]
+        #[cfg(any(feature = "f103", feature = "connectivity"))]
         let usbclk_valid = matches!(
             (self.hse, self.pllmul, sysclk),
             (Some(_), Some(_), 72_000_000) | (Some(_), Some(_), 48_000_000)
@@ -824,7 +824,7 @@ impl RawConfig {
             ppre2,
             sysclk: sysclk.Hz(),
             adcclk: adcclk.Hz(),
-            #[cfg(any(feature = "stm32f103", feature = "connectivity"))]
+            #[cfg(any(feature = "f103", feature = "connectivity"))]
             usbclk_valid,
         }
     }
@@ -845,7 +845,7 @@ fn rcc_config_usb() {
         hpre: HPre::Div1,
         ppre1: PPre::Div2,
         ppre2: PPre::Div1,
-        #[cfg(any(feature = "stm32f103", feature = "connectivity"))]
+        #[cfg(any(feature = "f103", feature = "connectivity"))]
         usbpre: UsbPre::Div1,
         adcpre: AdcPre::Div8,
         allow_overclock: false,
@@ -861,7 +861,7 @@ fn rcc_config_usb() {
         ppre2: 1,
         sysclk: 48.MHz(),
         adcclk: 6.MHz(),
-        #[cfg(any(feature = "stm32f103", feature = "connectivity"))]
+        #[cfg(any(feature = "f103", feature = "connectivity"))]
         usbclk_valid: true,
     };
     assert_eq!(clocks, clocks_expected);

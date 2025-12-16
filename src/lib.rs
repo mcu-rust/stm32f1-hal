@@ -37,13 +37,13 @@ pub use os_trait;
 pub use embedded_hal;
 pub use embedded_io;
 pub use nb;
-#[cfg(feature = "stm32f100")]
+#[cfg(feature = "f100")]
 pub use stm32f1::stm32f100 as pac;
-#[cfg(feature = "stm32f101")]
+#[cfg(feature = "f101")]
 pub use stm32f1::stm32f101 as pac;
-#[cfg(feature = "stm32f103")]
+#[cfg(feature = "f103")]
 pub use stm32f1::stm32f103 as pac;
-#[cfg(any(feature = "stm32f105", feature = "stm32f107"))]
+#[cfg(any(feature = "f105", feature = "f107"))]
 pub use stm32f1::stm32f107 as pac;
 
 pub trait Steal {
