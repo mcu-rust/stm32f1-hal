@@ -38,5 +38,8 @@ impl<M: AtomicCellMember> AtomicCell<M> {
 
 pub trait AtomicCellMember: Copy {
     fn to_num(self) -> usize;
+    /// # Safety
+    ///
+    /// Be careful about the range of the value.
     unsafe fn from_num(value: usize) -> Self;
 }

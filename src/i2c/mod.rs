@@ -6,7 +6,7 @@ pub use crate::common::i2c::*;
 use crate::{
     Mcu, Steal,
     afio::{RemapMode, i2c_remap::*},
-    os_trait::{Mutex, utils::FrequencyHolder},
+    os_trait::Mutex,
     prelude::*,
     rcc::{Enable, GetClock, Reset},
     time::*,

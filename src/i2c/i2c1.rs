@@ -5,15 +5,12 @@ type I2cX = pac::I2C1;
 use super::*;
 use crate::{Mcu, pac};
 
-static CLOCK: FrequencyHolder = FrequencyHolder::new(KilohertzU32::from_raw(0));
-
 // Initialization -------------------------------------------------------------
 
 impl I2cInit<I2cX> for I2cX {
     fn init<OS: OsInterface>(self, mcu: &mut Mcu) -> I2c<OS, I2cX> {
         mcu.rcc.enable(&self);
         mcu.rcc.reset(&self);
-        CLOCK.set(self.get_clock(&mcu.rcc).convert());
 
         I2c {
             i2c: self,
@@ -24,7 +21,7 @@ impl I2cInit<I2cX> for I2cX {
 
 impl I2cPeriphConfig for I2cX {
     fn config(&mut self, mode: Mode) {
-        let clock = CLOCK.get().to_Hz();
+        let clock = self.get_clock().to_Hz();
         let clc_mhz = clock / 1_000_000;
 
         // Configure bus frequency into I2C peripheral

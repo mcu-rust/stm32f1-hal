@@ -40,26 +40,23 @@ static mut HEAP_MEM: [MaybeUninit<u8>; HEAP_SIZE] = [MaybeUninit::uninit(); HEAP
 
 #[entry]
 fn main() -> ! {
-    let cp = cortex_m::Peripherals::take().unwrap();
-    // Initialize the heap BEFORE you use it
-    unsafe { HEAP.init(&raw mut HEAP_MEM as usize, HEAP_SIZE) }
-
     // Clock --------------------------------------------------------
+
+    let cp = cortex_m::Peripherals::take().unwrap();
     let dp = pac::Peripherals::take().unwrap();
     let mut flash = dp.FLASH.init();
     let sysclk = 72.MHz();
     let cfg = rcc::Config::hse(8.MHz()).sysclk(sysclk);
     let mut rcc = dp.RCC.init().freeze(cfg, &mut flash.acr);
-    assert_eq!(rcc.clocks.sysclk(), sysclk);
+    assert_eq!(rcc.clocks().sysclk(), sysclk);
+
+    // Prepare ------------------------------------------------------
+
+    // Initialize the heap BEFORE you use it
+    unsafe { HEAP.init(&raw mut HEAP_MEM as usize, HEAP_SIZE) }
 
     let afio = dp.AFIO.init(&mut rcc);
     let mut mcu = Mcu::new(rcc, afio, cp.SCB.init(), cp.NVIC.init(), dp.EXTI);
-
-    let mut sys_timer = cp.SYST.counter_hz(&mcu);
-    sys_timer.start(20.Hz()).unwrap();
-    // let mono_timer = MonoTimer::new(cp.DWT, cp.DCB, &mcu.rcc.clocks);
-
-    // Prepare ------------------------------------------------------
 
     // Keep them in one place for easier management
     mcu.scb.set_priority_grouping(PriorityGrouping::Group4);
@@ -69,6 +66,12 @@ fn main() -> ! {
     mcu.nvic.set_priority(Interrupt::DMA1_CHANNEL5, 2, true);
     mcu.nvic.set_priority(Interrupt::I2C1_EV, 3, true);
     mcu.nvic.set_priority(Interrupt::I2C1_ER, 3, true);
+
+    // Peripherals --------------------------------------------------
+
+    let mut sys_timer = cp.SYST.counter_hz(&mcu);
+    sys_timer.start(20.Hz()).unwrap();
+    // let mono_timer = MonoTimer::new(cp.DWT, cp.DCB, &mcu.rcc);
 
     let mut gpioa = dp.GPIOA.split(&mut mcu.rcc);
     let mut gpiob = dp.GPIOB.split(&mut mcu.rcc);

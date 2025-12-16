@@ -314,7 +314,7 @@ mod timer_rtic {
         fn monotonic<const FREQ: u32>(self, mcu: &mut Mcu) -> MonoTimer<Self, FREQ> {
             mcu.rcc.enable(&self);
             mcu.rcc.reset(&self);
-            let clk = self.get_timer_clock(&mcu.rcc);
+            let clk = self.get_timer_clock();
             FTimer::new(self, clk).monotonic()
         }
     }

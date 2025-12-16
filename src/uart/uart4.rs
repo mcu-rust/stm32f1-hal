@@ -20,9 +20,9 @@ impl UartInit<UartX> for UartX {
 }
 
 impl UartPeriphConfig for UartX {
-    fn config(&mut self, config: Config, mcu: &mut Mcu) {
+    fn config(&mut self, config: Config) {
         // Configure baud rate
-        let brr = self.get_clock(&mcu.rcc).raw() / config.baudrate;
+        let brr = self.get_clock().raw() / config.baudrate;
         assert!(brr >= 16, "impossible baud rate");
         self.brr().write(|w| unsafe { w.bits(brr as u16) });
 

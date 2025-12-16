@@ -32,8 +32,8 @@
 use core::ops;
 use cortex_m::peripheral::{DCB, DWT};
 
-use crate::os_trait::{prelude::*, utils::FrequencyHolder};
-use crate::rcc::Clocks;
+use crate::prelude::*;
+use crate::rcc::{self, Rcc};
 
 /// Bits per second
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Debug)]
@@ -128,19 +128,15 @@ pub struct MonoTimer {
     frequency: HertzU32,
 }
 
-pub static FREQUENCY: FrequencyHolder = FrequencyHolder::new(KilohertzU32::MHz(1));
-
 impl MonoTimer {
     /// Creates a new `Monotonic` timer
-    pub fn new(mut dwt: DWT, mut dcb: DCB, clocks: &Clocks) -> Self {
+    pub fn new(mut dwt: DWT, mut dcb: DCB, rcc: &Rcc) -> Self {
         dcb.enable_trace();
         dwt.enable_cycle_counter();
-        FREQUENCY.set(clocks.hclk().to_kHz().kHz());
+        let frequency = rcc.clocks().hclk();
         // now the CYCCNT counter can't be stopped or reset
 
-        MonoTimer {
-            frequency: clocks.hclk(),
-        }
+        MonoTimer { frequency }
     }
 
     /// Returns the frequency at which the monotonic timer is operating at
@@ -178,7 +174,7 @@ pub struct DwtInstant {
 }
 impl TickInstant for DwtInstant {
     fn frequency() -> KilohertzU32 {
-        FREQUENCY.get()
+        rcc::get_clocks().hclk().convert()
     }
 
     #[inline(always)]

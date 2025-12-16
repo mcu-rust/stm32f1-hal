@@ -22,7 +22,7 @@ pub trait UartInit<U> {
 }
 
 pub trait UartPeriphConfig: UartPeriph + GetClock + Enable + Reset + Steal {
-    fn config(&mut self, config: Config, mcu: &mut Mcu);
+    fn config(&mut self, config: Config);
     fn enable_comm(&mut self, tx: bool, rx: bool);
     fn set_stop_bits(&mut self, bits: StopBits);
     fn is_tx_empty(&self) -> bool;
@@ -49,7 +49,7 @@ where
     ) -> (Option<Tx<OS, U>>, Option<Rx<OS, U>>) {
         REMAP::remap(&mut mcu.afio);
         let baudrate = config.baudrate;
-        self.uart.config(config, mcu);
+        self.uart.config(config);
         self.uart.enable_comm(pins.0.is_pin(), pins.1.is_pin());
         unsafe {
             (

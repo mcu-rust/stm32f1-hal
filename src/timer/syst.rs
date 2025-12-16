@@ -1,11 +1,17 @@
 //! SysTick: System Timer
 
 use super::*;
-use crate::Mcu;
-use crate::os_trait::{utils::FrequencyHolder, *};
-use core::ops::{Deref, DerefMut};
+use crate::{
+    Mcu,
+    fugit::{HertzU32, KilohertzU32, TimerDurationU32, TimerInstantU32},
+    prelude::*,
+    rcc,
+};
+use core::{
+    ops::{Deref, DerefMut},
+    sync::atomic::{AtomicU8, Ordering},
+};
 use cortex_m::peripheral::{SYST, syst::SystClkSource};
-use fugit::{HertzU32, TimerDurationU32, TimerInstantU32};
 
 pub trait SysTimerInit: Sized {
     /// Creates timer which takes [HertzU32] as Duration
@@ -17,7 +23,7 @@ pub trait SysTimerInit: Sized {
         self.counter::<1_000_000>(mcu)
     }
     /// It's important for `TickInstant`
-    fn store_tick_frequency(&mut self, mcu: &Mcu);
+    fn store_tick_frequency(&mut self);
 }
 
 impl SysTimerInit for SYST {
@@ -27,16 +33,14 @@ impl SysTimerInit for SYST {
     fn counter<const FREQ: u32>(self, mcu: &Mcu) -> SysCounter<FREQ> {
         SystemTimer::syst(self, mcu).counter()
     }
-    fn store_tick_frequency(&mut self, mcu: &Mcu) {
-        let clk = match self.get_clock_source() {
-            SystClkSource::Core => mcu.rcc.clocks.hclk(),
-            SystClkSource::External => mcu.rcc.clocks.hclk() / 8,
+    fn store_tick_frequency(&mut self) {
+        let factor = match self.get_clock_source() {
+            SystClkSource::Core => 0,
+            SystClkSource::External => 3, // frequency >> 3
         };
-        FREQUENCY.set(KilohertzU32::Hz(clk.to_Hz()));
+        FACTOR.store(factor, Ordering::Relaxed);
     }
 }
-
-pub static FREQUENCY: FrequencyHolder = FrequencyHolder::new(KilohertzU32::MHz(1));
 
 pub struct SystemTimer {
     pub(super) syst: SYST,
@@ -46,16 +50,16 @@ impl SystemTimer {
     /// Initialize SysTick timer
     pub fn syst(mut syst: SYST, mcu: &Mcu) -> Self {
         syst.set_clock_source(SystClkSource::Core);
-        let clk = mcu.rcc.clocks.hclk();
-        FREQUENCY.set(KilohertzU32::Hz(clk.to_Hz()));
+        let clk = mcu.rcc.clocks().hclk();
+        FACTOR.store(0, Ordering::Relaxed);
         Self { syst, clk }
     }
 
     /// Initialize SysTick timer and set it frequency to `HCLK / 8`
     pub fn syst_external(mut syst: SYST, mcu: &Mcu) -> Self {
         syst.set_clock_source(SystClkSource::External);
-        let clk = mcu.rcc.clocks.hclk() / 8;
-        FREQUENCY.set(KilohertzU32::Hz(clk.to_Hz()));
+        let clk = mcu.rcc.clocks().hclk() / 8;
+        FACTOR.store(3, Ordering::Relaxed); // frequency >> 3
         Self { syst, clk }
     }
 
@@ -229,9 +233,13 @@ impl<const FREQ: u32> SysCounter<FREQ> {
 pub struct SysTickInstant {
     tick: u32,
 }
+
+static FACTOR: AtomicU8 = AtomicU8::new(0);
+
 impl TickInstant for SysTickInstant {
     fn frequency() -> KilohertzU32 {
-        FREQUENCY.get()
+        // `frequency` or `frequency >> 3`
+        KilohertzU32::from_raw(rcc::get_clocks().hclk().to_kHz() >> FACTOR.load(Ordering::Relaxed))
     }
 
     #[inline(always)]

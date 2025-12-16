@@ -72,7 +72,7 @@ impl<TIM: TimerConfig + Steal> Timer<TIM> {
         mcu.rcc.reset(&tim);
 
         Self {
-            clk: tim.get_timer_clock(&mcu.rcc),
+            clk: tim.get_timer_clock(),
             tim,
         }
     }

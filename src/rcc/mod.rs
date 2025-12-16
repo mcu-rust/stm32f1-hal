@@ -6,6 +6,7 @@ mod enable;
 use crate::time::MHz;
 use crate::{
     backup_domain::BackupDomain,
+    common::holder::StaticHolder,
     flash::ACR,
     fugit::{HertzU32, RateExtU32},
     pac::{
@@ -15,16 +16,16 @@ use crate::{
 };
 use core::ops::{Deref, DerefMut};
 
+static CLOCKS: StaticHolder<Clocks> = StaticHolder::new(Clocks::new());
+
 pub trait RccInit {
     fn init(self) -> Rcc;
 }
 
 impl RccInit for RCC {
     fn init(self) -> Rcc {
-        Rcc {
-            rb: self,
-            clocks: Clocks::default(),
-        }
+        CLOCKS.set(Clocks::default());
+        Rcc { rb: self }
     }
 }
 
@@ -38,7 +39,6 @@ impl RccInit for RCC {
 /// let mut rcc = dp.RCC.init();
 /// ```
 pub struct Rcc {
-    pub clocks: Clocks,
     pub(crate) rb: RCC,
 }
 
@@ -156,10 +156,8 @@ impl Rcc {
             })
         });
 
-        Self {
-            rb: self.rb,
-            clocks,
-        }
+        CLOCKS.set(clocks);
+        Self { rb: self.rb }
     }
 
     pub fn enable<T: Enable>(&mut self, _periph: &T) {
@@ -168,6 +166,11 @@ impl Rcc {
 
     pub fn reset<T: Reset>(&mut self, _periph: &T) {
         T::reset(self);
+    }
+
+    #[inline(always)]
+    pub fn clocks(&self) -> &Clocks {
+        unsafe { CLOCKS.get() }
     }
 }
 
@@ -182,6 +185,10 @@ impl DerefMut for Rcc {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.rb
     }
+}
+
+pub fn get_clocks() -> &'static Clocks {
+    unsafe { CLOCKS.get() }
 }
 
 macro_rules! bus_struct {
@@ -356,20 +363,26 @@ pub struct Clocks {
     usbclk_valid: bool,
 }
 
-impl Default for Clocks {
-    fn default() -> Clocks {
-        let freq = HSI.Hz();
-        Clocks {
+impl Clocks {
+    const fn new() -> Self {
+        let freq = HertzU32::from_raw(HSI);
+        Self {
             hclk: freq,
             pclk1: freq,
             pclk2: freq,
             ppre1: 1,
             ppre2: 1,
             sysclk: freq,
-            adcclk: freq / 2,
+            adcclk: HertzU32::from_raw(HSI / 2),
             #[cfg(any(feature = "stm32f103", feature = "connectivity"))]
             usbclk_valid: false,
         }
+    }
+}
+
+impl Default for Clocks {
+    fn default() -> Clocks {
+        Self::new()
     }
 }
 
@@ -433,25 +446,28 @@ pub trait BusClock {
 }
 
 impl BusClock for AHB {
+    #[inline(always)]
     fn clock(clocks: &Clocks) -> HertzU32 {
         clocks.hclk
     }
 }
 
 impl BusClock for APB1 {
+    #[inline(always)]
     fn clock(clocks: &Clocks) -> HertzU32 {
         clocks.pclk1
     }
 }
 
 impl BusClock for APB2 {
+    #[inline(always)]
     fn clock(clocks: &Clocks) -> HertzU32 {
         clocks.pclk2
     }
 }
 
 pub trait GetClock: RccBus {
-    fn get_clock(&self, rcc: &Rcc) -> HertzU32;
+    fn get_clock(&self) -> HertzU32;
 }
 
 impl<T> GetClock for T
@@ -459,8 +475,9 @@ where
     T: RccBus,
     T::Bus: BusClock,
 {
-    fn get_clock(&self, rcc: &Rcc) -> HertzU32 {
-        T::Bus::clock(&rcc.clocks)
+    #[inline(always)]
+    fn get_clock(&self) -> HertzU32 {
+        T::Bus::clock(unsafe { CLOCKS.get() })
     }
 }
 
@@ -471,19 +488,21 @@ pub trait BusTimerClock {
 }
 
 impl BusTimerClock for APB1 {
+    #[inline(always)]
     fn timer_clock(clocks: &Clocks) -> HertzU32 {
         clocks.pclk1_tim()
     }
 }
 
 impl BusTimerClock for APB2 {
+    #[inline(always)]
     fn timer_clock(clocks: &Clocks) -> HertzU32 {
         clocks.pclk2_tim()
     }
 }
 
 pub trait GetTimerClock: RccBus {
-    fn get_timer_clock(&self, rcc: &Rcc) -> HertzU32;
+    fn get_timer_clock(&self) -> HertzU32;
 }
 
 impl<T> GetTimerClock for T
@@ -491,8 +510,9 @@ where
     T: RccBus,
     T::Bus: BusTimerClock,
 {
-    fn get_timer_clock(&self, rcc: &Rcc) -> HertzU32 {
-        T::Bus::timer_clock(&rcc.clocks)
+    #[inline(always)]
+    fn get_timer_clock(&self) -> HertzU32 {
+        T::Bus::timer_clock(unsafe { CLOCKS.get() })
     }
 }
 
