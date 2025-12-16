@@ -62,11 +62,15 @@ See [crate](https://crates.io/crates/stm32f1-hal).
 
 ## 🗺 Roadmap
 **This project is still in its early stages, with only a few features implemented so far**. Contributions and feedback are welcome to help expand support for more peripherals and features.
-- [x] GPIO
-- [x] UART
-- [ ] I2C
+- [x] GPIO (tested)
+- [x] EXTI (tested)
+- [x] UART + poll mode (tested)
+- [x] UART + interrupt (stress tested)
+- [x] UART + DMA (stress tested)
+- [x] I2C + interrupt (tested)
+- [x] DMA
 - [ ] ADC
-- [ ] DMA
+- [ ] SPI
 - [ ] More features
 
 ## 🛠 Contributing

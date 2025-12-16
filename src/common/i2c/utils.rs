@@ -94,7 +94,7 @@ mod tests {
     use super::*;
 
     fn compare_error(err: Option<Error>) {
-        let i: usize = err.as_num();
+        let i: usize = err.to_num();
         assert_eq!(err, unsafe { Option::<Error>::from_num(i) });
     }
 
