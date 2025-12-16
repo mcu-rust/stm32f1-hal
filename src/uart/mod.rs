@@ -13,7 +13,7 @@ use crate::{
     afio::{RemapMode, uart_remap::*},
     dma::{DmaBindRx, DmaBindTx, DmaRingbufTxLoader},
     os_trait::{MicrosDurationU32, prelude::*},
-    rcc::{BusClock, Enable, Reset},
+    rcc::{Enable, GetClock, Reset},
 };
 use core::marker::PhantomData;
 
@@ -21,7 +21,7 @@ pub trait UartInit<U> {
     fn init<OS: OsInterface>(self, mcu: &mut Mcu) -> Uart<OS, U>;
 }
 
-pub trait UartPeriphConfig: UartPeriph + BusClock + Enable + Reset + Steal {
+pub trait UartPeriphConfig: UartPeriph + GetClock + Enable + Reset + Steal {
     fn config(&mut self, config: Config, mcu: &mut Mcu);
     fn enable_comm(&mut self, tx: bool, rx: bool);
     fn set_stop_bits(&mut self, bits: StopBits);

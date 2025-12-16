@@ -169,14 +169,6 @@ impl Rcc {
     pub fn reset<T: Reset>(&mut self, _periph: &T) {
         T::reset(self);
     }
-
-    pub fn get_clock<T: BusClock>(&self, _periph: &T) -> HertzU32 {
-        T::clock(&self.clocks)
-    }
-
-    pub fn get_timer_clock<T: BusTimerClock>(&self, _periph: &T) -> HertzU32 {
-        T::timer_clock(&self.clocks)
-    }
 }
 
 impl Deref for Rcc {
@@ -458,13 +450,17 @@ impl BusClock for APB2 {
     }
 }
 
-impl<T> BusClock for T
+pub trait GetClock: RccBus {
+    fn get_clock(&self, rcc: &Rcc) -> HertzU32;
+}
+
+impl<T> GetClock for T
 where
     T: RccBus,
     T::Bus: BusClock,
 {
-    fn clock(clocks: &Clocks) -> HertzU32 {
-        T::Bus::clock(clocks)
+    fn get_clock(&self, rcc: &Rcc) -> HertzU32 {
+        T::Bus::clock(&rcc.clocks)
     }
 }
 
@@ -486,13 +482,17 @@ impl BusTimerClock for APB2 {
     }
 }
 
-impl<T> BusTimerClock for T
+pub trait GetTimerClock: RccBus {
+    fn get_timer_clock(&self, rcc: &Rcc) -> HertzU32;
+}
+
+impl<T> GetTimerClock for T
 where
     T: RccBus,
     T::Bus: BusTimerClock,
 {
-    fn timer_clock(clocks: &Clocks) -> HertzU32 {
-        T::Bus::timer_clock(clocks)
+    fn get_timer_clock(&self, rcc: &Rcc) -> HertzU32 {
+        T::Bus::timer_clock(&rcc.clocks)
     }
 }
 

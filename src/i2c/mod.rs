@@ -8,7 +8,7 @@ use crate::{
     afio::{RemapMode, i2c_remap::*},
     os_trait::{Mutex, utils::FrequencyHolder},
     prelude::*,
-    rcc::{BusClock, Enable, Reset},
+    rcc::{Enable, GetClock, Reset},
     time::*,
 };
 use core::marker::PhantomData;
@@ -17,7 +17,7 @@ pub trait I2cInit<T> {
     fn init<OS: OsInterface>(self, mcu: &mut Mcu) -> I2c<OS, T>;
 }
 
-pub trait I2cPeriphConfig: I2cPeriph + BusClock + Enable + Reset + Steal {
+pub trait I2cPeriphConfig: I2cPeriph + GetClock + Enable + Reset + Steal {
     fn config(&mut self, mode: Mode);
     fn set_ack(&mut self, en: bool);
     /// Continue after the address has been sent.

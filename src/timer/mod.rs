@@ -46,11 +46,11 @@ use crate::{
     Mcu, Steal,
     afio::{RemapMode, timer_remap::*},
     pac::DBGMCU as DBG,
-    rcc,
+    rcc::{Enable, GetTimerClock, Reset},
     time::HertzU32,
 };
 
-pub trait TimerConfig: rcc::Enable + rcc::Reset + rcc::BusTimerClock + GeneralTimer {}
+pub trait TimerConfig: Enable + Reset + GetTimerClock + GeneralTimer {}
 
 // Initialize -----------------------------------------------------------------
 
@@ -72,7 +72,7 @@ impl<TIM: TimerConfig + Steal> Timer<TIM> {
         mcu.rcc.reset(&tim);
 
         Self {
-            clk: mcu.rcc.get_timer_clock(&tim),
+            clk: tim.get_timer_clock(&mcu.rcc),
             tim,
         }
     }

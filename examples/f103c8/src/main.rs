@@ -86,18 +86,19 @@ fn main() -> ! {
 
     // UART ---------------------------------------------------------
 
-    let pin_tx = gpioa.pa9.into_alternate_push_pull(&mut gpioa.crh);
-    let pin_rx = gpioa.pa10.into_pull_up_input(&mut gpioa.crh);
-    // let pin_tx = gpiob.pb6.into_alternate_push_pull(&mut gpiob.crl);
-    // let pin_rx = gpiob.pb7.into_pull_up_input(&mut gpiob.crl);
-    // let pin_rx = hal::afio::NONE_PIN;
+    #[cfg(feature = "uart")]
+    let (Some(uart_tx), Some(uart_rx)) = ({
+        let pin_tx = gpioa.pa9.into_alternate_push_pull(&mut gpioa.crh);
+        let pin_rx = gpioa.pa10.into_pull_up_input(&mut gpioa.crh);
+        // let pin_tx = gpiob.pb6.into_alternate_push_pull(&mut gpiob.crl);
+        // let pin_rx = gpiob.pb7.into_pull_up_input(&mut gpiob.crl);
+        // let pin_rx = hal::afio::NONE_PIN;
 
-    let config = uart::Config::default();
-    let (Some(uart_tx), Some(uart_rx)) =
+        let config = uart::Config::default();
         dp.USART1
             .init::<OS>(&mut mcu)
             .into_tx_rx((pin_tx, pin_rx), config, &mut mcu)
-    else {
+    }) else {
         panic!()
     };
 

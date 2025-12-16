@@ -13,7 +13,7 @@ impl I2cInit<I2cX> for I2cX {
     fn init<OS: OsInterface>(self, mcu: &mut Mcu) -> I2c<OS, I2cX> {
         mcu.rcc.enable(&self);
         mcu.rcc.reset(&self);
-        CLOCK.set(mcu.rcc.get_clock(&self).convert());
+        CLOCK.set(self.get_clock(&mcu.rcc).convert());
 
         I2c {
             i2c: self,
