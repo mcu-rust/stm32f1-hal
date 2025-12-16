@@ -59,7 +59,6 @@
     cortex-m = { version = "0.7", optional = true }
     cortex-m-rt = { version = "0.7", optional = true }
     critical-section = "1.2"
-    embedded-dma = "0.2"
     embedded-hal = "1.0"
     embedded-hal-nb = "1.0"
     embedded-io = "0.7"

@@ -15,7 +15,6 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("cmd", choices=["check", "test", "build", "clippy"])
     parser.add_argument("--release", action="store_true")
-    parser.add_argument("--features", type=str, nargs="*")
     parser.add_argument("-e", "--examples", type=str, nargs="*")
     opts = parser.parse_args()
 
@@ -38,12 +37,7 @@ def main() -> int:
         if opts.release:
             cmd.append("--release")
 
-        if opts.features is None:
-            cmd.append(f"--features=stm32f103,xG,rtic")
-        else:
-            print(opts.features)
-            for feature in opts.features:
-                cmd.append(f"--features={feature}")
+        cmd.append(f"--features=stm32f103,xG")
         run_cmd(cmd)
 
     return 0
