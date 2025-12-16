@@ -41,9 +41,6 @@ static mut HEAP_MEM: [MaybeUninit<u8>; HEAP_SIZE] = [MaybeUninit::uninit(); HEAP
 #[entry]
 fn main() -> ! {
     let cp = cortex_m::Peripherals::take().unwrap();
-    let mut scb = cp.SCB.init();
-    // Set it as early as possible
-    scb.set_priority_grouping(PriorityGrouping::Group4);
     // Initialize the heap BEFORE you use it
     unsafe { HEAP.init(&raw mut HEAP_MEM as usize, HEAP_SIZE) }
 
@@ -56,7 +53,7 @@ fn main() -> ! {
     assert_eq!(rcc.clocks.sysclk(), sysclk);
 
     let afio = dp.AFIO.init(&mut rcc);
-    let mut mcu = Mcu::new(rcc, afio, scb, cp.NVIC.init(), dp.EXTI);
+    let mut mcu = Mcu::new(rcc, afio, cp.SCB.init(), cp.NVIC.init(), dp.EXTI);
 
     let mut sys_timer = cp.SYST.counter_hz(&mcu);
     sys_timer.start(20.Hz()).unwrap();
@@ -65,13 +62,13 @@ fn main() -> ! {
     // Prepare ------------------------------------------------------
 
     // Keep them in one place for easier management
-    mcu.nvic.disable_all(); // Optional
-    mcu.nvic.set_priority(Interrupt::USART1, 2);
-    mcu.nvic.set_priority(Interrupt::EXTI1, 1);
-    mcu.nvic.set_priority(Interrupt::DMA1_CHANNEL4, 2);
-    mcu.nvic.set_priority(Interrupt::DMA1_CHANNEL5, 2);
-    mcu.nvic.set_priority(Interrupt::I2C1_EV, 3);
-    mcu.nvic.set_priority(Interrupt::I2C1_ER, 3);
+    mcu.scb.set_priority_grouping(PriorityGrouping::Group4);
+    mcu.nvic.set_priority(Interrupt::USART1, 2, true);
+    mcu.nvic.set_priority(Interrupt::EXTI1, 1, true);
+    mcu.nvic.set_priority(Interrupt::DMA1_CHANNEL4, 2, true);
+    mcu.nvic.set_priority(Interrupt::DMA1_CHANNEL5, 2, true);
+    mcu.nvic.set_priority(Interrupt::I2C1_EV, 3, true);
+    mcu.nvic.set_priority(Interrupt::I2C1_ER, 3, true);
 
     let mut gpioa = dp.GPIOA.split(&mut mcu.rcc);
     let mut gpiob = dp.GPIOB.split(&mut mcu.rcc);

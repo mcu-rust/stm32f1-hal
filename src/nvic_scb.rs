@@ -32,7 +32,6 @@ const SCB_AIRCR_PRIGROUP_MASK: u32 = 0x7 << 8;
 // const SCB_AIRCR_SYSRESETREQ: u32 = 1 << 2;
 
 impl Scb {
-    /// Call it as early as possible.
     /// It's best to use Group4.
     pub fn set_priority_grouping(&mut self, grouping: PriorityGrouping) {
         let mask = !(SCB_AIRCR_VECTKEY_MASK | SCB_AIRCR_PRIGROUP_MASK);
@@ -52,9 +51,16 @@ impl Scb {
 }
 
 impl Nvic {
-    /// p = 0 ~ 15, The smaller the number, the higher the priority.
-    /// It combines preemption and sub priority based on the grouping.
-    pub fn set_priority(&mut self, it: Interrupt, priority: u8) {
+    /// # Parameters
+    /// - `it`: interrupt line
+    /// - `priority`: includes 0 ~ 15, The smaller the number, the higher the priority.
+    ///   It combines preemption and sub priority based on the grouping.
+    /// - `disable`: disable the interrupt, in case it's activated before you are ready.
+    pub fn set_priority(&mut self, it: Interrupt, priority: u8, disable: bool) {
+        if disable {
+            NVIC::mask(it);
+        }
+
         unsafe {
             // only use the highest 4 bits
             self.nvic.set_priority(it, priority << 4);
@@ -70,10 +76,6 @@ impl Nvic {
         } else {
             NVIC::mask(it);
         }
-    }
-
-    pub fn disable_all(&mut self) {
-        // TODO disable
     }
 }
 
