@@ -40,6 +40,8 @@ where
     ) {
         let (notifier, waiter) = OS::notify();
         let (cmd_w, cmd_r) = RingBuffer::<Command>::new(max_operation + 8);
+        // It's safe because it's only used when interrupts are disabled.
+        #[allow(clippy::arc_with_non_send_sync)]
         let cmd_r = Arc::new(UnsafeCell::new(cmd_r));
         let mode = Arc::new(AtomicCell::new(Work::Stop));
         let err_code = Arc::new(AtomicCell::new(None));
@@ -154,7 +156,7 @@ where
             for op in operations[i..].iter() {
                 if let Operation::Write(data) = op {
                     let d: &[u8] = data;
-                    if d.len() == 0 {
+                    if d.is_empty() {
                         return Err(Error::Buffer);
                     }
                     write_len += d.len();
@@ -174,7 +176,7 @@ where
             let mut buf_len = 0;
             for op in operations[i..].iter() {
                 if let Operation::Read(buf) = op {
-                    if buf.len() == 0 {
+                    if buf.is_empty() {
                         return Err(Error::Buffer);
                     }
                     buf_len += buf.len();
@@ -279,18 +281,16 @@ where
         // self.reg[(self.count[0] & 0x0F) as usize] = self.i2c.read_sr();
         // self.count[0] += 1;
 
-        if Work::Start == self.mode.load(Ordering::Acquire) {
-            if self.prepare_cmd() {
-                match self.cmd().pop() {
-                    Ok(Command::Write(p, l)) => {
-                        self.to_prepare_write(p, l);
-                    }
-                    Ok(Command::Read(len)) => {
-                        self.to_prepare_read(len);
-                    }
-                    _ => {
-                        self.step = Step::End;
-                    }
+        if Work::Start == self.mode.load(Ordering::Acquire) && self.prepare_cmd() {
+            match self.cmd().pop() {
+                Ok(Command::Write(p, l)) => {
+                    self.setp_to_prepare_write(p, l);
+                }
+                Ok(Command::Read(len)) => {
+                    self.step_to_prepare_read(len);
+                }
+                _ => {
+                    self.step = Step::End;
                 }
             }
         }
@@ -312,7 +312,7 @@ where
                 {
                     match self.cmd().pop() {
                         Ok(Command::Read(len)) => {
-                            self.to_prepare_read(len);
+                            self.step_to_prepare_read(len);
                             self.i2c.disable_data_interrupt();
                             self.i2c.it_send_start();
                         }
@@ -336,7 +336,7 @@ where
                         self.i2c.disable_data_interrupt();
                         match self.cmd().pop() {
                             Ok(Command::Write(p, l)) => {
-                                self.to_prepare_write(p, l);
+                                self.setp_to_prepare_write(p, l);
                             }
                             _ => self.step_to(Step::End),
                         }
@@ -373,7 +373,7 @@ where
             .is_ok()
     }
 
-    fn to_prepare_write(&mut self, p: *const u8, len: usize) {
+    fn setp_to_prepare_write(&mut self, p: *const u8, len: usize) {
         let data = unsafe { slice::from_raw_parts(p, len) };
         self.data_iter = Some(data.iter());
         self.step_to(Step::PrepareWrite);
@@ -391,7 +391,7 @@ where
                     Ok(Command::Write(p, l)) => {
                         let data = unsafe { slice::from_raw_parts(p, l) };
                         let mut iter = data.iter();
-                        let data = iter.next().map(|d| *d);
+                        let data = iter.next().copied();
                         data_iter.replace(iter);
                         data
                     }
@@ -402,13 +402,13 @@ where
         }
     }
 
-    fn to_prepare_read(&mut self, len: usize) {
+    fn step_to_prepare_read(&mut self, len: usize) {
         self.read_len = len;
         if let Ok(Command::ReadBuf(p, l)) = self.cmd().pop() {
             let data = unsafe { slice::from_raw_parts_mut(p, l) };
             self.buf_iter.replace(data.iter_mut());
         }
-        self.last_operation = !self.cmd().peek().is_ok();
+        self.last_operation = self.cmd().peek().is_err();
         self.step_to(Step::PrepareRead);
     }
 
@@ -422,13 +422,15 @@ where
                     let mut iter = data.iter_mut();
                     let b = iter.next();
                     self.buf_iter.replace(iter);
-                    self.last_operation = !self.cmd().peek().is_ok();
+                    self.last_operation = self.cmd().peek().is_err();
                     b
                 }
                 _ => None,
             },
         };
-        byte.map(|b| *b = data);
+        if let Some(b) = byte {
+            *b = data
+        }
     }
 
     fn step_to(&mut self, step: Step) {
