@@ -24,7 +24,7 @@ where
         Self {
             dev,
             buf: [0; 16],
-            interval: OsTimeout::start_ms(100),
+            interval: OS::timeout().start_ms(100),
             step: 0,
         }
     }

@@ -22,7 +22,8 @@ pub trait SysTimerInit: Sized {
     fn counter_us(self, mcu: &Mcu) -> SysCounterUs {
         self.counter::<1_000_000>(mcu)
     }
-    /// It's important for `TickInstant`
+    /// Only initialize `SysTickInstant`.
+    /// It's useful when the sys tick has been enabled by other program.
     fn init_sys_tick_instant(self);
 }
 

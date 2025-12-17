@@ -17,16 +17,23 @@ impl OsInterface for RawOs {
     type NotifyWaiter = AtomicNotifyWaiter<RawOs>;
     type Timeout = TickTimeoutNs<SysTickInstant>;
     type TimeoutState = TickTimeoutState<SysTickInstant>;
-    type DelayNs = TickDelay<SysTickInstant>;
+    type Delay = TickDelay<SysTickInstant>;
 
     const O: Self = Self {};
 
     fn yield_thread() {}
 
-    fn delay() -> Self::DelayNs {
+    #[inline]
+    fn timeout() -> Self::Timeout {
+        TickTimeoutNs::<SysTickInstant>::new()
+    }
+
+    #[inline]
+    fn delay() -> Self::Delay {
         TickDelay::<SysTickInstant>::default()
     }
 
+    #[inline]
     fn notify() -> (Self::Notifier, Self::NotifyWaiter) {
         AtomicNotifier::<RawOs>::new()
     }

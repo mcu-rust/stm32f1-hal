@@ -86,7 +86,7 @@ where
         if self.i2c.is_stopped() {
             true
         } else {
-            let mut t = OS::Timeout::start_ms(1);
+            let mut t = OS::timeout().start_ms(1);
             let mut i = 0;
             loop {
                 if self.i2c.is_stopped() {
