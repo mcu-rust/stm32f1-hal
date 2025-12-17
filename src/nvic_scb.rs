@@ -55,7 +55,9 @@ impl Nvic {
     /// - `it`: interrupt line
     /// - `priority`: includes 0 ~ 15, The smaller the number, the higher the priority.
     ///   It combines preemption and sub priority based on the grouping.
-    /// - `disable`: disable the interrupt, in case it's activated before you are ready.
+    /// - `disable`: It is recommended to disable the interrupt, in case it gets activated before you're ready.
+    ///   It will be enabled automatically once you set the interrupt callback.
+    ///   If you set it to `false`, the enable state will not change.
     pub fn set_priority(&mut self, it: Interrupt, priority: u8, disable: bool) {
         if disable {
             NVIC::mask(it);
