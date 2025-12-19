@@ -1,7 +1,8 @@
 use crate::common::critical_section::Mutex;
 use core::{
     alloc::{GlobalAlloc, Layout},
-    cell::{Cell, RefCell},
+    cell::UnsafeCell,
+    mem::MaybeUninit,
     ptr,
 };
 
@@ -13,95 +14,47 @@ use core::{
 /// Any memory you drop cannot be reused (it's leaked), so avoid dropping anything whenever possible.
 ///
 /// It is recommended that you use [embedded-alloc](https://crates.io/crates/embedded-alloc)
-pub struct Heap {
-    heap: Mutex<RefCell<SimplestHeap>>,
-    once_flag: Mutex<Cell<bool>>,
+pub struct Heap<const SIZE: usize> {
+    heap: Mutex<UnsafeCell<SimplestHeap<SIZE>>>,
 }
 
-impl Heap {
-    /// Create a new UNINITIALIZED heap allocator
-    ///
-    /// You must initialize this heap using the
-    /// [`init`](Self::init) method before using the allocator.
-    pub const fn empty() -> Heap {
-        Heap {
-            heap: Mutex::new(RefCell::new(SimplestHeap::empty())),
-            once_flag: Mutex::new(Cell::new(false)),
+impl<const SIZE: usize> Heap<SIZE> {
+    /// Create a new heap allocator
+    pub const fn new() -> Self {
+        Self {
+            heap: Mutex::new(UnsafeCell::new(SimplestHeap::new())),
         }
-    }
-
-    /// Initializes the heap
-    ///
-    /// This function must be called BEFORE you run any code that makes use of the
-    /// allocator.
-    ///
-    /// `start_addr` is the address where the heap will be located.
-    ///
-    /// `size` is the size of the heap in bytes.
-    ///
-    /// # Safety
-    ///
-    /// Obey these or Bad Stuff will happen.
-    ///
-    /// - This function must be called exactly ONCE.
-    /// - `size > 0`
-    pub unsafe fn init(&self, start_addr: usize, size: usize) {
-        assert!(size > 0);
-        critical_section::with(|cs| {
-            let once_flag = self.once_flag.borrow(cs);
-            assert!(!once_flag.get());
-            once_flag.set(true);
-
-            self.heap
-                .borrow_ref_mut(cs)
-                .init(start_addr as *mut u8, size);
-        });
     }
 
     /// Returns an estimate of the amount of bytes in use.
     pub fn used(&self) -> usize {
-        critical_section::with(|cs| self.heap.borrow_ref(cs).used())
-    }
-
-    /// Returns an estimate of the amount of bytes available.
-    pub fn free(&self) -> usize {
-        critical_section::with(|cs| self.heap.borrow_ref(cs).free())
+        critical_section::with(|cs| unsafe { &*self.heap.borrow(cs).get() }.used())
     }
 }
 
-unsafe impl GlobalAlloc for Heap {
+unsafe impl<const SIZE: usize> GlobalAlloc for Heap<SIZE> {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        critical_section::with(|cs| self.heap.borrow_ref_mut(cs).alloc(layout))
+        critical_section::with(|cs| unsafe { &mut *self.heap.borrow(cs).get() }.alloc(layout))
     }
 
     unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {}
 }
 
-struct SimplestHeap {
-    arena: *mut u8,
+struct SimplestHeap<const SIZE: usize> {
+    arena: [MaybeUninit<u8>; SIZE],
     remaining: usize,
     size: usize,
 }
 
-unsafe impl Send for SimplestHeap {}
+unsafe impl<const SIZE: usize> Send for SimplestHeap<SIZE> {}
 
-impl SimplestHeap {
-    const fn empty() -> Self {
+impl<const SIZE: usize> SimplestHeap<SIZE> {
+    const fn new() -> Self {
         Self {
-            arena: ptr::null_mut(),
-            remaining: 0,
-            size: 0,
+            arena: [MaybeUninit::uninit(); SIZE],
+            remaining: SIZE,
+            size: SIZE,
         }
-    }
-
-    fn init(&mut self, start_addr: *mut u8, size: usize) {
-        self.arena = start_addr;
-        self.remaining = size;
-        self.size = size;
-    }
-
-    fn free(&self) -> usize {
-        self.remaining
     }
 
     fn used(&self) -> usize {
@@ -119,6 +72,6 @@ impl SimplestHeap {
 
         self.remaining -= layout.size();
         self.remaining &= align_mask_to_round_down;
-        self.arena.wrapping_add(self.remaining)
+        (self.arena.as_mut_ptr() as *mut u8).wrapping_add(self.remaining)
     }
 }

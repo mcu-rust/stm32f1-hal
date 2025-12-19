@@ -19,8 +19,8 @@ use stm32f1_hal::{
 };
 
 use hal::{
-    Heap,
     afio::{NONE_PIN, RemapDefault},
+    common::simplest_heap::Heap,
     dma::DmaPriority,
     embedded_hal::{self, pwm::SetDutyCycle},
     embedded_io,
@@ -34,9 +34,7 @@ use hal::{
 };
 
 #[global_allocator]
-static HEAP: Heap = Heap::empty();
-const HEAP_SIZE: usize = 10 * 1024;
-static mut HEAP_MEM: [MaybeUninit<u8>; HEAP_SIZE] = [MaybeUninit::uninit(); HEAP_SIZE];
+static HEAP: Heap<10_000> = Heap::new();
 
 #[entry]
 fn main() -> ! {
@@ -51,9 +49,6 @@ fn main() -> ! {
     assert_eq!(rcc.clocks().sysclk(), sysclk);
 
     // Prepare ------------------------------------------------------
-
-    // Initialize the heap BEFORE you use it
-    unsafe { HEAP.init(&raw mut HEAP_MEM as usize, HEAP_SIZE) }
 
     let afio = dp.AFIO.init(&mut rcc);
     let mut mcu = Mcu::new(rcc, afio, cp.SCB.init(), cp.NVIC.init(), dp.EXTI);
