@@ -43,7 +43,6 @@ unsafe impl<const SIZE: usize> GlobalAlloc for Heap<SIZE> {
 struct SimplestHeap<const SIZE: usize> {
     arena: [MaybeUninit<u8>; SIZE],
     remaining: usize,
-    size: usize,
 }
 
 unsafe impl<const SIZE: usize> Send for SimplestHeap<SIZE> {}
@@ -53,12 +52,11 @@ impl<const SIZE: usize> SimplestHeap<SIZE> {
         Self {
             arena: [MaybeUninit::uninit(); SIZE],
             remaining: SIZE,
-            size: SIZE,
         }
     }
 
     fn used(&self) -> usize {
-        self.size - self.remaining
+        SIZE - self.remaining
     }
 
     fn alloc(&mut self, layout: Layout) -> *mut u8 {
