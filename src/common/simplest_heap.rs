@@ -28,7 +28,7 @@ impl<const SIZE: usize> Heap<SIZE> {
 
     /// Returns an estimate of the amount of bytes in use.
     pub fn used(&self) -> usize {
-        critical_section::with(|cs| unsafe { &*self.heap.borrow(cs).get() }.used())
+        critical_section::with(|cs| unsafe { &*self.heap.borrow(cs).get() }.remained())
     }
 }
 
@@ -42,7 +42,7 @@ unsafe impl<const SIZE: usize> GlobalAlloc for Heap<SIZE> {
 
 struct SimplestHeap<const SIZE: usize> {
     arena: [MaybeUninit<u8>; SIZE],
-    remaining: usize,
+    remained: usize,
 }
 
 unsafe impl<const SIZE: usize> Send for SimplestHeap<SIZE> {}
@@ -51,16 +51,16 @@ impl<const SIZE: usize> SimplestHeap<SIZE> {
     const fn new() -> Self {
         Self {
             arena: [MaybeUninit::uninit(); SIZE],
-            remaining: SIZE,
+            remained: SIZE,
         }
     }
 
-    fn used(&self) -> usize {
-        SIZE - self.remaining
+    fn remained(&self) -> usize {
+        self.remained
     }
 
     fn alloc(&mut self, layout: Layout) -> *mut u8 {
-        if layout.size() > self.remaining {
+        if layout.size() > self.remained {
             return ptr::null_mut();
         }
 
@@ -68,8 +68,8 @@ impl<const SIZE: usize> SimplestHeap<SIZE> {
         // So we can safely use a mask to ensure alignment without worrying about UB.
         let align_mask_to_round_down = !(layout.align() - 1);
 
-        self.remaining -= layout.size();
-        self.remaining &= align_mask_to_round_down;
-        (self.arena.as_mut_ptr() as *mut u8).wrapping_add(self.remaining)
+        self.remained -= layout.size();
+        self.remained &= align_mask_to_round_down;
+        (self.arena.as_mut_ptr() as *mut u8).wrapping_add(self.remained)
     }
 }
