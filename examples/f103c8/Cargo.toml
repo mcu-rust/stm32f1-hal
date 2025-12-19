@@ -6,7 +6,7 @@
     version = "0.1.0"
 
 [features]
-    default = ["i2c_it_sole"]
+    default = ["uart_it"]
     exti = []
     i2c = []
     i2c_it_bus = ["i2c"]

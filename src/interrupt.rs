@@ -1,9 +1,13 @@
 use crate::{Mcu, pac::Interrupt};
 use alloc::boxed::Box;
-use core::cell::{Cell, OnceCell};
+use core::{
+    cell::{Cell, UnsafeCell},
+    mem::MaybeUninit,
+};
 
 pub struct Callback {
-    callback: OnceCell<Cell<Box<dyn FnMut()>>>,
+    callback: UnsafeCell<MaybeUninit<Box<dyn FnMut()>>>,
+    once_flag: critical_section::Mutex<Cell<bool>>,
     it_line: Interrupt,
 }
 
@@ -15,7 +19,8 @@ unsafe impl Sync for Callback {}
 impl Callback {
     pub const fn new(it_line: Interrupt) -> Self {
         Self {
-            callback: OnceCell::new(),
+            callback: UnsafeCell::new(MaybeUninit::uninit()),
+            once_flag: critical_section::Mutex::new(Cell::new(true)),
             it_line,
         }
     }
@@ -23,20 +28,23 @@ impl Callback {
     /// Register the callback, and enable the interrupt line in NVIC.
     /// You can call it only once.
     pub fn set(&self, mcu: &mut Mcu, callback: impl FnMut() + 'static) {
-        let cb = Cell::new(Box::new(callback));
-        critical_section::with(|_| {
-            assert!(self.callback.set(cb).is_ok());
+        let cb = Box::new(callback);
+        critical_section::with(|cs| {
+            assert!(self.once_flag.borrow(cs).get());
+            let callback = unsafe { &mut *self.callback.get() };
+            callback.write(cb);
+            self.once_flag.borrow(cs).set(false);
         });
         mcu.nvic.enable(self.it_line, true);
     }
 
     /// # Safety
     ///
-    /// Only call this in interrupt
+    /// This function must only be called from interrupt context.
+    #[inline(always)]
     pub unsafe fn call(&self) {
-        if let Some(cb) = self.callback.get() {
-            unsafe { (*cb.as_ptr())() }
-        }
+        let cb = unsafe { (&mut *self.callback.get()).assume_init_mut() }.as_mut();
+        (*cb)();
     }
 }
 
