@@ -1,5 +1,5 @@
-# Example
+# STM32F103C8 Example
 
-This package is independent, which means you should `cd` into this path to build and debug it.
+This package is independent, which means you should `cd` into this directory to build and debug it.
 
-The example code is at [main](src/main.rs).
+You can run debug in VSCode. If you are using a different debugger, please modify `.vscode/launch.json` as needed.

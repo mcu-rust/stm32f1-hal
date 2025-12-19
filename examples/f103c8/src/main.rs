@@ -14,9 +14,7 @@ use os::*;
 use uart_task::UartPollTask;
 
 // Basic
-use stm32f1_hal::{
-    self as hal, Mcu, cortex_m::asm, cortex_m_rt::entry, gpio::PinState, i2c::I2cInit, pac, rcc,
-};
+use stm32f1_hal::{self as hal, Mcu, cortex_m::asm, cortex_m_rt::entry, gpio::PinState, pac, rcc};
 
 use hal::{
     afio::{NONE_PIN, RemapDefault},
