@@ -57,8 +57,9 @@ unsafe impl<const SIZE: usize> GlobalAlloc for Heap<SIZE> {
             ) {
                 Err(x) => old_remained = x,
                 Ok(_) => {
-                    return unsafe { (&mut *self.arena.get()).as_mut_ptr() as *mut u8 }
-                        .wrapping_add(remained);
+                    return unsafe {
+                        ((&mut *self.arena.get()).as_mut_ptr() as *mut u8).add(remained)
+                    };
                 }
             }
         }
@@ -76,8 +77,11 @@ mod tests {
     fn test_heap() {
         assert_eq!(HEAP.remained.load(Ordering::Relaxed), 100);
         let p1 = unsafe { &mut *HEAP.arena.get() }.as_mut_ptr() as *mut u8;
-        let p2 = unsafe { HEAP.alloc(Layout::new::<u32>()) };
-        assert_eq!(HEAP.remained.load(Ordering::Relaxed), 96);
-        assert_eq!(unsafe { p2.offset_from(p1) }, 96);
+        let p2 = unsafe { HEAP.alloc(Layout::new::<u64>()) };
+        assert_eq!(HEAP.remained.load(Ordering::Relaxed), 88);
+        assert_eq!(unsafe { p2.offset_from(p1) }, 88);
+
+        unsafe { HEAP.alloc(Layout::new::<u32>()) };
+        assert_eq!(HEAP.remained.load(Ordering::Relaxed), 84);
     }
 }
