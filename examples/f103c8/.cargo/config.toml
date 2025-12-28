@@ -2,4 +2,5 @@
     target = "thumbv7m-none-eabi"
 
 [target.thumbv7m-none-eabi]
+    linker = "flip-link"
     rustflags = ["-C", "link-arg=-Tlink.x"]

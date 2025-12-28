@@ -25,6 +25,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: thumbv7m-none-eabi
+      - run: cargo install flip-link
       - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
