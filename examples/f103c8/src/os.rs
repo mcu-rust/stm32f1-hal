@@ -1,3 +1,4 @@
-pub use crate::hal::{prelude::*, raw_os::RawOs as OS};
+pub use crate::hal::{os_trait, prelude::*, raw_os::RawOs as OS};
 
-pub type OsTimeoutState = <OS as OsInterface>::TimeoutState;
+pub type OsTimeout = os_trait::Timeout<OS>;
+pub type OsDuration = os_trait::Duration<OS>;

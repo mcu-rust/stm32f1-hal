@@ -4,6 +4,7 @@ use super::*;
 use crate::{
     Mcu,
     fugit::{HertzU32, KilohertzU32, TimerDurationU32, TimerInstantU32},
+    os_trait::TickDuration,
     prelude::*,
     rcc,
 };
@@ -233,6 +234,20 @@ impl<const FREQ: u32> SysCounter<FREQ> {
 #[derive(Copy, Clone)]
 pub struct SysTickInstant {
     tick: u32,
+    elapsed: u64,
+}
+
+impl SysTickInstant {
+    fn update(&mut self) {
+        let now = SYST::get_current();
+        let tick_diff = if now <= self.tick {
+            self.tick - now
+        } else {
+            self.tick + (SYST::get_reload() - now + 1)
+        };
+        self.elapsed = self.elapsed.wrapping_add(tick_diff as u64);
+        self.tick = now;
+    }
 }
 
 static FACTOR: AtomicU8 = AtomicU8::new(0);
@@ -247,15 +262,18 @@ impl TickInstant for SysTickInstant {
     fn now() -> Self {
         Self {
             tick: SYST::get_current(),
+            elapsed: 0,
         }
     }
 
-    #[inline(always)]
-    fn tick_since(self, earlier: Self) -> u32 {
-        if self.tick <= earlier.tick {
-            earlier.tick - self.tick
-        } else {
-            earlier.tick + (SYST::get_reload() - self.tick + 1)
-        }
+    #[inline]
+    fn elapsed(&mut self) -> TickDuration<Self> {
+        self.update();
+        TickDuration::from_ticks(self.elapsed)
+    }
+
+    #[inline]
+    fn move_forward(&mut self, dur: &TickDuration<Self>) {
+        self.elapsed = self.elapsed.wrapping_sub(dur.ticks());
     }
 }

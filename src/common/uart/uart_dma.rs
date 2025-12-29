@@ -4,6 +4,7 @@ use crate::{
     common::{
         dma::*,
         embedded_io::{ErrorType, Read, Write},
+        os_trait::Duration,
     },
 };
 
@@ -66,25 +67,33 @@ where
         }
 
         self.waiter
-            .wait_with(OS::O, self.timeout, 2, || {
-                if let n @ 1.. = self.w.write(buf) {
-                    Some(n)
-                } else {
-                    None
-                }
-            })
+            .wait_with(
+                &Duration::<OS>::from_micros(self.timeout.ticks()),
+                2,
+                || {
+                    if let n @ 1.. = self.w.write(buf) {
+                        Some(n)
+                    } else {
+                        None
+                    }
+                },
+            )
             .ok_or(Error::Busy)
     }
 
     fn flush(&mut self) -> Result<(), Self::Error> {
         self.waiter
-            .wait_with(OS::O, self.flush_timeout, 4, || {
-                if !self.w.in_progress() {
-                    Some(())
-                } else {
-                    None
-                }
-            })
+            .wait_with(
+                &Duration::<OS>::from_micros(self.flush_timeout.ticks()),
+                4,
+                || {
+                    if !self.w.in_progress() {
+                        Some(())
+                    } else {
+                        None
+                    }
+                },
+            )
             .ok_or(Error::Other)
     }
 }
@@ -149,14 +158,18 @@ where
         }
 
         self.waiter
-            .wait_with(OS::O, self.timeout, 2, || {
-                if let Some(d) = self.ch.pop_slice(buf.len()) {
-                    buf[..d.len()].copy_from_slice(d);
-                    Some(d.len())
-                } else {
-                    None
-                }
-            })
+            .wait_with(
+                &Duration::<OS>::from_micros(self.timeout.ticks()),
+                2,
+                || {
+                    if let Some(d) = self.ch.pop_slice(buf.len()) {
+                        buf[..d.len()].copy_from_slice(d);
+                        Some(d.len())
+                    } else {
+                        None
+                    }
+                },
+            )
             .ok_or(Error::Other)
     }
 }

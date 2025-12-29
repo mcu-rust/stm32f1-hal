@@ -1,7 +1,7 @@
 //! It doesn't depend on DMA or interrupts, relying instead on continuous polling.
 
 use super::*;
-use crate::common::{embedded_hal_nb as e_nb, embedded_io as e_io};
+use crate::common::{embedded_hal_nb as e_nb, embedded_io as e_io, os_trait::Timeout};
 use core::marker::PhantomData;
 
 // TX -------------------------------------------------------------------------
@@ -57,7 +57,7 @@ impl<U: UartPeriph, OS: OsInterface> e_io::Write for UartPollTx<U, OS> {
         }
 
         // try first data
-        let mut t = OS::timeout().start_us(self.timeout.to_micros());
+        let mut t = Timeout::<OS>::from_micros(self.timeout.to_micros());
         let rst = loop {
             let rst = self.uart.write(buf[0] as u16);
             if let Err(nb::Error::WouldBlock) = rst {
@@ -85,7 +85,7 @@ impl<U: UartPeriph, OS: OsInterface> e_io::Write for UartPollTx<U, OS> {
     }
 
     fn flush(&mut self) -> Result<(), Self::Error> {
-        let mut t = OS::timeout().start_us(self.flush_timeout.to_micros());
+        let mut t = Timeout::<OS>::from_micros(self.flush_timeout.to_micros());
         loop {
             if self.uart.is_tx_complete() {
                 return Ok(());
@@ -144,7 +144,7 @@ impl<U: UartPeriph, OS: OsInterface> e_io::Read for UartPollRx<U, OS> {
         }
 
         // try first data
-        let mut t = OS::timeout().start_us(self.timeout.to_micros());
+        let mut t = Timeout::<OS>::from_micros(self.timeout.to_micros());
         let rst = loop {
             let rst = self.uart.read();
             if let Err(nb::Error::WouldBlock) = rst {
@@ -161,7 +161,7 @@ impl<U: UartPeriph, OS: OsInterface> e_io::Read for UartPollRx<U, OS> {
             _ => return Err(Error::Other),
         }
 
-        let mut t = OS::timeout().start_us(self.continue_timeout.to_micros());
+        let mut t = Timeout::<OS>::from_micros(self.continue_timeout.to_micros());
         let mut n = 1;
         while n < buf.len() {
             match self.uart.read() {

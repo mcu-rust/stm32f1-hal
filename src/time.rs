@@ -32,8 +32,8 @@
 use core::ops;
 use cortex_m::peripheral::{DCB, DWT};
 
-use crate::prelude::*;
 use crate::rcc::{self, Rcc};
+use crate::{os_trait::TickDuration, prelude::*};
 
 /// Bits per second
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Debug)]
@@ -171,25 +171,43 @@ impl Instant {
 #[derive(Copy, Clone)]
 pub struct DwtInstant {
     tick: u32,
+    elapsed: u64,
 }
+
+impl DwtInstant {
+    fn update(&mut self) {
+        let now = DWT::cycle_count();
+        let tick_diff = if now >= self.tick {
+            now - self.tick
+        } else {
+            now + (u32::MAX - self.tick + 1)
+        };
+        self.elapsed = self.elapsed.wrapping_add(tick_diff as u64);
+        self.tick = now;
+    }
+}
+
 impl TickInstant for DwtInstant {
     fn frequency() -> KilohertzU32 {
         rcc::get_clocks().hclk().convert()
     }
 
-    #[inline(always)]
+    #[inline]
     fn now() -> Self {
         Self {
             tick: DWT::cycle_count(),
+            elapsed: 0,
         }
     }
 
-    #[inline(always)]
-    fn tick_since(self, earlier: Self) -> u32 {
-        if self.tick >= earlier.tick {
-            self.tick - earlier.tick
-        } else {
-            self.tick + (u32::MAX - earlier.tick + 1)
-        }
+    #[inline]
+    fn elapsed(&mut self) -> TickDuration<Self> {
+        self.update();
+        TickDuration::from_ticks(self.elapsed)
+    }
+
+    #[inline]
+    fn move_forward(&mut self, dur: &TickDuration<Self>) {
+        self.elapsed = self.elapsed.wrapping_sub(dur.ticks());
     }
 }

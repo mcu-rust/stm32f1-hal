@@ -5,6 +5,7 @@ use crate::{
         atomic_cell::{AtomicCell, Ordering},
         bus_device::Operation,
         fugit::NanosDurationU32,
+        os_trait::{Duration, Timeout},
         ringbuf::{Consumer, Producer, PushError, RingBuffer},
     },
 };
@@ -86,7 +87,7 @@ where
         if self.i2c.is_stopped() {
             true
         } else {
-            let mut t = OS::timeout().start_ms(1);
+            let mut t = Timeout::<OS>::from_millis(1);
             let mut i = 0;
             loop {
                 if self.i2c.is_stopped() {
@@ -212,22 +213,24 @@ where
         self.mode.store(Work::Start, Ordering::Release);
         self.i2c.it_send_start();
 
-        let rst = self.waiter.wait_with(OS::O, timeout_ns.nanos(), 2, || {
-            let mode = self.mode.load(Ordering::Acquire);
-            let err_code = self.err_code.load(Ordering::Acquire);
-            if Work::Success == mode {
-                return Some(Ok(()));
-            } else if let Some(err) = err_code {
-                return Some(match mode {
-                    Work::Addr => Err(err.nack_addr()),
-                    Work::Data => Err(err.nack_data()),
-                    _ => Err(err),
-                });
-            } else if Work::Stop == mode {
-                return Some(Err(Error::Other));
-            }
-            None
-        });
+        let rst = self
+            .waiter
+            .wait_with(&Duration::<OS>::from_nanos(timeout_ns), 2, || {
+                let mode = self.mode.load(Ordering::Acquire);
+                let err_code = self.err_code.load(Ordering::Acquire);
+                if Work::Success == mode {
+                    return Some(Ok(()));
+                } else if let Some(err) = err_code {
+                    return Some(match mode {
+                        Work::Addr => Err(err.nack_addr()),
+                        Work::Data => Err(err.nack_data()),
+                        _ => Err(err),
+                    });
+                } else if Work::Stop == mode {
+                    return Some(Err(Error::Other));
+                }
+                None
+            });
 
         self.i2c.disable_all_interrupt();
 

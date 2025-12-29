@@ -2,14 +2,14 @@ use crate::{embedded_hal::digital::StatefulOutputPin, os::*};
 
 pub struct LedTask<P> {
     led: P,
-    interval: OsTimeoutState,
+    interval: OsTimeout,
 }
 
 impl<P: StatefulOutputPin> LedTask<P> {
     pub fn new(led: P) -> Self {
         Self {
             led,
-            interval: OS::timeout().start_ms(500),
+            interval: OsTimeout::from_millis(500),
         }
     }
 
