@@ -9,7 +9,7 @@
     name = "stm32f1-hal"
     readme = "README.md"
     repository = "https://github.com/mcu-rust/stm32f1-hal"
-    version = "0.8.0"
+    version = "0.9.0"
 
     [package.metadata.docs.rs]
         features = ["f103", "xG"]
