@@ -1,7 +1,7 @@
 mod i2c1;
 mod i2c2;
 
-pub use crate::common::i2c::*;
+pub use crate::common::{bus_device::*, i2c::*};
 
 use crate::{
     Mcu, Steal,

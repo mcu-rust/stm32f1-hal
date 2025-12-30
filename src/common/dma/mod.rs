@@ -4,7 +4,7 @@ mod ringbuf_tx;
 pub use circular_buffer_rx::*;
 pub use ringbuf_tx::*;
 
-use crate::os_trait::prelude::*;
+use crate::common::prelude::*;
 
 pub trait DmaChannel {
     fn start(&mut self);

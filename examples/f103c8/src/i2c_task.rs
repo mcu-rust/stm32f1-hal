@@ -6,7 +6,7 @@ where
 {
     dev: D,
     buf: [u8; 16],
-    interval: OsTimeout,
+    interval: Timeout,
     step: u8,
 }
 
@@ -24,7 +24,7 @@ where
         Self {
             dev,
             buf: [0; 16],
-            interval: OsTimeout::from_millis(100),
+            interval: Timeout::from_millis(100),
             step: 0,
         }
     }

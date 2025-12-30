@@ -6,7 +6,7 @@ pub use crate::common::{bus_device::Operation, embedded_hal::i2c::NoAcknowledgeS
 pub use i2c_bus_it::*;
 pub use i2c_device::*;
 
-use crate::common::{embedded_hal::i2c::ErrorKind, fugit::HertzU32, os_trait::prelude::*};
+use crate::common::{embedded_hal::i2c::ErrorKind, fugit::HertzU32, prelude::*};
 
 pub trait I2cPeriph {
     /// Disable all interrupt

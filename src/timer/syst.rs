@@ -4,7 +4,7 @@ use super::*;
 use crate::{
     Mcu,
     fugit::{HertzU32, KilohertzU32, TimerDurationU32, TimerInstantU32},
-    os_trait::TickDuration,
+    os_trait::{TickDuration, TickInstant},
     prelude::*,
     rcc,
 };

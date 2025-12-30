@@ -6,8 +6,9 @@ pub use uart_dma::*;
 pub use uart_it::*;
 pub use uart_poll::*;
 
-use crate::common::{embedded_hal_nb as e_nb, embedded_io as e_io, fugit::MicrosDurationU32};
-use crate::os_trait::prelude::*;
+use crate::common::{
+    embedded_hal_nb as e_nb, embedded_io as e_io, fugit::MicrosDurationU32, prelude::*,
+};
 use core::fmt::Display;
 
 // ------------------------------------------------------------------------------------------------

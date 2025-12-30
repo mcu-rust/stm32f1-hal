@@ -11,8 +11,9 @@ pub use crate::common::uart::*;
 use crate::{
     Mcu, Steal,
     afio::{RemapMode, uart_remap::*},
+    common::prelude::*,
     dma::{DmaBindRx, DmaBindTx, DmaRingbufTxLoader},
-    os_trait::{MicrosDurationU32, prelude::*},
+    fugit::MicrosDurationU32,
     rcc::{Enable, GetClock, Reset},
 };
 use core::marker::PhantomData;

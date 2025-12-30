@@ -33,7 +33,10 @@ use core::ops;
 use cortex_m::peripheral::{DCB, DWT};
 
 use crate::rcc::{self, Rcc};
-use crate::{os_trait::TickDuration, prelude::*};
+use crate::{
+    os_trait::{TickDuration, TickInstant},
+    prelude::*,
+};
 
 /// Bits per second
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Debug)]
