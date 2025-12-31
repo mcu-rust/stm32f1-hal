@@ -7,14 +7,14 @@ mod led_task;
 mod os;
 mod uart_task;
 
-use core::{mem::MaybeUninit, panic::PanicInfo};
+use core::panic::PanicInfo;
 use i2c_task::I2cTask;
 use led_task::LedTask;
 use os::*;
 use uart_task::UartPollTask;
 
 // Basic
-use stm32f1_hal::{self as hal, Mcu, cortex_m::asm, cortex_m_rt::entry, gpio::PinState, pac, rcc};
+use hal::{Mcu, cortex_m::asm, cortex_m_rt::entry, gpio::PinState, pac, rcc};
 
 use hal::{
     afio::{NONE_PIN, RemapDefault},
@@ -101,8 +101,8 @@ fn main() -> ! {
         dma1.5.set_priority(DmaPriority::Medium);
         let (tx, mut tx_it) = uart_tx.into_dma_ringbuf(dma1.4, 32, 0.micros());
         let (rx, mut rx_it) = uart_rx.into_dma_circle(dma1.5, 64, 100.micros());
-        all_it::DMA1_CH4_CB.set(&mut mcu, move || tx_it.interrupt_reload());
-        all_it::DMA1_CH5_CB.set(&mut mcu, move || rx_it.interrupt_notify());
+        its::DMA1_CH4_CB.set(&mut mcu, move || tx_it.interrupt_reload());
+        its::DMA1_CH5_CB.set(&mut mcu, move || rx_it.interrupt_notify());
         (tx, rx)
     };
 
@@ -110,7 +110,7 @@ fn main() -> ! {
     let (tx, rx) = {
         let (tx, mut tx_it) = uart_tx.into_interrupt(32, 0.micros());
         let (rx, mut rx_it) = uart_rx.into_interrupt(64, 100.micros());
-        all_it::USART1_CB.set(&mut mcu, move || {
+        its::USART1_CB.set(&mut mcu, move || {
             rx_it.handler();
             tx_it.handler();
         });
@@ -137,8 +137,8 @@ fn main() -> ! {
             dp.I2C1
                 .init::<OS>(&mut mcu)
                 .into_interrupt_bus((scl, sda), 4, &mut mcu);
-        all_it::I2C1_EVENT_CB.set(&mut mcu, move || it.handler());
-        all_it::I2C1_ERR_CB.set(&mut mcu, move || it_err.handler());
+        its::I2C1_EVENT_CB.set(&mut mcu, move || it.handler());
+        its::I2C1_ERR_CB.set(&mut mcu, move || it_err.handler());
         bus.new_device(i2c::Address::Seven(0b1101000), 200.kHz())
     };
 
@@ -151,8 +151,8 @@ fn main() -> ! {
             4,
             &mut mcu,
         );
-        all_it::I2C1_EVENT_CB.set(&mut mcu, move || it.handler());
-        all_it::I2C1_ERR_CB.set(&mut mcu, move || it_err.handler());
+        its::I2C1_EVENT_CB.set(&mut mcu, move || it.handler());
+        its::I2C1_ERR_CB.set(&mut mcu, move || it_err.handler());
         dev
     };
 
@@ -186,7 +186,7 @@ fn main() -> ! {
         ex.make_interrupt_source(&mut mcu.afio);
         ex.trigger_on_edge(Edge::Rising);
         ex.enable_interrupt();
-        all_it::EXTI1_CB.set(&mut mcu, move || {
+        its::EXTI1_CB.set(&mut mcu, move || {
             if ex.check_interrupt() {
                 ex.clear_interrupt_pending_bit();
             }
@@ -202,7 +202,7 @@ fn main() -> ! {
     }
 }
 
-mod all_it {
+mod its {
     use super::hal::interrupt_handler;
     interrupt_handler!(
         (USART1, USART1_CB),
