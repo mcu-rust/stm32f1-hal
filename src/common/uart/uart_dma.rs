@@ -67,24 +67,20 @@ where
         }
 
         self.waiter
-            .wait_with(
-                &Duration::<OS>::from_micros(self.timeout.ticks()),
-                2,
-                || {
-                    if let n @ 1.. = self.w.write(buf) {
-                        Some(n)
-                    } else {
-                        None
-                    }
-                },
-            )
+            .wait_with(&Duration::<OS>::micros(self.timeout.ticks()), 2, || {
+                if let n @ 1.. = self.w.write(buf) {
+                    Some(n)
+                } else {
+                    None
+                }
+            })
             .ok_or(Error::Busy)
     }
 
     fn flush(&mut self) -> Result<(), Self::Error> {
         self.waiter
             .wait_with(
-                &Duration::<OS>::from_micros(self.flush_timeout.ticks()),
+                &Duration::<OS>::micros(self.flush_timeout.ticks()),
                 4,
                 || {
                     if !self.w.in_progress() {
@@ -158,18 +154,14 @@ where
         }
 
         self.waiter
-            .wait_with(
-                &Duration::<OS>::from_micros(self.timeout.ticks()),
-                2,
-                || {
-                    if let Some(d) = self.ch.pop_slice(buf.len()) {
-                        buf[..d.len()].copy_from_slice(d);
-                        Some(d.len())
-                    } else {
-                        None
-                    }
-                },
-            )
+            .wait_with(&Duration::<OS>::micros(self.timeout.ticks()), 2, || {
+                if let Some(d) = self.ch.pop_slice(buf.len()) {
+                    buf[..d.len()].copy_from_slice(d);
+                    Some(d.len())
+                } else {
+                    None
+                }
+            })
             .ok_or(Error::Other)
     }
 }

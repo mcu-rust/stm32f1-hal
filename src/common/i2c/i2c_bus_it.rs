@@ -87,7 +87,7 @@ where
         if self.i2c.is_stopped() {
             true
         } else {
-            let mut t = Timeout::<OS>::from_millis(1);
+            let mut t = Timeout::<OS>::millis(1);
             let mut i = 0;
             loop {
                 if self.i2c.is_stopped() {
@@ -215,7 +215,7 @@ where
 
         let rst = self
             .waiter
-            .wait_with(&Duration::<OS>::from_nanos(timeout_ns), 2, || {
+            .wait_with(&Duration::<OS>::nanos(timeout_ns), 2, || {
                 let mode = self.mode.load(Ordering::Acquire);
                 let err_code = self.err_code.load(Ordering::Acquire);
                 if Work::Success == mode {

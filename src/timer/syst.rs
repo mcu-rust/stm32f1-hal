@@ -274,6 +274,6 @@ impl TickInstant for SysTickInstant {
 
     #[inline]
     fn move_forward(&mut self, dur: &TickDuration<Self>) {
-        self.elapsed = self.elapsed.wrapping_sub(dur.ticks());
+        self.elapsed = self.elapsed.wrapping_sub(dur.as_ticks());
     }
 }

@@ -24,7 +24,7 @@ where
         Self {
             dev,
             buf: [0; 16],
-            interval: Timeout::from_millis(100),
+            interval: Timeout::millis(100),
             step: 0,
         }
     }

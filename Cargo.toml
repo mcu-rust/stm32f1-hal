@@ -65,8 +65,7 @@
     fugit = "0.3"
     fugit-timer = "0.1"
     nb = "1.1"
-    os-trait = "0.9"
-    # os-trait = { path = "../../rust/os-trait" }
+    os-trait = "0.10"
     rtic-monotonic = { version = "1.0", optional = true }
     rtrb = { version = "0.3", default-features = false }
     stm32f1 = { version = "0.16", optional = true }

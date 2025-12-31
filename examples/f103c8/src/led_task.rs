@@ -9,7 +9,7 @@ impl<P: StatefulOutputPin> LedTask<P> {
     pub fn new(led: P) -> Self {
         Self {
             led,
-            interval: Timeout::from_millis(500),
+            interval: Timeout::millis(500),
         }
     }
 

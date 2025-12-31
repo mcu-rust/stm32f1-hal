@@ -55,26 +55,22 @@ impl<U: UartPeriph, OS: OsInterface> Write for UartInterruptTx<U, OS> {
         }
 
         self.waiter
-            .wait_with(
-                &Duration::<OS>::from_micros(self.timeout.ticks()),
-                2,
-                || {
-                    if let n @ 1.. = self.w.push_slice(buf) {
-                        self.uart.set_interrupt(Event::TxEmpty, true);
-                        return Some(n);
-                    } else if !self.uart.is_interrupt_enable(Event::TxEmpty) {
-                        self.uart.set_interrupt(Event::TxEmpty, true);
-                    }
-                    None
-                },
-            )
+            .wait_with(&Duration::<OS>::micros(self.timeout.ticks()), 2, || {
+                if let n @ 1.. = self.w.push_slice(buf) {
+                    self.uart.set_interrupt(Event::TxEmpty, true);
+                    return Some(n);
+                } else if !self.uart.is_interrupt_enable(Event::TxEmpty) {
+                    self.uart.set_interrupt(Event::TxEmpty, true);
+                }
+                None
+            })
             .ok_or(Error::Busy)
     }
 
     fn flush(&mut self) -> Result<(), Self::Error> {
         self.waiter
             .wait_with(
-                &Duration::<OS>::from_micros(self.flush_timeout.ticks()),
+                &Duration::<OS>::micros(self.flush_timeout.ticks()),
                 4,
                 || {
                     if self.uart.is_tx_complete() && self.w.slots() == self.w.buffer().capacity() {
@@ -175,18 +171,14 @@ where
         }
 
         self.waiter
-            .wait_with(
-                &Duration::<OS>::from_micros(self.timeout.ticks()),
-                2,
-                || {
-                    if let n @ 1.. = self.r.pop_slice(buf) {
-                        return Some(n);
-                    } else if !self.uart.is_interrupt_enable(Event::RxNotEmpty) {
-                        self.uart.set_interrupt(Event::RxNotEmpty, true);
-                    }
-                    None
-                },
-            )
+            .wait_with(&Duration::<OS>::micros(self.timeout.ticks()), 2, || {
+                if let n @ 1.. = self.r.pop_slice(buf) {
+                    return Some(n);
+                } else if !self.uart.is_interrupt_enable(Event::RxNotEmpty) {
+                    self.uart.set_interrupt(Event::RxNotEmpty, true);
+                }
+                None
+            })
             .ok_or(Error::Other)
     }
 }
