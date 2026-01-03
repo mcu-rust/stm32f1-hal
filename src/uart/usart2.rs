@@ -171,7 +171,7 @@ impl UartPeriph for UartX {
     }
 
     #[inline]
-    fn is_interrupted(&mut self, event: Event) -> bool {
+    fn check_and_clear_interrupt(&mut self, event: Event) -> bool {
         let sr = self.sr().read();
         match event {
             Event::Idle => {

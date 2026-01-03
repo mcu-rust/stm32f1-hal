@@ -36,7 +36,7 @@ pub trait DmaChannel {
 
     fn set_interrupt(&mut self, event: DmaEvent, enable: bool);
     /// check and clear interrupt flag
-    fn check_and_clear_interrupted(&mut self, event: DmaEvent) -> bool;
+    fn check_and_clear_interrupt(&mut self, event: DmaEvent) -> bool;
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -24,8 +24,8 @@ impl<U: UartPeriph> UartIdleInterrupt<U> {
     }
 
     #[inline]
-    pub fn is_interrupted(&mut self) -> bool {
-        self.uart.is_interrupted(Event::Idle)
+    pub fn check_and_clear_interrupt(&mut self) -> bool {
+        self.uart.check_and_clear_interrupt(Event::Idle)
     }
 
     #[inline]
@@ -55,8 +55,8 @@ pub trait UartPeriph {
 
     fn set_interrupt(&mut self, event: Event, enable: bool);
     fn is_interrupt_enable(&mut self, event: Event) -> bool;
-    /// Read and clean the flag
-    fn is_interrupted(&mut self, event: Event) -> bool;
+    /// Check and clear interrupt flag
+    fn check_and_clear_interrupt(&mut self, event: Event) -> bool;
 
     fn clear_err_flag(&self);
 }

@@ -103,10 +103,7 @@ where
     pub fn interrupt_reload(&mut self) {
         let reloaded = critical_section::with(|cs| {
             let mut dma = self.dma.borrow_ref_mut(cs);
-            if dma
-                .ch
-                .check_and_clear_interrupted(DmaEvent::TransferComplete)
-            {
+            if dma.ch.check_and_clear_interrupt(DmaEvent::TransferComplete) {
                 dma.reload();
                 true
             } else {
