@@ -59,7 +59,7 @@ where
         }
 
         self.waiter
-            .wait_with(&Duration::<OS>::micros(self.timeout.ticks()), 2, || {
+            .wait_with(&Duration::<OS>::micros(self.timeout.ticks()), 1, || {
                 if let n @ 1.. = self.w.push_slice(buf) {
                     self.uart.set_interrupt(Event::TxEmpty, true);
                     return Some(n);
@@ -75,7 +75,7 @@ where
         self.waiter
             .wait_with(
                 &Duration::<OS>::micros(self.flush_timeout.ticks()),
-                4,
+                1,
                 || {
                     if self.uart.is_tx_complete() && self.w.slots() == self.w.buffer().capacity() {
                         return Some(());
@@ -123,13 +123,13 @@ where
     OS: OsInterface,
 {
     pub fn handler(&mut self) {
-        if let Some(has_data) = self.uart.write_with(|| {
+        if let Some(wrote_data) = self.uart.write_with(|| {
             let data = self.r.pop();
             data.map_or(None, |d| Some(d as u16))
         }) {
-            if has_data {
+            if wrote_data {
                 self.notifier.notify();
-            } else if self.uart.is_interrupt_enable(Event::TxEmpty) {
+            } else {
                 self.uart.set_interrupt(Event::TxEmpty, false);
             }
         }
@@ -185,7 +185,7 @@ where
         }
 
         self.waiter
-            .wait_with(&Duration::<OS>::micros(self.timeout.ticks()), 2, || {
+            .wait_with(&Duration::<OS>::micros(self.timeout.ticks()), 1, || {
                 if let n @ 1.. = self.r.pop_slice(buf) {
                     return Some(n);
                 } else if !self.uart.is_interrupt_enable(Event::RxNotEmpty) {
@@ -204,7 +204,7 @@ where
 {
     fn fill_buf(&mut self) -> Result<&[u8], Self::Error> {
         self.waiter
-            .wait_with(&Duration::<OS>::micros(self.timeout.ticks()), 2, || {
+            .wait_with(&Duration::<OS>::micros(self.timeout.ticks()), 1, || {
                 if let Some(chunk) = self.r.get_read_chunk() {
                     let buf = chunk.get_slice();
                     let p = buf.as_ptr();
