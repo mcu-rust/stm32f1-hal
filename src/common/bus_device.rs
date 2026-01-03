@@ -29,7 +29,7 @@ pub trait BusDeviceTransfer<WD: Word>: BusDevice<WD> {
 }
 
 pub use super::i2c::Address;
-pub trait BusDeviceWithAddress<WD: Word>: BusDevice<WD> {
+pub trait BusDeviceAddress<WD: Word>: BusDevice<WD> {
     fn set_address(&mut self, address: Address);
 }
 

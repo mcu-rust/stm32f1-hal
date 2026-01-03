@@ -44,7 +44,7 @@ where
     }
 }
 
-impl<OS, BUS> BusDeviceWithAddress<u8> for I2cBusDevice<OS, BUS>
+impl<OS, BUS> BusDeviceAddress<u8> for I2cBusDevice<OS, BUS>
 where
     OS: OsInterface,
     BUS: I2cBusInterface,
@@ -92,7 +92,7 @@ where
     }
 }
 
-impl<BUS> BusDeviceWithAddress<u8> for I2cSoleDevice<BUS>
+impl<BUS> BusDeviceAddress<u8> for I2cSoleDevice<BUS>
 where
     BUS: I2cBusInterface,
 {

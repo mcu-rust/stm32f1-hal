@@ -74,7 +74,7 @@ where
         max_operation: usize,
         mcu: &'a mut Mcu,
     ) -> (
-        impl BusDeviceWithAddress<u8> + 'b,
+        impl BusDeviceAddress<u8> + 'b,
         I2cBusInterruptHandler<OS, I>,
         I2cBusErrorInterruptHandler<OS, I>,
     )
