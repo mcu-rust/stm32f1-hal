@@ -220,8 +220,10 @@ where
     OS: OsInterface,
 {
     pub fn interrupt_notify(&mut self) {
-        if self.ch.is_interrupted(DmaEvent::HalfTransfer)
-            || self.ch.is_interrupted(DmaEvent::TransferComplete)
+        if self.ch.check_and_clear_interrupted(DmaEvent::HalfTransfer)
+            || self
+                .ch
+                .check_and_clear_interrupted(DmaEvent::TransferComplete)
         {
             self.notifier.notify();
         }

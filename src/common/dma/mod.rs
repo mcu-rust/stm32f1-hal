@@ -35,7 +35,8 @@ pub trait DmaChannel {
     fn in_progress(&self) -> bool;
 
     fn set_interrupt(&mut self, event: DmaEvent, enable: bool);
-    fn is_interrupted(&mut self, event: DmaEvent) -> bool;
+    /// check and clear interrupt flag
+    fn check_and_clear_interrupted(&mut self, event: DmaEvent) -> bool;
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

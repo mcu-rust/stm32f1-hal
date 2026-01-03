@@ -24,8 +24,8 @@ While parts of the implementation are adapted from [stm32f1xx-hal](https://githu
 ## 📖 Design Philosophy
 - **Readability is the most important.**
   We only write code a few times, but we read it countless times. Clear understanding is essential for long-term maintenance.
-  - **Prefer [sync-code](https://crates.io/crates/sync-code) over complex macros + generics.**
-    In complex modules, combining macros with generics often makes the code harder to follow and maintain.
+  - **Prefer [sync-code](https://crates.io/crates/sync-code) over complex macros**
+    In complex modules, combining macros with generics and calling a lot of low level interfaces often makes the code harder to follow and maintain.
     Instead, I use [sync-code](https://crates.io/crates/sync-code) to synchronizes code blocks across peripherals, keeping peripheral code easy to read and maintain.
 
   - A script is used to generate code for GPIO alternate function remapping.

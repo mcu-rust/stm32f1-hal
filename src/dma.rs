@@ -203,7 +203,7 @@ where
     }
 
     #[inline]
-    fn is_interrupted(&mut self, event: DmaEvent) -> bool {
+    fn check_and_clear_interrupted(&mut self, event: DmaEvent) -> bool {
         match event {
             DmaEvent::TransferComplete => {
                 if self.dma.isr().read().tcif(C).bit_is_set() {
