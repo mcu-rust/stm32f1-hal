@@ -77,7 +77,7 @@ where
                 &Duration::<OS>::micros(self.flush_timeout.ticks()),
                 1,
                 || {
-                    if self.uart.is_tx_complete() && self.w.slots() == self.w.buffer().capacity() {
+                    if self.uart.is_tx_complete() && self.w.is_empty() {
                         return Some(());
                     } else if !self.uart.is_interrupt_enable(Event::TxEmpty) {
                         self.uart.set_interrupt(Event::TxEmpty, true);
@@ -128,7 +128,9 @@ where
             data.map_or(None, |d| Some(d as u16))
         }) {
             if wrote_data {
-                self.notifier.notify();
+                if self.r.buffer().capacity() - self.r.slots() < 4 {
+                    self.notifier.notify();
+                }
             } else {
                 self.uart.set_interrupt(Event::TxEmpty, false);
             }
@@ -260,7 +262,9 @@ where
     pub fn handler(&mut self) {
         if let Ok(data) = self.uart.read() {
             self.w.push(data as u8).ok();
-            self.notifier.notify();
+            if self.w.buffer().capacity() - self.w.slots() < 4 {
+                self.notifier.notify();
+            }
         }
 
         // match self.uart.read() {

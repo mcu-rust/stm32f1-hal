@@ -6,6 +6,7 @@ pub use crate::common::rtrb::{
 pub trait ProducerExt<T> {
     fn get_write_chunk_uninit(&mut self) -> Option<WriteChunkUninit<'_, T>>;
     fn push_slice(&mut self, buf: &[T]) -> usize;
+    fn is_empty(&self) -> bool;
 }
 impl<T: Copy> ProducerExt<T> for Producer<T> {
     fn get_write_chunk_uninit(&mut self) -> Option<WriteChunkUninit<'_, T>> {
@@ -46,6 +47,11 @@ impl<T: Copy> ProducerExt<T> for Producer<T> {
             0
         }
     }
+
+    #[inline]
+    fn is_empty(&self) -> bool {
+        self.slots() == self.buffer().capacity()
+    }
 }
 
 pub trait WriteChunkExt<T> {
@@ -77,6 +83,7 @@ impl<T: Copy> WriteChunkExt<T> for WriteChunkUninit<'_, T> {
 pub trait ConsumerExt<T> {
     fn get_read_chunk(&mut self) -> Option<ReadChunk<'_, T>>;
     fn pop_slice(&mut self, elems: &mut [T]) -> usize;
+    fn is_full(&self) -> bool;
 }
 impl<T: Copy> ConsumerExt<T> for Consumer<T> {
     fn get_read_chunk(&mut self) -> Option<ReadChunk<'_, T>> {
@@ -114,6 +121,10 @@ impl<T: Copy> ConsumerExt<T> for Consumer<T> {
         } else {
             0
         }
+    }
+
+    fn is_full(&self) -> bool {
+        self.slots() == self.buffer().capacity()
     }
 }
 

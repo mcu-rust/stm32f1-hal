@@ -66,24 +66,25 @@ where
             return Err(Error::Other);
         }
 
-        self.waiter
-            .wait_with(&Duration::<OS>::micros(self.timeout.ticks()), 2, || {
-                if let n @ 1.. = self.w.write(buf) {
-                    Some(n)
-                } else {
-                    None
-                }
-            })
-            .ok_or(Error::Busy)
+        let dur = Duration::<OS>::micros(self.timeout.ticks());
+        let mut timeout = false;
+        loop {
+            if let n @ 1.. = self.w.write(buf) {
+                return Ok(n);
+            } else if timeout {
+                return Err(Error::Busy);
+            }
+            timeout = !self.waiter.wait(&dur);
+        }
     }
 
     fn flush(&mut self) -> Result<(), Self::Error> {
         self.waiter
             .wait_with(
                 &Duration::<OS>::micros(self.flush_timeout.ticks()),
-                4,
+                1,
                 || {
-                    if !self.w.in_progress() {
+                    if self.w.is_empty() && !self.w.in_progress() {
                         Some(())
                     } else {
                         None
@@ -115,7 +116,7 @@ pub struct UartDmaRx<U, CH, OS: OsInterface> {
 
 impl<U, CH, OS> UartDmaRx<U, CH, OS>
 where
-    U: UartPeriphWithDma,
+    U: UartPeriphWithDma + Steal,
     CH: DmaChannel + Steal,
     OS: OsInterface,
 {
@@ -124,24 +125,27 @@ where
         mut dma_ch: CH,
         buf_size: usize,
         timeout: MicrosDurationU32,
-    ) -> (Self, UartDmaRxNotify<CH, OS>) {
+    ) -> (Self, UartDmaRxNotify<CH, OS>, UartIdleNotify<U, OS>) {
         let (notifier, waiter) = OS::notify();
         let dma_ch2 = unsafe { dma_ch.steal() };
         let ch = DmaCircularBufferRx::<u8, CH>::new(dma_ch2, uart.get_rx_data_reg_addr(), buf_size);
         uart.enable_dma_rx(true);
+        uart.set_interrupt(Event::Idle, true);
         dma_ch.set_interrupt(DmaEvent::HalfTransfer, true);
         dma_ch.set_interrupt(DmaEvent::TransferComplete, true);
+        let uart2 = unsafe { uart.steal() };
         (
             Self {
-                _uart: uart,
+                _uart: uart2,
                 ch,
                 timeout,
                 waiter,
             },
             UartDmaRxNotify {
-                notifier,
+                notifier: notifier.clone(),
                 ch: dma_ch,
             },
+            UartIdleNotify { uart, notifier },
         )
     }
 }
@@ -164,7 +168,7 @@ where
         }
 
         self.waiter
-            .wait_with(&Duration::<OS>::micros(self.timeout.ticks()), 4, || {
+            .wait_with(&Duration::<OS>::micros(self.timeout.ticks()), 1, || {
                 if let Some(d) = self.ch.read_slice(buf.len()) {
                     buf[..d.len()].copy_from_slice(d);
                     self.ch.consume(d.len());
@@ -184,7 +188,7 @@ where
 {
     fn fill_buf(&mut self) -> Result<&[u8], Self::Error> {
         self.waiter
-            .wait_with(&Duration::<OS>::micros(self.timeout.ticks()), 4, || {
+            .wait_with(&Duration::<OS>::micros(self.timeout.ticks()), 1, || {
                 if let Some(d) = self.ch.read_slice(usize::MAX) {
                     Some(d)
                 } else {
@@ -225,6 +229,23 @@ where
                 .ch
                 .check_and_clear_interrupt(DmaEvent::TransferComplete)
         {
+            self.notifier.notify();
+        }
+    }
+}
+
+pub struct UartIdleNotify<U, OS: OsInterface> {
+    uart: U,
+    notifier: OS::Notifier,
+}
+
+impl<U, OS> UartIdleNotify<U, OS>
+where
+    U: UartPeriph,
+    OS: OsInterface,
+{
+    pub fn interrupt_notify(&mut self) {
+        if self.uart.check_and_clear_interrupt(Event::Idle) {
             self.notifier.notify();
         }
     }

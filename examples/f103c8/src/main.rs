@@ -100,9 +100,10 @@ fn main() -> ! {
         dma1.4.set_priority(DmaPriority::Medium);
         dma1.5.set_priority(DmaPriority::Medium);
         let (tx, mut tx_it) = uart_tx.into_dma_ringbuf(dma1.4, 32, 0.micros());
-        let (rx, mut rx_it) = uart_rx.into_dma_circle(dma1.5, 64, 100.micros());
+        let (rx, mut rx_it, mut idle_it) = uart_rx.into_dma_circle(dma1.5, 64, 100.micros());
         its::DMA1_CH4_CB.set(&mut mcu, move || tx_it.interrupt_reload());
         its::DMA1_CH5_CB.set(&mut mcu, move || rx_it.interrupt_notify());
+        its::USART1_CB.set(&mut mcu, move || idle_it.interrupt_notify());
         (tx, rx)
     };
 

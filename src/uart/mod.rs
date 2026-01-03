@@ -174,7 +174,11 @@ where
         dma_ch: CH,
         buf_size: usize,
         timeout: MicrosDurationU32,
-    ) -> (UartDmaRx<U, CH, OS>, UartDmaRxNotify<CH, OS>)
+    ) -> (
+        UartDmaRx<U, CH, OS>,
+        UartDmaRxNotify<CH, OS>,
+        UartIdleNotify<U, OS>,
+    )
     where
         CH: DmaBindRx<U> + Steal,
         OS: OsInterface,
