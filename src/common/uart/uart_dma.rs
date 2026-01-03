@@ -3,7 +3,7 @@ use crate::{
     Steal,
     common::{
         dma::*,
-        embedded_io::{ErrorType, Read, Write},
+        embedded_io::{BufRead, ErrorType, Read, ReadReady, Write, WriteReady},
         os_trait::Duration,
     },
 };
@@ -94,6 +94,16 @@ where
     }
 }
 
+impl<U, CH, OS> WriteReady for UartDmaBufTx<U, CH, OS>
+where
+    CH: DmaChannel,
+    OS: OsInterface,
+{
+    fn write_ready(&mut self) -> Result<bool, Self::Error> {
+        Ok(!self.w.is_full())
+    }
+}
+
 // RX -------------------------------------------------------------------------
 
 pub struct UartDmaRx<U, CH, OS: OsInterface> {
@@ -154,15 +164,48 @@ where
         }
 
         self.waiter
-            .wait_with(&Duration::<OS>::micros(self.timeout.ticks()), 2, || {
-                if let Some(d) = self.ch.pop_slice(buf.len()) {
+            .wait_with(&Duration::<OS>::micros(self.timeout.ticks()), 4, || {
+                if let Some(d) = self.ch.read_slice(buf.len()) {
                     buf[..d.len()].copy_from_slice(d);
+                    self.ch.consume(d.len());
                     Some(d.len())
                 } else {
                     None
                 }
             })
             .ok_or(Error::Other)
+    }
+}
+
+impl<U, CH, OS> BufRead for UartDmaRx<U, CH, OS>
+where
+    CH: DmaChannel,
+    OS: OsInterface,
+{
+    fn fill_buf(&mut self) -> Result<&[u8], Self::Error> {
+        self.waiter
+            .wait_with(&Duration::<OS>::micros(self.timeout.ticks()), 4, || {
+                if let Some(d) = self.ch.read_slice(usize::MAX) {
+                    Some(d)
+                } else {
+                    None
+                }
+            })
+            .ok_or(Error::Other)
+    }
+
+    fn consume(&mut self, amt: usize) {
+        self.ch.consume(amt);
+    }
+}
+
+impl<U, CH, OS> ReadReady for UartDmaRx<U, CH, OS>
+where
+    CH: DmaChannel,
+    OS: OsInterface,
+{
+    fn read_ready(&mut self) -> Result<bool, Self::Error> {
+        Ok(self.ch.has_data())
     }
 }
 

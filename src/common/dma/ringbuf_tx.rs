@@ -50,6 +50,11 @@ where
     }
 
     #[inline]
+    pub fn is_full(&mut self) -> bool {
+        self.w.is_full()
+    }
+
+    #[inline]
     pub fn in_progress(&self) -> bool {
         critical_section::with(|cs| self.dma.borrow_ref(cs).in_progress())
     }

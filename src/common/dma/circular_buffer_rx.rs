@@ -21,8 +21,18 @@ where
     }
 
     #[inline]
-    pub fn pop_slice(&mut self, max: usize) -> Option<&[T]> {
-        self.buf.pop_slice(self.ch.get_unprocessed_len(), max)
+    pub fn read_slice<'a, 'b>(&'a mut self, max: usize) -> Option<&'b [T]> {
+        self.buf.read_slice(self.ch.get_unprocessed_len(), max)
+    }
+
+    #[inline]
+    pub fn consume(&mut self, len: usize) {
+        self.buf.consume(len);
+    }
+
+    pub fn has_data(&self) -> bool {
+        let recv_idx = self.buf.get_recv_index(self.ch.get_unprocessed_len());
+        self.buf.read_idx != recv_idx
     }
 }
 
@@ -45,36 +55,56 @@ impl<T: Sized + Copy> CircularBuffer<T> {
         }
     }
 
-    fn pop_slice(&mut self, unprocessed_len: usize, max: usize) -> Option<&[T]> {
-        let dma_recv_idx = if unprocessed_len == 0 {
+    fn get_recv_index(&self, unprocessed_len: usize) -> usize {
+        if unprocessed_len == 0 {
             0
         } else {
             self.recv_buf.len() - unprocessed_len
-        };
+        }
+    }
 
-        if self.read_idx == dma_recv_idx {
+    fn read_slice<'a, 'b>(&'a mut self, unprocessed_len: usize, max: usize) -> Option<&'b [T]> {
+        let recv_idx = self.get_recv_index(unprocessed_len);
+
+        if self.read_idx == recv_idx {
             return None;
         }
 
-        let ret;
-        if dma_recv_idx < self.read_idx {
+        let rst;
+        if recv_idx < self.read_idx {
             if max > self.recv_buf.len() - self.read_idx {
-                ret = Some(&self.recv_buf[self.read_idx..]);
-                self.read_idx = 0;
+                rst = &self.recv_buf[self.read_idx..];
             } else {
                 let end = self.read_idx + max;
-                ret = Some(&self.recv_buf[self.read_idx..end]);
-                self.read_idx = end;
+                rst = &self.recv_buf[self.read_idx..end];
             }
-        } else if max > dma_recv_idx - self.read_idx {
-            ret = Some(&self.recv_buf[self.read_idx..dma_recv_idx]);
-            self.read_idx = dma_recv_idx;
+        } else if max > recv_idx - self.read_idx {
+            rst = &self.recv_buf[self.read_idx..recv_idx];
         } else {
             let end = self.read_idx + max;
-            ret = Some(&self.recv_buf[self.read_idx..end]);
+            rst = &self.recv_buf[self.read_idx..end];
+        }
+        Some(unsafe { core::slice::from_raw_parts(rst.as_ptr(), rst.len()) })
+    }
+
+    fn consume(&mut self, len: usize) {
+        let end = self.read_idx + len;
+        if end >= self.recv_buf.len() {
+            self.read_idx = end - self.recv_buf.len();
+        } else {
             self.read_idx = end;
         }
-        ret
+    }
+
+    // for unit test
+    #[allow(dead_code)]
+    fn pop_slice(&mut self, unprocessed_len: usize, max: usize) -> Option<&[T]> {
+        if let Some(data) = self.read_slice(unprocessed_len, max) {
+            self.consume(data.len());
+            Some(data)
+        } else {
+            None
+        }
     }
 
     fn as_slice(&self) -> &[T] {

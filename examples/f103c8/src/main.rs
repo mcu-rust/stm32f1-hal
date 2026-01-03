@@ -11,7 +11,7 @@ use core::panic::PanicInfo;
 use i2c_task::I2cTask;
 use led_task::LedTask;
 use os::*;
-use uart_task::UartPollTask;
+use uart_task::UartLoopBackTask;
 
 // Basic
 use hal::{Mcu, cortex_m::asm, cortex_m_rt::entry, gpio::PinState, pac, rcc};
@@ -118,10 +118,10 @@ fn main() -> ! {
     };
 
     #[cfg(feature = "uart_poll")]
-    let (tx, rx) = (uart_tx.into_poll(0.micros()), uart_rx.into_poll(0.micros()));
+    let (_, _) = (uart_tx.into_poll(0.micros()), uart_rx.into_poll(0.micros()));
 
     #[cfg(feature = "uart")]
-    let mut uart_task = UartPollTask::new(32, tx, rx);
+    let mut uart_task = UartLoopBackTask::new(tx, rx);
 
     // I2C ----------------------------------------------------------
 

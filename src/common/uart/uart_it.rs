@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::common::{
-    embedded_io::{ErrorType, Read, Write},
+    embedded_io::{BufRead, ErrorType, Read, ReadReady, Write, WriteReady},
     os_trait::Duration,
     ringbuf::*,
 };
@@ -48,7 +48,11 @@ impl<U: UartPeriph, OS: OsInterface> ErrorType for UartInterruptTx<U, OS> {
     type Error = Error;
 }
 
-impl<U: UartPeriph, OS: OsInterface> Write for UartInterruptTx<U, OS> {
+impl<U, OS> Write for UartInterruptTx<U, OS>
+where
+    U: UartPeriph,
+    OS: OsInterface,
+{
     fn write(&mut self, buf: &[u8]) -> Result<usize, Self::Error> {
         if buf.is_empty() {
             return Err(Error::Other);
@@ -82,6 +86,16 @@ impl<U: UartPeriph, OS: OsInterface> Write for UartInterruptTx<U, OS> {
                 },
             )
             .ok_or(Error::Other)
+    }
+}
+
+impl<U, OS> WriteReady for UartInterruptTx<U, OS>
+where
+    U: UartPeriph,
+    OS: OsInterface,
+{
+    fn write_ready(&mut self) -> Result<bool, Self::Error> {
+        Ok(!self.w.is_full())
     }
 }
 
@@ -180,6 +194,42 @@ where
                 None
             })
             .ok_or(Error::Other)
+    }
+}
+
+impl<U, OS> BufRead for UartInterruptRx<U, OS>
+where
+    U: UartPeriph,
+    OS: OsInterface,
+{
+    fn fill_buf(&mut self) -> Result<&[u8], Self::Error> {
+        self.waiter
+            .wait_with(&Duration::<OS>::micros(self.timeout.ticks()), 2, || {
+                if let Some(chunk) = self.r.get_read_chunk() {
+                    let buf = chunk.get_slice();
+                    let p = buf.as_ptr();
+                    return unsafe { Some(core::slice::from_raw_parts(p, buf.len())) };
+                } else if !self.uart.is_interrupt_enable(Event::RxNotEmpty) {
+                    self.uart.set_interrupt(Event::RxNotEmpty, true);
+                }
+                None
+            })
+            .ok_or(Error::Other)
+    }
+
+    fn consume(&mut self, amt: usize) {
+        let chunk = self.r.get_read_chunk().unwrap();
+        chunk.commit(amt);
+    }
+}
+
+impl<U, OS> ReadReady for UartInterruptRx<U, OS>
+where
+    U: UartPeriph,
+    OS: OsInterface,
+{
+    fn read_ready(&mut self) -> Result<bool, Self::Error> {
+        Ok(self.r.peek().is_ok())
     }
 }
 

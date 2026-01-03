@@ -36,14 +36,10 @@ impl<T> AtomicMutex<T> {
 
     /// Non-blocking, can be used in interrupt context
     pub fn try_lock(&self) -> Option<AtomicMutexGuard<'_, T>> {
-        if self
-            .state
-            .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
-            .is_ok()
-        {
-            Some(AtomicMutexGuard { m: self })
-        } else {
+        if self.state.swap(true, Ordering::AcqRel) {
             None
+        } else {
+            Some(AtomicMutexGuard { m: self })
         }
     }
 
