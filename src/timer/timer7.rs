@@ -2,7 +2,6 @@ type TimerX = pac::TIM7;
 type Width = u16;
 
 // Do NOT manually modify the code between begin and end!
-// It's synced by scripts/sync_code.py.
 // $sync begin
 
 use super::*;

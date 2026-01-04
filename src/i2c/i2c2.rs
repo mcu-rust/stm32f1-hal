@@ -20,7 +20,7 @@ impl I2cInit<I2cX> for I2cX {
 }
 
 impl I2cPeriphConfig for I2cX {
-    fn config(&mut self, mode: Mode) {
+    fn config(&mut self, mode: &Mode) {
         let clock = self.get_clock().to_Hz();
         let clc_mhz = clock / 1_000_000;
 

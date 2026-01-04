@@ -3,10 +3,9 @@ use crate::{
     Steal,
     common::{
         atomic_cell::{AtomicCell, Ordering},
-        bus_device::{IntoI2cOperation, Operation},
         fugit::NanosDurationU32,
         os_trait::{Duration, Timeout},
-        ringbuf::{Consumer, Producer, PushError, RingBuffer},
+        ringbuf::{Consumer, Producer, RingBuffer},
     },
     embedded_hal::i2c,
 };
@@ -17,17 +16,17 @@ use core::{
 
 // BUS --------------------------------------------------------------
 
-pub struct I2cBusInterrupt<OS: OsInterface, I2C> {
+pub struct I2cBus<OS: OsInterface, I2C> {
     i2c: I2C,
     mode: Arc<AtomicCell<Work>>,
     err_code: Arc<AtomicCell<Option<Error>>>,
     cmd_w: Producer<Command>,
     cmd_r: Arc<UnsafeCell<Consumer<Command>>>,
     waiter: OS::NotifyWaiter,
-    speed: HertzU32,
+    byte_period: NanosDurationU32,
 }
 
-impl<OS, I2C> I2cBusInterrupt<OS, I2C>
+impl<OS, I2C> I2cBus<OS, I2C>
 where
     OS: OsInterface,
     I2C: I2cPeriph + Steal,
@@ -38,19 +37,21 @@ where
         max_operation: usize,
     ) -> (
         Self,
-        I2cBusInterruptHandler<OS, I2C>,
-        I2cBusErrorInterruptHandler<OS, I2C>,
+        InterruptHandler<OS, I2C>,
+        ErrorInterruptHandler<OS, I2C>,
     ) {
         let (notifier, waiter) = OS::notify();
         let (cmd_w, cmd_r) = RingBuffer::<Command>::new(max_operation + 8);
-        // It's safe because it's only used when interrupts are disabled.
-        #[allow(clippy::arc_with_non_send_sync)]
+        #[allow(
+            clippy::arc_with_non_send_sync,
+            reason = "It's safe because it's only used when interrupts are disabled."
+        )]
         let cmd_r = Arc::new(UnsafeCell::new(cmd_r));
         let mode = Arc::new(AtomicCell::new(Work::Stop));
         let err_code = Arc::new(AtomicCell::new(None));
         let i2c1 = unsafe { i2c.steal() };
         let i2c2 = unsafe { i2c.steal() };
-        let it = I2cBusInterruptHandler {
+        let it = InterruptHandler {
             i2c: i2c1,
             mode: Arc::clone(&mode),
             cmd_r: Arc::clone(&cmd_r),
@@ -65,15 +66,16 @@ where
             // count: [0; 4],
             // reg: [0; 16],
         };
-        let it_err = I2cBusErrorInterruptHandler {
+        let it_err = ErrorInterruptHandler {
             i2c: i2c2,
             err_code: Arc::clone(&err_code),
             notifier,
         };
+        let byte_period = (speed.into_duration() as NanosDurationU32) * 12;
         (
             Self {
                 i2c,
-                speed,
+                byte_period,
                 mode,
                 err_code,
                 cmd_w,
@@ -110,14 +112,69 @@ where
         }
     }
 
-    fn inner_transaction<'a, OP>(
+    fn push_write_data<OP: IntoI2cOperation>(
+        &mut self,
+        operations: &[OP],
+        i: &mut usize,
+    ) -> Result<usize, Error> {
+        let mut write_len = 0;
+        for op in operations.iter() {
+            if let Some(data) = op.get_write_buf() {
+                let d: &[u8] = data;
+                if !d.is_empty() {
+                    write_len += d.len();
+                    self.cmd_w.push(Command::Write(d.as_ptr(), d.len()))?;
+                }
+                *i += 1;
+            } else {
+                break;
+            }
+        }
+
+        if write_len > 0 {
+            self.cmd_w.push(Command::WriteEnd)?;
+        }
+        Ok(write_len)
+    }
+
+    fn push_read_buf<OP: IntoI2cOperation>(
+        &mut self,
+        operations: &mut [OP],
+        i: &mut usize,
+    ) -> Result<usize, Error> {
+        let mut buf_len = 0;
+        for op in operations.iter_mut() {
+            if let Some(buf) = op.get_read_buf() {
+                if buf.is_empty() {
+                    return Err(Error::Buffer);
+                }
+                buf_len += buf.len();
+            } else {
+                break;
+            }
+        }
+
+        // push reading buffer
+        if buf_len > 0 {
+            self.cmd_w.push(Command::Read(buf_len))?;
+            for op in operations.iter_mut() {
+                if let Some(buf) = op.get_read_buf() {
+                    let b: &mut [u8] = buf;
+                    self.cmd_w.push(Command::ReadBuf(b.as_mut_ptr(), b.len()))?;
+                    *i += 1;
+                } else {
+                    break;
+                }
+            }
+        }
+        Ok(buf_len)
+    }
+
+    fn inner_transaction<OP: IntoI2cOperation>(
         &mut self,
         slave_addr: Address,
         operations: &mut [OP],
-    ) -> Result<(), Error>
-    where
-        OP: IntoI2cOperation,
-    {
+    ) -> Result<(), Error> {
         // the bus is protected, so it must be stopped
         if !self.check_stopped() {
             return Err(Error::Busy);
@@ -135,59 +192,13 @@ where
             Address::Ten(addr) => self.cmd_w.push(Command::SlaveAddr10(addr))?,
         }
 
-        let period = (self.speed.into_duration() as NanosDurationU32).ticks() * 12;
-        let mut timeout_ns = 0;
+        let mut data_len = 0;
         let mut i = 0;
         while i < operations.len() {
-            // push writing buffer
-            let mut write_len = 0;
-            for op in operations[i..].iter() {
-                if let Some(data) = op.get_write_buf() {
-                    let d: &[u8] = data;
-                    if d.is_empty() {
-                        return Err(Error::Buffer);
-                    }
-                    write_len += d.len();
-                    self.cmd_w.push(Command::Write(d.as_ptr(), d.len()))?;
-                    i += 1;
-                } else {
-                    break;
-                }
-            }
-
-            if write_len > 0 {
-                timeout_ns += (write_len as u32 + 2) * period;
-                self.cmd_w.push(Command::WriteEnd)?;
-            }
-
-            // push reading length
-            let mut buf_len = 0;
-            for op in operations[i..].iter_mut() {
-                if let Some(buf) = op.get_read_buf() {
-                    if buf.is_empty() {
-                        return Err(Error::Buffer);
-                    }
-                    buf_len += buf.len();
-                } else {
-                    break;
-                }
-            }
-
-            // push reading buffer
-            if buf_len > 0 {
-                timeout_ns += (buf_len as u32 + 2) * period;
-                self.cmd_w.push(Command::Read(buf_len))?;
-                for op in operations[i..].iter_mut() {
-                    if let Some(buf) = op.get_read_buf() {
-                        let b: &mut [u8] = buf;
-                        self.cmd_w.push(Command::ReadBuf(b.as_mut_ptr(), b.len()))?;
-                        i += 1;
-                    } else {
-                        break;
-                    }
-                }
-            }
+            data_len += self.push_write_data(&operations[i..], &mut i)?;
+            data_len += self.push_read_buf(&mut operations[i..], &mut i)?;
         }
+        let timeout_ns = (data_len as u32 + 2) * self.byte_period.ticks();
 
         // reset error code
         self.err_code.store(None, Ordering::Release);
@@ -196,7 +207,7 @@ where
 
         let rst = self
             .waiter
-            .wait_with(&Duration::<OS>::nanos(timeout_ns), 2, || {
+            .wait_with(&Duration::<OS>::nanos(timeout_ns), 1, || {
                 let mode = self.mode.load(Ordering::Acquire);
                 let err_code = self.err_code.load(Ordering::Acquire);
                 if Work::Success == mode {
@@ -231,28 +242,24 @@ where
     }
 }
 
-impl<OS, I2C> I2cBusInterface for I2cBusInterrupt<OS, I2C>
+impl<OS, I2C> I2cBusInterface for I2cBus<OS, I2C>
 where
     OS: OsInterface,
     I2C: I2cPeriph + Steal,
 {
     #[inline]
-    fn transaction(
+    fn transaction<OP: IntoI2cOperation>(
         &mut self,
         slave_addr: Address,
-        operations: &mut [Operation<'_, u8>],
+        operations: &mut [OP],
     ) -> Result<(), Error> {
         self.inner_transaction(slave_addr, operations)
     }
 }
 
-impl<T> From<PushError<T>> for Error {
-    fn from(_value: PushError<T>) -> Self {
-        Self::Buffer
-    }
-}
+// Implement embedded-hal traits ------------------------------------
 
-impl<OS, I2C> i2c::ErrorType for I2cBusInterrupt<OS, I2C>
+impl<OS, I2C> i2c::ErrorType for I2cBus<OS, I2C>
 where
     OS: OsInterface,
     I2C: I2cPeriph + Steal,
@@ -260,7 +267,7 @@ where
     type Error = Error;
 }
 
-impl<OS, I2C> i2c::I2c<i2c::SevenBitAddress> for I2cBusInterrupt<OS, I2C>
+impl<OS, I2C> i2c::I2c<i2c::SevenBitAddress> for I2cBus<OS, I2C>
 where
     OS: OsInterface,
     I2C: I2cPeriph + Steal,
@@ -275,7 +282,7 @@ where
     }
 }
 
-impl<OS, I2C> i2c::I2c<i2c::TenBitAddress> for I2cBusInterrupt<OS, I2C>
+impl<OS, I2C> i2c::I2c<i2c::TenBitAddress> for I2cBus<OS, I2C>
 where
     OS: OsInterface,
     I2C: I2cPeriph + Steal,
@@ -292,7 +299,7 @@ where
 
 // Interrupt Handler ------------------------------------------------
 
-pub struct I2cBusInterruptHandler<OS: OsInterface, I2C> {
+pub struct InterruptHandler<OS: OsInterface, I2C> {
     i2c: I2C,
     mode: Arc<AtomicCell<Work>>,
     cmd_r: Arc<UnsafeCell<Consumer<Command>>>,
@@ -309,7 +316,7 @@ pub struct I2cBusInterruptHandler<OS: OsInterface, I2C> {
     // reg: [u32; 16],
 }
 
-impl<OS, I2C> I2cBusInterruptHandler<OS, I2C>
+impl<OS, I2C> InterruptHandler<OS, I2C>
 where
     OS: OsInterface,
     I2C: I2cPeriph,
@@ -386,7 +393,7 @@ where
             }
         }
 
-        if self.step >= Step::Read {
+        if self.step == Step::End {
             self.notifier.notify();
         }
     }
@@ -533,13 +540,13 @@ enum Step {
 
 // Error Interrupt Handler ------------------------------------------
 
-pub struct I2cBusErrorInterruptHandler<OS: OsInterface, I2C> {
+pub struct ErrorInterruptHandler<OS: OsInterface, I2C> {
     i2c: I2C,
     err_code: Arc<AtomicCell<Option<Error>>>,
     notifier: OS::Notifier,
 }
 
-impl<OS, I2C> I2cBusErrorInterruptHandler<OS, I2C>
+impl<OS, I2C> ErrorInterruptHandler<OS, I2C>
 where
     OS: OsInterface,
     I2C: I2cPeriph,

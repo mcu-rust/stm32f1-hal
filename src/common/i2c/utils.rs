@@ -1,5 +1,5 @@
 use super::*;
-use crate::common::atomic_cell::AtomicCellMember;
+use crate::common::{atomic_cell::AtomicCellMember, ringbuf::PushError};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {
@@ -86,6 +86,12 @@ impl AtomicCellMember for Option<Error> {
                 _ => Error::Other,
             })
         }
+    }
+}
+
+impl<T> From<PushError<T>> for Error {
+    fn from(_value: PushError<T>) -> Self {
+        Self::Buffer
     }
 }
 

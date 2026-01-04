@@ -1,24 +1,31 @@
-mod i2c_bus_it;
-mod i2c_device;
+pub mod bus_it;
+pub mod device;
+
 mod utils;
 
-pub use crate::common::{bus_device::Operation, embedded_hal::i2c::NoAcknowledgeSource};
-pub use i2c_bus_it::*;
-pub use i2c_device::*;
+pub use crate::common::{
+    bus_device::Operation,
+    embedded_hal::i2c::{self, NoAcknowledgeSource},
+};
+pub use device::*;
 
 use crate::common::{embedded_hal::i2c::ErrorKind, fugit::HertzU32, prelude::*};
 
 pub trait I2cPeriph {
     /// Disable all interrupt
     fn disable_all_interrupt(&mut self);
+
     /// Disable receiving data interrupt
     fn disable_data_interrupt(&mut self);
+
     fn it_send_start(&mut self);
+
     /// # Returns
     /// - `Ok()`: finished
     /// - `Err(true)`: did something but hasn't finished
     /// - `Err(false)`: did nothing and need to wait
     fn it_prepare_write(&mut self, addr: Address, step: &mut u8) -> Result<(), bool>;
+
     /// # Returns
     /// - `Ok()`: finished
     /// - `Err(true)`: did something but hasn't finished
@@ -30,6 +37,7 @@ pub trait I2cPeriph {
         last_operation: bool,
         step: &mut u8,
     ) -> Result<(), bool>;
+
     /// # Returns
     /// - `Ok()`: finished writing all data
     /// - `Err(true)`: wrote some data
@@ -52,10 +60,10 @@ pub trait I2cPeriph {
 }
 
 pub trait I2cBusInterface {
-    fn transaction(
+    fn transaction<OP: IntoI2cOperation>(
         &mut self,
         slave_addr: Address,
-        operations: &mut [Operation<'_, u8>],
+        operations: &mut [OP],
     ) -> Result<(), Error>;
 }
 
@@ -165,6 +173,47 @@ impl embedded_hal::i2c::Error for Error {
             | Self::Other
             | Self::Busy
             | Self::Buffer => ErrorKind::Other,
+        }
+    }
+}
+
+pub trait IntoI2cOperation {
+    fn get_read_buf(&mut self) -> Option<&mut [u8]>;
+    fn get_write_buf(&self) -> Option<&[u8]>;
+}
+
+impl<'a> IntoI2cOperation for Operation<'a, u8> {
+    #[inline]
+    fn get_read_buf(&mut self) -> Option<&mut [u8]> {
+        match self {
+            Operation::Read(buf) => Some(buf),
+            _ => None,
+        }
+    }
+
+    #[inline]
+    fn get_write_buf(&self) -> Option<&[u8]> {
+        match self {
+            Operation::Write(buf) => Some(buf),
+            _ => None,
+        }
+    }
+}
+
+impl<'a> IntoI2cOperation for i2c::Operation<'a> {
+    #[inline]
+    fn get_read_buf(&mut self) -> Option<&mut [u8]> {
+        match self {
+            i2c::Operation::Read(buf) => Some(buf),
+            _ => None,
+        }
+    }
+
+    #[inline]
+    fn get_write_buf(&self) -> Option<&[u8]> {
+        match self {
+            i2c::Operation::Write(buf) => Some(buf),
+            _ => None,
         }
     }
 }

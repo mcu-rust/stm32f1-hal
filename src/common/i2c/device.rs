@@ -1,5 +1,6 @@
 use super::*;
 use crate::common::{bus_device::*, os_trait::Mutex};
+use embedded_hal::i2c;
 
 pub struct I2cBusDevice<OS, BUS>
 where
@@ -46,6 +47,48 @@ where
 {
     fn set_address(&mut self, address: Address) {
         self.slave_addr = address;
+    }
+}
+
+// Implement embedded-hal traits --------
+
+impl<OS, BUS> i2c::ErrorType for I2cBusDevice<OS, BUS>
+where
+    OS: OsInterface,
+    BUS: I2cBusInterface,
+{
+    type Error = Error;
+}
+
+impl<OS, BUS> i2c::I2c<i2c::SevenBitAddress> for I2cBusDevice<OS, BUS>
+where
+    OS: OsInterface,
+    BUS: I2cBusInterface,
+{
+    #[inline]
+    fn transaction(
+        &mut self,
+        address: i2c::SevenBitAddress,
+        operations: &mut [i2c::Operation<'_>],
+    ) -> Result<(), Self::Error> {
+        let mut bus = self.bus.lock();
+        Ok(bus.transaction(Address::Seven(address), operations)?)
+    }
+}
+
+impl<OS, BUS> i2c::I2c<i2c::TenBitAddress> for I2cBusDevice<OS, BUS>
+where
+    OS: OsInterface,
+    BUS: I2cBusInterface,
+{
+    #[inline]
+    fn transaction(
+        &mut self,
+        address: i2c::TenBitAddress,
+        operations: &mut [i2c::Operation<'_>],
+    ) -> Result<(), Self::Error> {
+        let mut bus = self.bus.lock();
+        Ok(bus.transaction(Address::Ten(address), operations)?)
     }
 }
 

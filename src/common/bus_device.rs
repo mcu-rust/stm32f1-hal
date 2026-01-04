@@ -1,6 +1,5 @@
+pub use super::i2c::Address;
 pub use crate::common::embedded_hal::spi::Operation;
-
-use crate::common::embedded_hal::i2c;
 
 pub trait BusDevice<WD: Word>: Send {
     fn transaction(&mut self, operations: &mut [Operation<'_, WD>]) -> Result<(), BusError>;
@@ -33,54 +32,8 @@ pub trait BusDeviceTransfer<WD: Word>: BusDevice<WD> {
     }
 }
 
-pub use super::i2c::Address;
 pub trait BusDeviceAddress<WD: Word>: BusDevice<WD> {
     fn set_address(&mut self, address: Address);
-}
-
-pub trait Word: Copy + 'static {}
-impl Word for u8 {}
-impl Word for u16 {}
-
-pub trait IntoI2cOperation {
-    fn get_read_buf(&mut self) -> Option<&mut [u8]>;
-    fn get_write_buf(&self) -> Option<&[u8]>;
-}
-
-impl<'a> IntoI2cOperation for Operation<'a, u8> {
-    #[inline]
-    fn get_read_buf(&mut self) -> Option<&mut [u8]> {
-        match self {
-            Operation::Read(buf) => Some(buf),
-            _ => None,
-        }
-    }
-
-    #[inline]
-    fn get_write_buf(&self) -> Option<&[u8]> {
-        match self {
-            Operation::Write(buf) => Some(buf),
-            _ => None,
-        }
-    }
-}
-
-impl<'a> IntoI2cOperation for i2c::Operation<'a> {
-    #[inline]
-    fn get_read_buf(&mut self) -> Option<&mut [u8]> {
-        match self {
-            i2c::Operation::Read(buf) => Some(buf),
-            _ => None,
-        }
-    }
-
-    #[inline]
-    fn get_write_buf(&self) -> Option<&[u8]> {
-        match self {
-            i2c::Operation::Write(buf) => Some(buf),
-            _ => None,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -91,6 +44,10 @@ pub enum BusError {
     Timeout,
     Other,
 }
+
+pub trait Word: Copy + 'static {}
+impl Word for u8 {}
+impl Word for u16 {}
 
 impl<WD: Word, T: BusDevice<WD> + ?Sized> BusDevice<WD> for &mut T {
     #[inline]

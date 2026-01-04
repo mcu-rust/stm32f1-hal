@@ -18,7 +18,7 @@ pub trait I2cInit<T> {
 }
 
 pub trait I2cPeriphConfig: I2cPeriph + GetClock + Enable + Reset + Steal {
-    fn config(&mut self, mode: Mode);
+    fn config(&mut self, mode: &Mode);
     fn set_ack(&mut self, en: bool);
     /// Continue after the address has been sent.
     fn continue_after_addr(&mut self);
@@ -54,9 +54,9 @@ where
         max_operation: usize,
         mcu: &mut Mcu,
     ) -> (
-        I2cBusInterrupt<OS, I>,
-        I2cBusInterruptHandler<OS, I>,
-        I2cBusErrorInterruptHandler<OS, I>,
+        bus_it::I2cBus<OS, I>,
+        bus_it::InterruptHandler<OS, I>,
+        bus_it::ErrorInterruptHandler<OS, I>,
     )
     where
         OS: OsInterface,
@@ -64,8 +64,8 @@ where
     {
         REMAP::remap(&mut mcu.afio);
         assert!(speed <= kHz(400));
-        self.i2c.config(Mode::from(speed));
-        I2cBusInterrupt::<OS, I>::new(self.i2c, speed, max_operation)
+        self.i2c.config(&Mode::from(speed));
+        bus_it::I2cBus::<OS, I>::new(self.i2c, speed, max_operation)
     }
 
     pub fn into_interrupt_bus<REMAP>(
@@ -75,9 +75,9 @@ where
         max_operation: usize,
         mcu: &mut Mcu,
     ) -> (
-        I2cDeviceBuilder<OS, I2cBusInterrupt<OS, I>>,
-        I2cBusInterruptHandler<OS, I>,
-        I2cBusErrorInterruptHandler<OS, I>,
+        I2cDeviceBuilder<OS, bus_it::I2cBus<OS, I>>,
+        bus_it::InterruptHandler<OS, I>,
+        bus_it::ErrorInterruptHandler<OS, I>,
     )
     where
         OS: OsInterface,
@@ -87,20 +87,19 @@ where
         (I2cDeviceBuilder::new(bus), it, it_err)
     }
 
-    pub fn into_interrupt_sole_dev<'a, 'b, REMAP>(
+    pub fn into_interrupt_sole_dev<REMAP>(
         self,
         pins: (impl I2cSclPin<REMAP>, impl I2cSdaPin<REMAP>),
         slave_addr: Address,
         speed: HertzU32,
         max_operation: usize,
-        mcu: &'a mut Mcu,
+        mcu: &mut Mcu,
     ) -> (
-        impl BusDeviceAddress<u8> + 'b,
-        I2cBusInterruptHandler<OS, I>,
-        I2cBusErrorInterruptHandler<OS, I>,
+        I2cSoleDevice<bus_it::I2cBus<OS, I>>,
+        bus_it::InterruptHandler<OS, I>,
+        bus_it::ErrorInterruptHandler<OS, I>,
     )
     where
-        I: 'b,
         OS: OsInterface,
         REMAP: RemapMode<I>,
     {
