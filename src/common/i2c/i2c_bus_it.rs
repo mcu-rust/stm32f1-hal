@@ -3,11 +3,12 @@ use crate::{
     Steal,
     common::{
         atomic_cell::{AtomicCell, Ordering},
-        bus_device::Operation,
+        bus_device::{IntoI2cOperation, Operation},
         fugit::NanosDurationU32,
         os_trait::{Duration, Timeout},
         ringbuf::{Consumer, Producer, PushError, RingBuffer},
     },
+    embedded_hal::i2c,
 };
 use core::{
     cell::UnsafeCell,
@@ -33,6 +34,7 @@ where
 {
     pub fn new(
         i2c: I2C,
+        speed: HertzU32,
         max_operation: usize,
     ) -> (
         Self,
@@ -71,7 +73,7 @@ where
         (
             Self {
                 i2c,
-                speed: HertzU32::from_raw(0),
+                speed,
                 mode,
                 err_code,
                 cmd_w,
@@ -107,20 +109,15 @@ where
             false
         }
     }
-}
 
-impl<OS, I2C> I2cBusInterface for I2cBusInterrupt<OS, I2C>
-where
-    OS: OsInterface,
-    I2C: I2cPeriph + Steal,
-{
-    #[inline]
-    fn transaction(
+    fn inner_transaction<'a, OP>(
         &mut self,
         slave_addr: Address,
-        speed: HertzU32,
-        operations: &mut [Operation<'_, u8>],
-    ) -> Result<(), Error> {
+        operations: &mut [OP],
+    ) -> Result<(), Error>
+    where
+        OP: IntoI2cOperation,
+    {
         // the bus is protected, so it must be stopped
         if !self.check_stopped() {
             return Err(Error::Busy);
@@ -138,24 +135,14 @@ where
             Address::Ten(addr) => self.cmd_w.push(Command::SlaveAddr10(addr))?,
         }
 
-        let period = (speed.into_duration() as NanosDurationU32).ticks() * 12;
+        let period = (self.speed.into_duration() as NanosDurationU32).ticks() * 12;
         let mut timeout_ns = 0;
         let mut i = 0;
         while i < operations.len() {
-            // Unsupported operations
-            match &operations[i] {
-                Operation::DelayNs(_)
-                | Operation::Transfer(_, _)
-                | Operation::TransferInPlace(_) => {
-                    panic!()
-                }
-                _ => (),
-            }
-
             // push writing buffer
             let mut write_len = 0;
             for op in operations[i..].iter() {
-                if let Operation::Write(data) = op {
+                if let Some(data) = op.get_write_buf() {
                     let d: &[u8] = data;
                     if d.is_empty() {
                         return Err(Error::Buffer);
@@ -175,8 +162,8 @@ where
 
             // push reading length
             let mut buf_len = 0;
-            for op in operations[i..].iter() {
-                if let Operation::Read(buf) = op {
+            for op in operations[i..].iter_mut() {
+                if let Some(buf) = op.get_read_buf() {
                     if buf.is_empty() {
                         return Err(Error::Buffer);
                     }
@@ -191,7 +178,7 @@ where
                 timeout_ns += (buf_len as u32 + 2) * period;
                 self.cmd_w.push(Command::Read(buf_len))?;
                 for op in operations[i..].iter_mut() {
-                    if let Operation::Read(buf) = op {
+                    if let Some(buf) = op.get_read_buf() {
                         let b: &mut [u8] = buf;
                         self.cmd_w.push(Command::ReadBuf(b.as_mut_ptr(), b.len()))?;
                         i += 1;
@@ -200,12 +187,6 @@ where
                     }
                 }
             }
-        }
-
-        // change speed
-        if self.speed != speed {
-            self.speed = speed;
-            self.i2c.set_speed(speed);
         }
 
         // reset error code
@@ -250,9 +231,62 @@ where
     }
 }
 
+impl<OS, I2C> I2cBusInterface for I2cBusInterrupt<OS, I2C>
+where
+    OS: OsInterface,
+    I2C: I2cPeriph + Steal,
+{
+    #[inline]
+    fn transaction(
+        &mut self,
+        slave_addr: Address,
+        operations: &mut [Operation<'_, u8>],
+    ) -> Result<(), Error> {
+        self.inner_transaction(slave_addr, operations)
+    }
+}
+
 impl<T> From<PushError<T>> for Error {
     fn from(_value: PushError<T>) -> Self {
         Self::Buffer
+    }
+}
+
+impl<OS, I2C> i2c::ErrorType for I2cBusInterrupt<OS, I2C>
+where
+    OS: OsInterface,
+    I2C: I2cPeriph + Steal,
+{
+    type Error = Error;
+}
+
+impl<OS, I2C> i2c::I2c<i2c::SevenBitAddress> for I2cBusInterrupt<OS, I2C>
+where
+    OS: OsInterface,
+    I2C: I2cPeriph + Steal,
+{
+    #[inline]
+    fn transaction(
+        &mut self,
+        address: i2c::SevenBitAddress,
+        operations: &mut [i2c::Operation<'_>],
+    ) -> Result<(), Self::Error> {
+        self.inner_transaction(Address::Seven(address), operations)
+    }
+}
+
+impl<OS, I2C> i2c::I2c<i2c::TenBitAddress> for I2cBusInterrupt<OS, I2C>
+where
+    OS: OsInterface,
+    I2C: I2cPeriph + Steal,
+{
+    #[inline]
+    fn transaction(
+        &mut self,
+        address: i2c::TenBitAddress,
+        operations: &mut [i2c::Operation<'_>],
+    ) -> Result<(), Self::Error> {
+        self.inner_transaction(Address::Ten(address), operations)
     }
 }
 

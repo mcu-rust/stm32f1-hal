@@ -372,11 +372,6 @@ impl I2cPeriph for I2cX {
         }
     }
 
-    fn set_speed(&mut self, speed: HertzU32) {
-        self.cr1().modify(|_, w| w.pe().clear_bit());
-        self.config(Mode::from(speed));
-    }
-
     fn soft_reset(&mut self) {
         // backup
         let cr2 = self.cr2().read().bits();

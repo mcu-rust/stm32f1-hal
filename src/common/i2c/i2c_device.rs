@@ -7,7 +7,6 @@ where
     BUS: I2cBusInterface,
 {
     slave_addr: Address,
-    speed: HertzU32,
     bus: Arc<Mutex<OS, BUS>>,
 }
 
@@ -23,12 +22,8 @@ where
     OS: OsInterface,
     BUS: I2cBusInterface,
 {
-    pub fn new(bus: Arc<Mutex<OS, BUS>>, slave_addr: Address, speed: HertzU32) -> Self {
-        Self {
-            slave_addr,
-            bus,
-            speed,
-        }
+    pub fn new(bus: Arc<Mutex<OS, BUS>>, slave_addr: Address) -> Self {
+        Self { slave_addr, bus }
     }
 }
 
@@ -40,7 +35,7 @@ where
     #[inline]
     fn transaction(&mut self, operations: &mut [Operation<'_, u8>]) -> Result<(), BusError> {
         let mut bus = self.bus.lock();
-        Ok(bus.transaction(self.slave_addr, self.speed, operations)?)
+        Ok(bus.transaction(self.slave_addr, operations)?)
     }
 }
 
@@ -62,19 +57,14 @@ where
 {
     slave_addr: Address,
     bus: BUS,
-    speed: HertzU32,
 }
 
 impl<BUS> I2cSoleDevice<BUS>
 where
     BUS: I2cBusInterface,
 {
-    pub fn new(bus: BUS, slave_addr: Address, speed: HertzU32) -> Self {
-        Self {
-            bus,
-            slave_addr,
-            speed,
-        }
+    pub fn new(bus: BUS, slave_addr: Address) -> Self {
+        Self { bus, slave_addr }
     }
 }
 
@@ -86,9 +76,7 @@ where
 {
     #[inline]
     fn transaction(&mut self, operations: &mut [Operation<'_, u8>]) -> Result<(), BusError> {
-        Ok(self
-            .bus
-            .transaction(self.slave_addr, self.speed, operations)?)
+        Ok(self.bus.transaction(self.slave_addr, operations)?)
     }
 }
 

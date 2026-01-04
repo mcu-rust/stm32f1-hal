@@ -47,9 +47,31 @@ where
     OS: OsInterface,
     I: I2cPeriphConfig,
 {
+    pub fn into_interrupt_i2c<REMAP>(
+        mut self,
+        _pins: (impl I2cSclPin<REMAP>, impl I2cSdaPin<REMAP>),
+        speed: HertzU32,
+        max_operation: usize,
+        mcu: &mut Mcu,
+    ) -> (
+        I2cBusInterrupt<OS, I>,
+        I2cBusInterruptHandler<OS, I>,
+        I2cBusErrorInterruptHandler<OS, I>,
+    )
+    where
+        OS: OsInterface,
+        REMAP: RemapMode<I>,
+    {
+        REMAP::remap(&mut mcu.afio);
+        assert!(speed <= kHz(400));
+        self.i2c.config(Mode::from(speed));
+        I2cBusInterrupt::<OS, I>::new(self.i2c, speed, max_operation)
+    }
+
     pub fn into_interrupt_bus<REMAP>(
         self,
-        _pins: (impl I2cSclPin<REMAP>, impl I2cSdaPin<REMAP>),
+        pins: (impl I2cSclPin<REMAP>, impl I2cSdaPin<REMAP>),
+        speed: HertzU32,
         max_operation: usize,
         mcu: &mut Mcu,
     ) -> (
@@ -61,14 +83,13 @@ where
         OS: OsInterface,
         REMAP: RemapMode<I>,
     {
-        REMAP::remap(&mut mcu.afio);
-        let (bus, it, it_err) = I2cBusInterrupt::<OS, I>::new(self.i2c, max_operation);
+        let (bus, it, it_err) = self.into_interrupt_i2c(pins, speed, max_operation, mcu);
         (I2cDeviceBuilder::new(bus), it, it_err)
     }
 
-    pub fn into_interrupt_sole<'a, 'b, REMAP>(
+    pub fn into_interrupt_sole_dev<'a, 'b, REMAP>(
         self,
-        _pins: (impl I2cSclPin<REMAP>, impl I2cSdaPin<REMAP>),
+        pins: (impl I2cSclPin<REMAP>, impl I2cSdaPin<REMAP>),
         slave_addr: Address,
         speed: HertzU32,
         max_operation: usize,
@@ -83,11 +104,9 @@ where
         OS: OsInterface,
         REMAP: RemapMode<I>,
     {
-        REMAP::remap(&mut mcu.afio);
-        assert!(speed <= kHz(400));
-        let (bus, it, it_err) = I2cBusInterrupt::<OS, I>::new(self.i2c, max_operation);
+        let (bus, it, it_err) = self.into_interrupt_i2c(pins, speed, max_operation, mcu);
         (
-            I2cSoleDevice::new(bus, convert_addr(slave_addr), speed),
+            I2cSoleDevice::new(bus, convert_addr(slave_addr)),
             it,
             it_err,
         )
@@ -113,9 +132,8 @@ where
         }
     }
 
-    pub fn new_device(&self, slave_addr: Address, speed: HertzU32) -> I2cBusDevice<OS, BUS> {
-        assert!(speed <= kHz(400));
-        I2cBusDevice::new(self.bus.clone(), convert_addr(slave_addr), speed)
+    pub fn new_device(&self, slave_addr: Address) -> I2cBusDevice<OS, BUS> {
+        I2cBusDevice::new(self.bus.clone(), convert_addr(slave_addr))
     }
 }
 

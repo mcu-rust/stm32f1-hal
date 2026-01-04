@@ -45,7 +45,6 @@ pub trait I2cPeriph {
     fn get_and_clean_error(&mut self) -> Option<Error>;
     fn get_flag(&mut self, flag: Flag) -> bool;
 
-    fn set_speed(&mut self, speed: HertzU32);
     /// Perform an I2C software reset
     fn soft_reset(&mut self);
     fn handle_error(&mut self, err: Error);
@@ -56,7 +55,6 @@ pub trait I2cBusInterface {
     fn transaction(
         &mut self,
         slave_addr: Address,
-        speed: HertzU32,
         operations: &mut [Operation<'_, u8>],
     ) -> Result<(), Error>;
 }
