@@ -22,6 +22,7 @@ cfg_if::cfg_if! {
         pub use cortex_m;
         pub use cortex_m_rt;
         pub mod i2c;
+        pub mod spi;
         pub mod raw_os;
     }
 }

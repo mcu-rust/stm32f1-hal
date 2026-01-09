@@ -4,6 +4,7 @@ pub use crate::gpio::GpioExt as _;
 pub use crate::i2c::I2cInit as _;
 pub use crate::rcc::BkpInit as _;
 pub use crate::rcc::RccInit as _;
+pub use crate::spi::SpiInit as _;
 pub use crate::time::U32Ext as _stm32_hal_time_U32Ext;
 #[cfg(feature = "rtic")]
 pub use crate::timer::MonoTimerExt as _stm32f4xx_hal_timer_MonoTimerExt;
