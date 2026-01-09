@@ -119,12 +119,9 @@ impl I2cPeriph for I2cX {
     #[inline]
     fn disable_all_interrupt(&mut self) {
         self.cr2().modify(|_, w| {
-            w.itbufen()
-                .clear_bit()
-                .iterren()
-                .clear_bit()
-                .itevten()
-                .clear_bit()
+            w.itbufen().clear_bit();
+            w.iterren().clear_bit();
+            w.itevten().clear_bit()
         });
     }
 
@@ -148,7 +145,7 @@ impl I2cPeriph for I2cX {
                 if !self.get_flag(Flag::Started) {
                     return Err(false);
                 }
-                match addr {
+                match convert_addr(addr) {
                     Address::Seven(addr) => {
                         self.write_data(addr);
                         *step = 2;
@@ -164,7 +161,7 @@ impl I2cPeriph for I2cX {
                 if !self.get_flag(Flag::Address10Sent) {
                     return Err(false);
                 }
-                if let Address::Ten(addr) = addr {
+                if let Address::Ten(addr) = convert_addr(addr) {
                     let [_, lsb] = addr.to_be_bytes();
                     self.write_data(lsb);
                     next(step);
@@ -200,7 +197,7 @@ impl I2cPeriph for I2cX {
                     return Err(false);
                 }
                 self.set_ack(false);
-                match addr {
+                match convert_addr(addr) {
                     Address::Seven(addr) => {
                         self.write_data(addr | 1);
                         *step = 4;
@@ -216,7 +213,7 @@ impl I2cPeriph for I2cX {
                 if !self.get_flag(Flag::Address10Sent) {
                     return Err(false);
                 }
-                if let Address::Ten(addr) = addr {
+                if let Address::Ten(addr) = convert_addr(addr) {
                     let [_, lsb] = addr.to_be_bytes();
                     self.write_data(lsb);
                     next(step);

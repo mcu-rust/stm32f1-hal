@@ -1,6 +1,5 @@
 pub mod atomic_cell;
 pub mod atomic_mutex;
-pub mod bus_device;
 pub mod dma;
 pub mod holder;
 pub mod i2c;

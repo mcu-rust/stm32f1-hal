@@ -1,15 +1,16 @@
 pub mod bus_it;
-pub mod device;
+pub mod mutex_device;
 
 mod utils;
 
-pub use crate::common::{
-    bus_device::Operation,
-    embedded_hal::i2c::{self, NoAcknowledgeSource},
-};
-pub use device::*;
+pub use crate::common::embedded_hal::i2c::NoAcknowledgeSource;
+pub use mutex_device::I2cMutexDevice;
 
-use crate::common::{embedded_hal::i2c::ErrorKind, fugit::HertzU32, prelude::*};
+use crate::common::{
+    embedded_hal::i2c::{ErrorKind, ErrorType, I2c, Operation, SevenBitAddress, TenBitAddress},
+    fugit::HertzU32,
+    prelude::*,
+};
 
 pub trait I2cPeriph {
     /// Disable all interrupt
@@ -57,14 +58,6 @@ pub trait I2cPeriph {
     fn soft_reset(&mut self);
     fn handle_error(&mut self, err: Error);
     // fn read_sr(&mut self) -> u32;
-}
-
-pub trait I2cBusInterface {
-    fn transaction<OP: IntoI2cOperation>(
-        &mut self,
-        slave_addr: Address,
-        operations: &mut [OP],
-    ) -> Result<(), Error>;
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -173,47 +166,6 @@ impl embedded_hal::i2c::Error for Error {
             | Self::Other
             | Self::Busy
             | Self::Buffer => ErrorKind::Other,
-        }
-    }
-}
-
-pub trait IntoI2cOperation {
-    fn get_read_buf(&mut self) -> Option<&mut [u8]>;
-    fn get_write_buf(&self) -> Option<&[u8]>;
-}
-
-impl<'a> IntoI2cOperation for Operation<'a, u8> {
-    #[inline]
-    fn get_read_buf(&mut self) -> Option<&mut [u8]> {
-        match self {
-            Operation::Read(buf) => Some(buf),
-            _ => None,
-        }
-    }
-
-    #[inline]
-    fn get_write_buf(&self) -> Option<&[u8]> {
-        match self {
-            Operation::Write(buf) => Some(buf),
-            _ => None,
-        }
-    }
-}
-
-impl<'a> IntoI2cOperation for i2c::Operation<'a> {
-    #[inline]
-    fn get_read_buf(&mut self) -> Option<&mut [u8]> {
-        match self {
-            i2c::Operation::Read(buf) => Some(buf),
-            _ => None,
-        }
-    }
-
-    #[inline]
-    fn get_write_buf(&self) -> Option<&[u8]> {
-        match self {
-            i2c::Operation::Write(buf) => Some(buf),
-            _ => None,
         }
     }
 }

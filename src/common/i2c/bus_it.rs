@@ -7,7 +7,6 @@ use crate::{
         os_trait::{Duration, Timeout},
         ringbuf::{Consumer, Producer, RingBuffer},
     },
-    embedded_hal::i2c,
 };
 use core::{
     cell::UnsafeCell,
@@ -32,7 +31,7 @@ where
     I2C: I2cPeriph + Steal,
 {
     pub fn new(
-        i2c: I2C,
+        mut i2c: I2C,
         speed: HertzU32,
         max_operation: usize,
     ) -> (
@@ -40,6 +39,7 @@ where
         InterruptHandler<OS, I2C>,
         ErrorInterruptHandler<OS, I2C>,
     ) {
+        i2c.disable_all_interrupt();
         let (notifier, waiter) = OS::notify();
         let (cmd_w, cmd_r) = RingBuffer::<Command>::new(max_operation + 8);
         #[allow(
@@ -112,14 +112,14 @@ where
         }
     }
 
-    fn push_write_data<OP: IntoI2cOperation>(
+    fn push_write_data(
         &mut self,
-        operations: &[OP],
+        operations: &[Operation<'_>],
         i: &mut usize,
     ) -> Result<usize, Error> {
         let mut write_len = 0;
         for op in operations.iter() {
-            if let Some(data) = op.get_write_buf() {
+            if let Operation::Write(data) = op {
                 let d: &[u8] = data;
                 if !d.is_empty() {
                     write_len += d.len();
@@ -137,14 +137,14 @@ where
         Ok(write_len)
     }
 
-    fn push_read_buf<OP: IntoI2cOperation>(
+    fn push_read_buf(
         &mut self,
-        operations: &mut [OP],
+        operations: &mut [Operation<'_>],
         i: &mut usize,
     ) -> Result<usize, Error> {
         let mut buf_len = 0;
         for op in operations.iter_mut() {
-            if let Some(buf) = op.get_read_buf() {
+            if let Operation::Read(buf) = op {
                 if buf.is_empty() {
                     return Err(Error::Buffer);
                 }
@@ -158,7 +158,7 @@ where
         if buf_len > 0 {
             self.cmd_w.push(Command::Read(buf_len))?;
             for op in operations.iter_mut() {
-                if let Some(buf) = op.get_read_buf() {
+                if let Operation::Read(buf) = op {
                     let b: &mut [u8] = buf;
                     self.cmd_w.push(Command::ReadBuf(b.as_mut_ptr(), b.len()))?;
                     *i += 1;
@@ -170,17 +170,15 @@ where
         Ok(buf_len)
     }
 
-    fn inner_transaction<OP: IntoI2cOperation>(
+    fn inner_transaction(
         &mut self,
         slave_addr: Address,
-        operations: &mut [OP],
+        operations: &mut [Operation<'_>],
     ) -> Result<(), Error> {
         // the bus is protected, so it must be stopped
         if !self.check_stopped() {
             return Err(Error::Busy);
         }
-
-        self.i2c.disable_all_interrupt();
 
         // clean old commands
         let cmd = unsafe { &mut *self.cmd_r.get() };
@@ -226,11 +224,6 @@ where
 
         self.i2c.disable_all_interrupt();
 
-        self.mode.store(Work::Stop, Ordering::Release);
-        if !self.i2c.is_stopped() {
-            self.i2c.send_stop();
-        }
-
         let rst = match rst {
             None => Err(Error::Timeout),
             Some(rst) => rst,
@@ -242,24 +235,9 @@ where
     }
 }
 
-impl<OS, I2C> I2cBusInterface for I2cBus<OS, I2C>
-where
-    OS: OsInterface,
-    I2C: I2cPeriph + Steal,
-{
-    #[inline]
-    fn transaction<OP: IntoI2cOperation>(
-        &mut self,
-        slave_addr: Address,
-        operations: &mut [OP],
-    ) -> Result<(), Error> {
-        self.inner_transaction(slave_addr, operations)
-    }
-}
-
 // Implement embedded-hal traits ------------------------------------
 
-impl<OS, I2C> i2c::ErrorType for I2cBus<OS, I2C>
+impl<OS, I2C> ErrorType for I2cBus<OS, I2C>
 where
     OS: OsInterface,
     I2C: I2cPeriph + Steal,
@@ -267,7 +245,7 @@ where
     type Error = Error;
 }
 
-impl<OS, I2C> i2c::I2c<i2c::SevenBitAddress> for I2cBus<OS, I2C>
+impl<OS, I2C> I2c<SevenBitAddress> for I2cBus<OS, I2C>
 where
     OS: OsInterface,
     I2C: I2cPeriph + Steal,
@@ -275,14 +253,14 @@ where
     #[inline]
     fn transaction(
         &mut self,
-        address: i2c::SevenBitAddress,
-        operations: &mut [i2c::Operation<'_>],
+        address: SevenBitAddress,
+        operations: &mut [Operation<'_>],
     ) -> Result<(), Self::Error> {
         self.inner_transaction(Address::Seven(address), operations)
     }
 }
 
-impl<OS, I2C> i2c::I2c<i2c::TenBitAddress> for I2cBus<OS, I2C>
+impl<OS, I2C> I2c<TenBitAddress> for I2cBus<OS, I2C>
 where
     OS: OsInterface,
     I2C: I2cPeriph + Steal,
@@ -290,8 +268,8 @@ where
     #[inline]
     fn transaction(
         &mut self,
-        address: i2c::TenBitAddress,
-        operations: &mut [i2c::Operation<'_>],
+        address: TenBitAddress,
+        operations: &mut [Operation<'_>],
     ) -> Result<(), Self::Error> {
         self.inner_transaction(Address::Ten(address), operations)
     }
@@ -328,7 +306,7 @@ where
         if Work::Start == self.mode.load(Ordering::Acquire) && self.prepare_cmd() {
             match self.cmd().pop() {
                 Ok(Command::Write(p, l)) => {
-                    self.setp_to_prepare_write(p, l);
+                    self.step_to_prepare_write(p, l);
                 }
                 Ok(Command::Read(len)) => {
                     self.step_to_prepare_read(len);
@@ -380,7 +358,7 @@ where
                         self.i2c.disable_data_interrupt();
                         match self.cmd().pop() {
                             Ok(Command::Write(p, l)) => {
-                                self.setp_to_prepare_write(p, l);
+                                self.step_to_prepare_write(p, l);
                             }
                             _ => self.step_to(Step::End),
                         }
@@ -417,7 +395,7 @@ where
             .is_ok()
     }
 
-    fn setp_to_prepare_write(&mut self, p: *const u8, len: usize) {
+    fn step_to_prepare_write(&mut self, p: *const u8, len: usize) {
         let data = unsafe { slice::from_raw_parts(p, len) };
         self.data_iter = Some(data.iter());
         self.step_to(Step::PrepareWrite);
@@ -555,6 +533,7 @@ where
         if let Some(err) = self.i2c.get_and_clean_error() {
             self.err_code.store(Some(err), Ordering::Release);
             self.i2c.disable_all_interrupt();
+            self.i2c.send_stop();
             self.notifier.notify();
         }
     }

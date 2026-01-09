@@ -1,12 +1,11 @@
 mod i2c1;
 mod i2c2;
 
-pub use crate::common::{bus_device::*, i2c::*};
+pub use crate::common::i2c::*;
 
 use crate::{
     Mcu, Steal,
     afio::{RemapMode, i2c_remap::*},
-    os_trait::Mutex,
     prelude::*,
     rcc::{Enable, GetClock, Reset},
     time::*,
@@ -67,75 +66,9 @@ where
         self.i2c.config(&Mode::from(speed));
         bus_it::I2cBus::<OS, I>::new(self.i2c, speed, max_operation)
     }
-
-    pub fn into_interrupt_bus<REMAP>(
-        self,
-        pins: (impl I2cSclPin<REMAP>, impl I2cSdaPin<REMAP>),
-        speed: HertzU32,
-        max_operation: usize,
-        mcu: &mut Mcu,
-    ) -> (
-        I2cDeviceBuilder<OS, bus_it::I2cBus<OS, I>>,
-        bus_it::InterruptHandler<OS, I>,
-        bus_it::ErrorInterruptHandler<OS, I>,
-    )
-    where
-        OS: OsInterface,
-        REMAP: RemapMode<I>,
-    {
-        let (bus, it, it_err) = self.into_interrupt_i2c(pins, speed, max_operation, mcu);
-        (I2cDeviceBuilder::new(bus), it, it_err)
-    }
-
-    pub fn into_interrupt_sole_dev<REMAP>(
-        self,
-        pins: (impl I2cSclPin<REMAP>, impl I2cSdaPin<REMAP>),
-        slave_addr: Address,
-        speed: HertzU32,
-        max_operation: usize,
-        mcu: &mut Mcu,
-    ) -> (
-        I2cSoleDevice<bus_it::I2cBus<OS, I>>,
-        bus_it::InterruptHandler<OS, I>,
-        bus_it::ErrorInterruptHandler<OS, I>,
-    )
-    where
-        OS: OsInterface,
-        REMAP: RemapMode<I>,
-    {
-        let (bus, it, it_err) = self.into_interrupt_i2c(pins, speed, max_operation, mcu);
-        (
-            I2cSoleDevice::new(bus, convert_addr(slave_addr)),
-            it,
-            it_err,
-        )
-    }
 }
 
-pub struct I2cDeviceBuilder<OS, BUS>
-where
-    OS: OsInterface,
-    BUS: I2cBusInterface,
-{
-    bus: Arc<Mutex<OS, BUS>>,
-}
-
-impl<OS, BUS> I2cDeviceBuilder<OS, BUS>
-where
-    OS: OsInterface,
-    BUS: I2cBusInterface,
-{
-    fn new(bus: BUS) -> Self {
-        Self {
-            bus: Arc::new(OS::mutex(bus)),
-        }
-    }
-
-    pub fn new_device(&self, slave_addr: Address) -> I2cBusDevice<OS, BUS> {
-        I2cBusDevice::new(self.bus.clone(), convert_addr(slave_addr))
-    }
-}
-
+#[inline]
 fn convert_addr(addr: Address) -> Address {
     match addr {
         Address::Seven(addr) => Address::Seven(addr << 1),
