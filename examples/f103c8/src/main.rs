@@ -81,10 +81,10 @@ fn main() -> ! {
 
     #[cfg(feature = "uart")]
     let (Some(uart_tx), Some(uart_rx)) = ({
-        let pin_tx = gpioa.pa9.into_alternate_push_pull(&mut gpioa.crh);
-        let pin_rx = gpioa.pa10.into_pull_up_input(&mut gpioa.crh);
-        // let pin_tx = gpiob.pb6.into_alternate_push_pull(&mut gpiob.crl);
-        // let pin_rx = gpiob.pb7.into_pull_up_input(&mut gpiob.crl);
+        let pin_tx = gpioa.pa9;
+        let pin_rx = gpioa.pa10;
+        // let pin_tx = gpiob.pb6;
+        // let pin_rx = gpiob.pb7;
         // let pin_rx = hal::afio::NONE_PIN;
 
         let config = uart::Config::default();
@@ -127,10 +127,7 @@ fn main() -> ! {
     // I2C ----------------------------------------------------------
 
     #[cfg(feature = "i2c")]
-    let (scl, sda) = (
-        gpiob.pb6.into_alternate_open_drain(&mut gpiob.crl),
-        gpiob.pb7.into_alternate_open_drain(&mut gpiob.crl),
-    );
+    let (scl, sda) = (gpiob.pb6, gpiob.pb7);
 
     #[cfg(feature = "i2c")]
     let dev = {
@@ -152,7 +149,7 @@ fn main() -> ! {
 
     #[cfg(feature = "timer")]
     {
-        let c1 = gpioa.pa8.into_alternate_push_pull(&mut gpioa.crh);
+        let c1 = gpioa.pa8;
         let mut tim1 = dp.TIM1.init(&mut mcu);
         tim1.set_count_direction(CountDirection::Up); // Optional
         let (mut bt, Some(mut ch1), _) =

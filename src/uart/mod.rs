@@ -48,13 +48,15 @@ where
         config: Config,
         mcu: &mut Mcu,
     ) -> (Option<Tx<OS, U>>, Option<Rx<OS, U>>) {
+        let has_tx = pins.0.is_pin();
+        let _ = pins.0.into_alternate();
         REMAP::remap(&mut mcu.afio);
         let baudrate = config.baudrate;
         self.uart.config(config);
-        self.uart.enable_comm(pins.0.is_pin(), pins.1.is_pin());
+        self.uart.enable_comm(has_tx, pins.1.is_pin());
         unsafe {
             (
-                if pins.0.is_pin() {
+                if has_tx {
                     Some(Tx::new(self.uart.steal(), baudrate))
                 } else {
                     None

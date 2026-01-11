@@ -46,9 +46,9 @@ where
     OS: OsInterface,
     I: I2cPeriphConfig,
 {
-    pub fn into_interrupt_i2c<REMAP>(
+    pub fn into_interrupt_i2c<REMAP: RemapMode<I>>(
         mut self,
-        _pins: (impl I2cSclPin<REMAP>, impl I2cSdaPin<REMAP>),
+        pins: (impl I2cSclPin<REMAP>, impl I2cSdaPin<REMAP>),
         speed: HertzU32,
         max_operation: usize,
         mcu: &mut Mcu,
@@ -56,11 +56,8 @@ where
         bus_it::I2cBus<OS, I>,
         bus_it::InterruptHandler<OS, I>,
         bus_it::ErrorInterruptHandler<OS, I>,
-    )
-    where
-        OS: OsInterface,
-        REMAP: RemapMode<I>,
-    {
+    ) {
+        let _ = (pins.0.into_alternate(), pins.1.into_alternate());
         REMAP::remap(&mut mcu.afio);
         assert!(speed <= kHz(400));
         self.i2c.config(&Mode::from(speed));

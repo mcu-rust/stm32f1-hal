@@ -61,13 +61,13 @@ impl EVCR {
 }
 
 // Remap Mode
-pub trait RemapMode<REG> {
+pub trait RemapMode<PERI> {
     fn remap(afio: &mut Afio);
 }
-pub struct RemapDefault<REG>(PhantomData<REG>);
-pub struct RemapPartial1<REG>(PhantomData<REG>);
-pub struct RemapPartial2<REG>(PhantomData<REG>);
-pub struct RemapFull<REG>(PhantomData<REG>);
+pub struct RemapDefault<PERI>(PhantomData<PERI>);
+pub struct RemapPartial1<PERI>(PhantomData<PERI>);
+pub struct RemapPartial2<PERI>(PhantomData<PERI>);
+pub struct RemapFull<PERI>(PhantomData<PERI>);
 pub struct NonePin {}
 pub const NONE_PIN: NonePin = NonePin {};
 

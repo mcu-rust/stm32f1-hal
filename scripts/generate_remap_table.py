@@ -45,7 +45,7 @@ def func_pin_name(filter: str, func: str) -> str:
     return filter[0] + filter[1:].lower() + func[0] + func[1:].lower() + "Pin"
 
 
-REG_TEMPLATE = """impl RemapMode<{peri}> for {mode}<{peri}> {{
+REG_OP_TEMPLATE = """impl RemapMode<{peri}> for {mode}<{peri}> {{
     fn remap(afio: &mut Afio) {{
         {op}
     }}
@@ -75,15 +75,21 @@ def write_reg_operation(d: dict, filter: str, w: Write) -> None:
                 else:
                     continue
                 w.write(CFG_TABLE.get(peri, ""))
-                w.write(REG_TEMPLATE.format(mode=mode, peri=peri, op=op))
+                w.write(REG_OP_TEMPLATE.format(mode=mode, peri=peri, op=op))
 
 
-BINDER_BODY = """ {{
-    #[inline(always)]
-    fn is_pin(&self) -> bool {{
-        {v}
-    }}
-}}
+BIND_TYPE = """pub trait {func}<REMAP> {{
+    type P;
+    fn into_alternate(self) -> Self::P;
+"""
+
+BIND_TYPE_END = """}
+"""
+
+BIND_BODY = """ fn is_pin(&self) -> bool {
+        true
+    }
+}
 """
 
 
@@ -99,43 +105,56 @@ def write_binder_type(d: dict, filter: str, w: Write) -> None:
     func_list = sorted(list(set(func_list)))
     for func in func_list:
         name = func_pin_name(filter, func)
-        if filter in ["UART", "TIM"]:
-            w.write(f"pub trait {name}<REMAP>" + BINDER_BODY.format(v="true"))
-            w.write(f"impl<T> {name}<T> for NonePin" + BINDER_BODY.format(v="false"))
+        if name.startswith("UartTx") or name.startswith("UartCk") or name.startswith("TimCh"):
+            w.write(BIND_TYPE.format(func=name) + BIND_BODY)
+            w.write(f"impl_for_none_pin_into!({name});")
+        elif filter in ["UART", "TIM"]:
+            w.write(f"pub trait {name}<REMAP>" + "{" + BIND_BODY)
+            w.write(f"impl_for_none_pin!({name});")
+        elif filter == "I2C":
+            w.write(BIND_TYPE.format(func=name) + BIND_TYPE_END)
         else:
             w.write(f"pub trait {name}<REMAP>{{}}")
 
     w.write("\n")
 
 
+BIND_PIN = """impl {func}<{remap}<{peri}>> for {pin}<Input> {{
+    type P = {pin}<Alternate<{alt}>>;
+    fn into_alternate(self) -> Self::P {{
+        self.into_mode(&mut Cr)
+    }}
+}}
+"""
+
 IMPL_TEMPLATE_LIST = [
+    (["UartRxPin"], "impl<UP: UpMode> {func}<{remap}<{peri}>> for {pin}<Input<UP>>{{}}", ""),
     (
         ["UartTxPin", "UartCkPin", "TimCh1Pin", "TimCh2Pin", "TimCh3Pin", "TimCh4Pin"],
-        "impl {func}<{mode}<{peri}>> for {pin}<Alternate<PushPull>>",
+        BIND_PIN,
+        "PushPull",
     ),
-    (["UartRxPin"], "impl<PULL: UpMode> {func}<{mode}<{peri}>> for {pin}<Input<PULL>>"),
-    (["I2cSclPin", "I2cSdaPin"], "impl {func}<{mode}<{peri}>> for {pin}<Alternate<OpenDrain>>"),
+    (["I2cSclPin", "I2cSdaPin"], BIND_PIN, "OpenDrain"),
 ]
 
 
-def get_impl_template(func: str) -> str:
+def get_impl_template(func: str) -> tuple[str, str]:
     for item in IMPL_TEMPLATE_LIST:
         if func in item[0]:
-            return item[1]
-    return ""
+            return (item[1], item[2])
+    return ("", "")
 
 
-def write_item(filter: str, peri: str, mode: str, pins: dict[str, str], w: Write) -> None:
+def write_item(filter: str, peri: str, remap: str, pins: dict[str, str], w: Write) -> None:
     for pin_func, pin in sorted(pins.items()):
         func = func_pin_name(filter, pin_func)
-        impl = get_impl_template(func)
+        (impl, alt) = get_impl_template(func)
         if impl:
             cfg = CFG_TABLE.get(peri, "")
             if cfg:
                 w.write(cfg)
 
-            w.write(impl.format(func=func, mode=mode, peri=peri, pin=pin))
-            w.write("{}")
+            w.write(impl.format(func=func, remap=remap, peri=peri, pin=pin, alt=alt))
 
 
 def write_table(d: dict, filter: str, csv_file: str, target_file: str) -> None:
@@ -156,8 +175,8 @@ def write_table(d: dict, filter: str, csv_file: str, target_file: str) -> None:
     for peri, remap_modes in sorted(d.items()):
         if match_filter(filter, peri):
             for mode_name, mode_info in sorted(remap_modes.items()):
-                mode = REMAP_MODES[mode_name]
-                write_item(filter, peri, mode, mode_info["pins"], w)
+                remap = REMAP_MODES[mode_name]
+                write_item(filter, peri, remap, mode_info["pins"], w)
     w.write("\n")
     write_reg_operation(d, filter, w)
     w.close()

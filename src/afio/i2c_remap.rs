@@ -8,17 +8,53 @@ use crate::{gpio::*, pac::*};
 
 // Binder types ------------------
 
-pub trait I2cSclPin<REMAP> {}
-pub trait I2cSdaPin<REMAP> {}
+pub trait I2cSclPin<REMAP> {
+    type P;
+    fn into_alternate(self) -> Self::P;
+}
+pub trait I2cSdaPin<REMAP> {
+    type P;
+    fn into_alternate(self) -> Self::P;
+}
 
 // Bind pins ---------------------
 
-impl I2cSclPin<RemapDefault<I2C1>> for PB6<Alternate<OpenDrain>> {}
-impl I2cSdaPin<RemapDefault<I2C1>> for PB7<Alternate<OpenDrain>> {}
-impl I2cSclPin<RemapFull<I2C1>> for PB8<Alternate<OpenDrain>> {}
-impl I2cSdaPin<RemapFull<I2C1>> for PB9<Alternate<OpenDrain>> {}
-impl I2cSclPin<RemapDefault<I2C2>> for PB10<Alternate<OpenDrain>> {}
-impl I2cSdaPin<RemapDefault<I2C2>> for PB11<Alternate<OpenDrain>> {}
+impl I2cSclPin<RemapDefault<I2C1>> for PB6<Input> {
+    type P = PB6<Alternate<OpenDrain>>;
+    fn into_alternate(self) -> Self::P {
+        self.into_mode(&mut Cr)
+    }
+}
+impl I2cSdaPin<RemapDefault<I2C1>> for PB7<Input> {
+    type P = PB7<Alternate<OpenDrain>>;
+    fn into_alternate(self) -> Self::P {
+        self.into_mode(&mut Cr)
+    }
+}
+impl I2cSclPin<RemapFull<I2C1>> for PB8<Input> {
+    type P = PB8<Alternate<OpenDrain>>;
+    fn into_alternate(self) -> Self::P {
+        self.into_mode(&mut Cr)
+    }
+}
+impl I2cSdaPin<RemapFull<I2C1>> for PB9<Input> {
+    type P = PB9<Alternate<OpenDrain>>;
+    fn into_alternate(self) -> Self::P {
+        self.into_mode(&mut Cr)
+    }
+}
+impl I2cSclPin<RemapDefault<I2C2>> for PB10<Input> {
+    type P = PB10<Alternate<OpenDrain>>;
+    fn into_alternate(self) -> Self::P {
+        self.into_mode(&mut Cr)
+    }
+}
+impl I2cSdaPin<RemapDefault<I2C2>> for PB11<Input> {
+    type P = PB11<Alternate<OpenDrain>>;
+    fn into_alternate(self) -> Self::P {
+        self.into_mode(&mut Cr)
+    }
+}
 
 // Register operations ------------
 

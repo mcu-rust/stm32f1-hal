@@ -158,11 +158,13 @@ impl<TIM: TimerConfig + TimerDirection> Timer<TIM> {
 impl<'a, TIM: TimerConfig + TimerWithPwm1Ch + Steal + 'a> Timer<TIM> {
     pub fn into_pwm1<REMAP: RemapMode<TIM>>(
         mut self,
-        _pin: impl TimCh1Pin<REMAP>,
+        pin: impl TimCh1Pin<REMAP>,
         update_freq: HertzU32,
         preload: bool,
         mcu: &mut Mcu,
     ) -> (PwmTimer<TIM>, impl PwmChannel + 'a) {
+        assert!(pin.is_pin());
+        let _ = pin.into_alternate();
         REMAP::remap(&mut mcu.afio);
         self.tim.enable_preload(preload);
         self.tim.config_freq(self.clk, update_freq);
@@ -185,16 +187,21 @@ impl<'a, TIM: TimerConfig + TimerWithPwm2Ch + Steal + 'a> Timer<TIM> {
         Option<impl PwmChannel + 'a>,
         Option<impl PwmChannel + 'a>,
     ) {
+        let is_pin = (pins.0.is_pin(), pins.1.is_pin());
+        let _ = (
+            pins.0.into_alternate(),
+            pins.1.into_alternate(),
+        );
         REMAP::remap(&mut mcu.afio);
         self.tim.enable_preload(preload);
         self.tim.config_freq(self.clk, update_freq);
 
-        let c1 = if pins.0.is_pin() {
+        let c1 = if is_pin.0 {
             Some(PwmChannel1::new(unsafe { self.tim.steal() }))
         } else {
             None
         };
-        let c2 = if pins.1.is_pin() {
+        let c2 = if is_pin.1 {
             Some(PwmChannel2::new(unsafe { self.tim.steal() }))
         } else {
             None
@@ -223,26 +230,38 @@ impl<'a, TIM: TimerConfig + TimerWithPwm4Ch + Steal + 'a> Timer<TIM> {
         Option<impl PwmChannel + 'a>,
         Option<impl PwmChannel + 'a>,
     ) {
+        let is_pin = (
+            pins.0.is_pin(),
+            pins.1.is_pin(),
+            pins.2.is_pin(),
+            pins.3.is_pin(),
+        );
+        let _ = (
+            pins.0.into_alternate(),
+            pins.1.into_alternate(),
+            pins.2.into_alternate(),
+            pins.3.into_alternate(),
+        );
         REMAP::remap(&mut mcu.afio);
         self.tim.enable_preload(preload);
         self.tim.config_freq(self.clk, update_freq);
 
-        let c1 = if pins.0.is_pin() {
+        let c1 = if is_pin.0 {
             Some(PwmChannel1::new(unsafe { self.tim.steal() }))
         } else {
             None
         };
-        let c2 = if pins.1.is_pin() {
+        let c2 = if is_pin.1 {
             Some(PwmChannel2::new(unsafe { self.tim.steal() }))
         } else {
             None
         };
-        let c3 = if pins.2.is_pin() {
+        let c3 = if is_pin.2 {
             Some(PwmChannel3::new(unsafe { self.tim.steal() }))
         } else {
             None
         };
-        let c4 = if pins.3.is_pin() {
+        let c4 = if is_pin.3 {
             Some(PwmChannel4::new(unsafe { self.tim.steal() }))
         } else {
             None
