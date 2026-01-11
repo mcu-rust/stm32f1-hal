@@ -32,6 +32,7 @@ CFG_TABLE = {
     "TIM15": '#[cfg(feature = "f100")]',
     "TIM16": '#[cfg(feature = "f100")]',
     "TIM17": '#[cfg(feature = "f100")]',
+    "SPI3": '#[cfg(feature = "connectivity")]',
 }
 
 
@@ -78,15 +79,12 @@ def write_reg_operation(d: dict, filter: str, w: Write) -> None:
                 w.write(REG_OP_TEMPLATE.format(mode=mode, peri=peri, op=op))
 
 
-BIND_TYPE = """pub trait {func}<REMAP> {{
+BIND_ALT_TYPE = """pub trait {func}<REMAP> {{
     type P;
     fn into_alternate(self) -> Self::P;
 """
 
-BIND_TYPE_END = """}
-"""
-
-BIND_BODY = """ fn is_pin(&self) -> bool {
+BIND_IS_PIN = """ fn is_pin(&self) -> bool {
         true
     }
 }
@@ -105,14 +103,14 @@ def write_binder_type(d: dict, filter: str, w: Write) -> None:
     func_list = sorted(list(set(func_list)))
     for func in func_list:
         name = func_pin_name(filter, func)
-        if name.startswith("UartTx") or name.startswith("UartCk") or name.startswith("TimCh"):
-            w.write(BIND_TYPE.format(func=name) + BIND_BODY)
+        if filter == "I2C" or name in ["SpiSckPin", "SpiNssPin"]:
+            w.write(BIND_ALT_TYPE.format(func=name) + "}")
+        elif name.startswith("TimCh") or name in ["UartTxPin", "UartCkPin", "SpiMosiPin"]:
+            w.write(BIND_ALT_TYPE.format(func=name) + BIND_IS_PIN)
             w.write(f"impl_for_none_pin_into!({name});")
         elif filter in ["UART", "TIM"]:
-            w.write(f"pub trait {name}<REMAP>" + "{" + BIND_BODY)
+            w.write("pub trait {}<REMAP> {{".format(name) + BIND_IS_PIN)
             w.write(f"impl_for_none_pin!({name});")
-        elif filter == "I2C":
-            w.write(BIND_TYPE.format(func=name) + BIND_TYPE_END)
         else:
             w.write(f"pub trait {name}<REMAP>{{}}")
 
@@ -128,9 +126,23 @@ BIND_PIN = """impl {func}<{remap}<{peri}>> for {pin}<Input> {{
 """
 
 IMPL_TEMPLATE_LIST = [
-    (["UartRxPin"], "impl<UP: UpMode> {func}<{remap}<{peri}>> for {pin}<Input<UP>>{{}}", ""),
     (
-        ["UartTxPin", "UartCkPin", "TimCh1Pin", "TimCh2Pin", "TimCh3Pin", "TimCh4Pin"],
+        ["UartRxPin", "SpiMisoPin"],
+        "impl<UP: UpMode> {func}<{remap}<{peri}>> for {pin}<Input<UP>>{{}}",
+        "",
+    ),
+    (
+        [
+            "UartTxPin",
+            "UartCkPin",
+            "TimCh1Pin",
+            "TimCh2Pin",
+            "TimCh3Pin",
+            "TimCh4Pin",
+            "SpiSckPin",
+            "SpiMosiPin",
+            "SpiNssPin",
+        ],
         BIND_PIN,
         "PushPull",
     ),
@@ -222,6 +234,7 @@ def csv_to_code(csv_file: str, show: bool = False) -> None:
     write_table(d, "UART", csv_file, "src/afio/uart_remap.rs")
     write_table(d, "TIM", csv_file, "src/afio/timer_remap.rs")
     write_table(d, "I2C", csv_file, "src/afio/i2c_remap.rs")
+    write_table(d, "SPI", csv_file, "src/afio/spi_remap.rs")
 
 
 if __name__ == "__main__":
