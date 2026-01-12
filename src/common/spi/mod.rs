@@ -9,13 +9,13 @@ pub use embedded_hal::spi::{Mode, Phase, Polarity};
 use crate::common::prelude::*;
 use embedded_hal::spi::{ErrorKind, ErrorType, Operation};
 
-pub trait SpiPeriph<WD: Word> {
+pub trait SpiPeriph {
     /// master mode only
-    fn config(&mut self, mode: Mode, freq: KilohertzU32);
+    fn config<W: Word>(&mut self, mode: Mode, freq: KilohertzU32);
 
     fn is_tx_empty(&self) -> bool;
-    fn uncheck_write(&mut self, data: WD);
-    fn read(&mut self) -> Option<WD>;
+    fn uncheck_write<W: Word>(&mut self, data: W);
+    fn read<W: Word>(&mut self) -> Option<W>;
     fn is_busy(&self) -> bool;
     fn get_and_clean_error(&mut self) -> Option<Error>;
 
@@ -24,15 +24,11 @@ pub trait SpiPeriph<WD: Word> {
     fn disable_all_interrupt(&mut self);
 }
 
-pub trait SpiBusInterface<WD: Word> {
-    fn transaction(&mut self, operations: &mut [Operation<'_, WD>]) -> Result<(), Error>;
-    // TODO config speed and phase
+pub trait SpiBusInterface {
+    fn transaction<W: Word>(&mut self, operations: &mut [Operation<'_, W>]) -> Result<(), Error>;
+    /// config mode and frequency
+    fn config<W: Word>(&mut self, mode: Mode, freq: KilohertzU32);
 }
-
-pub trait Word: Copy + Default + 'static {}
-impl Word for u8 {}
-impl Word for u16 {}
-impl Word for u32 {}
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Event {
@@ -71,5 +67,34 @@ impl embedded_hal::spi::Error for Error {
                 ErrorKind::Other
             }
         }
+    }
+}
+
+pub trait Word: Copy + Default + Sized + 'static {
+    fn into_u32(self) -> u32;
+    fn from_u32(v: u32) -> Self;
+}
+impl Word for u8 {
+    fn into_u32(self) -> u32 {
+        self as u32
+    }
+    fn from_u32(v: u32) -> Self {
+        v as Self
+    }
+}
+impl Word for u16 {
+    fn into_u32(self) -> u32 {
+        self as u32
+    }
+    fn from_u32(v: u32) -> Self {
+        v as Self
+    }
+}
+impl Word for u32 {
+    fn into_u32(self) -> u32 {
+        self
+    }
+    fn from_u32(v: u32) -> Self {
+        v as Self
     }
 }

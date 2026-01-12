@@ -17,28 +17,24 @@ use crate::{
 use core::marker::PhantomData;
 
 pub trait SpiInit<T> {
-    fn init<OS: OsInterface, WD: FrameSize>(self, mcu: &mut Mcu) -> Spi<OS, T, WD>;
+    fn init<OS: OsInterface>(self, mcu: &mut Mcu) -> Spi<OS, T>;
 }
 
-pub trait SpiPeriphConfig<WD: FrameSize>:
-    SpiPeriph<WD> + GetClock + Enable + Reset + Steal
-{
-    fn init_config(&mut self, mode: Mode, freq: KilohertzU32, master_mode: bool);
+pub trait SpiPeriphConfig: SpiPeriph + GetClock + Enable + Reset + Steal {
+    fn init_config<W: Word>(&mut self, mode: Mode, freq: KilohertzU32, master_mode: bool);
 }
 
-pub struct Spi<OS: OsInterface, T, WD: Word> {
+pub struct Spi<OS: OsInterface, T> {
     spi: T,
-    _wd: PhantomData<WD>,
     _os: PhantomData<OS>,
 }
 
-impl<OS, T, WD> Spi<OS, T, WD>
+impl<OS, T> Spi<OS, T>
 where
     OS: OsInterface,
-    T: SpiPeriphConfig<WD>,
-    WD: FrameSize,
+    T: SpiPeriphConfig,
 {
-    pub fn into_interrupt_sole<REMAP: RemapMode<T>, CS: OutputPin>(
+    pub fn into_interrupt_sole<W: Word, REMAP: RemapMode<T>, CS: OutputPin>(
         mut self,
         pins: (
             impl SpiSckPin<REMAP>,
@@ -52,14 +48,14 @@ where
         max_operation: usize,
         mcu: &mut Mcu,
     ) -> (
-        SpiSoleDevice<OS, CS, bus_it::SpiBus<OS, T, WD>, WD>,
-        bus_it::InterruptHandler<OS, T, WD>,
-        bus_it::ErrorInterruptHandler<OS, T, WD>,
+        SpiSoleDevice<OS, CS, bus_it::SpiBus<OS, T>, W>,
+        bus_it::InterruptHandler<OS, T>,
+        bus_it::ErrorInterruptHandler<OS, T>,
     ) {
         let cs = cs.into_cs_pin();
         let _ = (pins.0.into_alternate(), pins.2.into_alternate());
         REMAP::remap(&mut mcu.afio);
-        self.spi.init_config(mode, freq, true);
+        self.spi.init_config::<W>(mode, freq, true);
         let (bus, it, err_it) = bus_it::SpiBus::new(self.spi, freq, max_operation);
         (SpiSoleDevice::new(bus, cs, cs_delay), it, err_it)
     }
@@ -76,35 +72,5 @@ fn calculate_baud_rate(clock: HertzU32, freq: KilohertzU32) -> u8 {
         48..=95 => 0b101,
         96..=191 => 0b110,
         _ => 0b111,
-    }
-}
-
-type SpiRB = crate::pac::spi1::RegisterBlock;
-
-pub trait FrameSize: Word {
-    const DFF: bool;
-    #[doc(hidden)]
-    fn read_data(spi: &SpiRB) -> Self;
-    #[doc(hidden)]
-    fn write_data(self, spi: &SpiRB);
-}
-
-impl FrameSize for u8 {
-    const DFF: bool = false;
-    fn read_data(spi: &SpiRB) -> Self {
-        spi.dr8().read().dr().bits()
-    }
-    fn write_data(self, spi: &SpiRB) {
-        spi.dr8().write(|w| w.dr().set(self));
-    }
-}
-
-impl FrameSize for u16 {
-    const DFF: bool = true;
-    fn read_data(spi: &SpiRB) -> Self {
-        spi.dr().read().dr().bits()
-    }
-    fn write_data(self, spi: &SpiRB) {
-        spi.dr().write(|w| w.dr().set(self));
     }
 }

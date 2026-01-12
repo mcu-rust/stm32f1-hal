@@ -8,20 +8,20 @@ use os_trait::OsInterface;
 
 // Sole device ------------------------------------------------------
 
-pub struct SpiSoleDevice<OS: OsInterface, CS, BUS, WD> {
+pub struct SpiSoleDevice<OS: OsInterface, CS, BUS, W> {
     bus: BUS,
     cs: CS,
     cs_delay: NanosDurationU32,
     _os: PhantomData<OS>,
-    _wd: PhantomData<WD>,
+    _w: PhantomData<W>,
 }
 
-impl<OS, CS, BUS, WD> SpiSoleDevice<OS, CS, BUS, WD>
+impl<OS, CS, BUS, W> SpiSoleDevice<OS, CS, BUS, W>
 where
     OS: OsInterface,
-    BUS: SpiBusInterface<WD>,
+    BUS: SpiBusInterface,
     CS: OutputPin,
-    WD: Word,
+    W: Word,
 {
     pub fn new(bus: BUS, cs: CS, cs_delay: NanosDurationU32) -> Self {
         Self {
@@ -29,20 +29,20 @@ where
             cs,
             cs_delay,
             _os: PhantomData,
-            _wd: PhantomData,
+            _w: PhantomData,
         }
     }
 }
 
-impl<OS, CS, BUS, WD> SpiDevice<WD> for SpiSoleDevice<OS, CS, BUS, WD>
+impl<OS, CS, BUS, W> SpiDevice<W> for SpiSoleDevice<OS, CS, BUS, W>
 where
     OS: OsInterface,
-    BUS: SpiBusInterface<WD>,
+    BUS: SpiBusInterface,
     CS: OutputPin,
-    WD: Word,
+    W: Word,
 {
     #[inline]
-    fn transaction(&mut self, operations: &mut [Operation<'_, WD>]) -> Result<(), Self::Error> {
+    fn transaction(&mut self, operations: &mut [Operation<'_, W>]) -> Result<(), Self::Error> {
         self.cs.set_low().map_err(|_| Error::ChipSelectFault)?;
         let ns = self.cs_delay.ticks();
         if ns > 0 {
@@ -57,12 +57,12 @@ where
     }
 }
 
-impl<OS, CS, BUS, WD> ErrorType for SpiSoleDevice<OS, CS, BUS, WD>
+impl<OS, CS, BUS, W> ErrorType for SpiSoleDevice<OS, CS, BUS, W>
 where
     OS: OsInterface,
-    BUS: SpiBusInterface<WD>,
+    BUS: SpiBusInterface,
     CS: OutputPin,
-    WD: Word,
+    W: Word,
 {
     type Error = Error;
 }

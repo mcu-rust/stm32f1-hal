@@ -4,24 +4,24 @@ type SpiX = pac::SPI1;
 
 use super::*;
 use crate::{Mcu, pac};
+use core::mem::size_of;
 
 // Initialization -------------------------------------------------------------
 
 impl SpiInit<SpiX> for SpiX {
-    fn init<OS: OsInterface, WD: FrameSize>(self, mcu: &mut Mcu) -> Spi<OS, SpiX, WD> {
+    fn init<OS: OsInterface>(self, mcu: &mut Mcu) -> Spi<OS, SpiX> {
         mcu.rcc.enable(&self);
         mcu.rcc.reset(&self);
 
         Spi {
             spi: self,
-            _wd: PhantomData,
             _os: PhantomData,
         }
     }
 }
 
-impl<WD: FrameSize> SpiPeriphConfig<WD> for SpiX {
-    fn init_config(&mut self, mode: Mode, freq: KilohertzU32, master_mode: bool) {
+impl SpiPeriphConfig for SpiX {
+    fn init_config<W: Word>(&mut self, mode: Mode, freq: KilohertzU32, master_mode: bool) {
         let br = calculate_baud_rate(self.get_clock(), freq);
 
         // disable SS output
@@ -45,7 +45,7 @@ impl<WD: FrameSize> SpiPeriphConfig<WD> for SpiX {
             // ssi: set nss low = slave mode
             w.ssi().bit(master_mode);
             // dff: 8 bit frames
-            w.dff().bit(WD::DFF);
+            w.dff().bit(size_of::<W>() != 1);
             // bidimode: 2-line unidirectional
             w.bidimode().clear_bit();
             // both TX and RX are used
@@ -58,17 +58,30 @@ impl<WD: FrameSize> SpiPeriphConfig<WD> for SpiX {
 
 // Implement Peripheral -------------------------------------------------------
 
-impl<WD: FrameSize> SpiPeriph<WD> for SpiX {
-    fn config(&mut self, mode: Mode, freq: KilohertzU32) {
-        self.cr1().modify(|_, w| w.spe().clear_bit());
+impl SpiPeriph for SpiX {
+    fn config<W: Word>(&mut self, mode: Mode, freq: KilohertzU32) {
+        let dff = size_of::<W>() != 1;
+        let cpha = mode.phase == Phase::CaptureOnSecondTransition;
+        let cpol = mode.polarity == Polarity::IdleHigh;
         let br = calculate_baud_rate(self.get_clock(), freq);
+
+        let cr1 = self.cr1().read();
+        if cr1.dff().bit() == dff
+            && cr1.cpha().bit() == cpha
+            && cr1.cpol().bit() == cpol
+            && cr1.br().bits() == br
+        {
+            return;
+        }
+
+        self.cr1().modify(|_, w| w.spe().clear_bit());
         self.cr1().modify(|_, w| {
             // dff: 8 bit or 16 bit frames
-            w.dff().bit(WD::DFF);
+            w.dff().bit(dff);
             // clock phase from config
-            w.cpha().bit(mode.phase == Phase::CaptureOnSecondTransition);
+            w.cpha().bit(cpha);
             // clock polarity from config
-            w.cpol().bit(mode.polarity == Polarity::IdleHigh);
+            w.cpol().bit(cpol);
             // baudrate value
             w.br().set(br)
         });
@@ -121,17 +134,25 @@ impl<WD: FrameSize> SpiPeriph<WD> for SpiX {
     }
 
     #[inline]
-    fn read(&mut self) -> Option<WD> {
+    fn read<W: Word>(&mut self) -> Option<W> {
         if self.sr().read().rxne().bit_is_set() {
-            Some(WD::read_data(&self))
+            Some(W::from_u32(if size_of::<W>() == 1 {
+                self.dr8().read().dr().bits() as u32
+            } else {
+                self.dr().read().dr().bits() as u32
+            }))
         } else {
             None
         }
     }
 
     #[inline]
-    fn uncheck_write(&mut self, data: WD) {
-        data.write_data(&self);
+    fn uncheck_write<W: Word>(&mut self, data: W) {
+        if size_of::<W>() == 1 {
+            self.dr8().write(|w| w.dr().set(data.into_u32() as u8));
+        } else {
+            self.dr().write(|w| w.dr().set(data.into_u32() as u16));
+        }
     }
 }
 

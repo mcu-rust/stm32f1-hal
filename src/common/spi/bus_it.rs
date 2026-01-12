@@ -1,4 +1,4 @@
-use super::{utils::*, *};
+use super::*;
 use crate::{
     Steal,
     common::{
@@ -8,29 +8,24 @@ use crate::{
     fugit::{KilohertzU32, NanosDurationU32},
     os_trait::Duration,
 };
-use core::{
-    cell::UnsafeCell,
-    marker::PhantomData,
-    slice::{self, Iter},
-};
+use core::{cell::UnsafeCell, mem::size_of};
 
-pub struct SpiBus<OS: OsInterface, SPI, WD: Word> {
+pub struct SpiBus<OS: OsInterface, SPI> {
     spi: SPI,
     work: Arc<AtomicCell<Work>>,
     err_code: Arc<AtomicCell<Option<Error>>>,
-    tx_cmd_w: Producer<TxCommand<WD>>,
-    rx_cmd_w: Producer<RxCommand<WD>>,
-    tx_cmd_r: Arc<UnsafeCell<Consumer<TxCommand<WD>>>>,
-    rx_cmd_r: Arc<UnsafeCell<Consumer<RxCommand<WD>>>>,
+    tx_cmd_w: Producer<TxCommand>,
+    rx_cmd_w: Producer<RxCommand>,
+    tx_cmd_r: Arc<UnsafeCell<Consumer<TxCommand>>>,
+    rx_cmd_r: Arc<UnsafeCell<Consumer<RxCommand>>>,
     waiter: OS::NotifyWaiter,
     byte_period: NanosDurationU32,
 }
 
-impl<OS, SPI, WD> SpiBus<OS, SPI, WD>
+impl<OS, SPI> SpiBus<OS, SPI>
 where
     OS: OsInterface,
-    WD: Word,
-    SPI: SpiPeriph<WD> + Steal,
+    SPI: SpiPeriph + Steal,
 {
     pub fn new(
         mut spi: SPI,
@@ -38,16 +33,16 @@ where
         max_operation: usize,
     ) -> (
         Self,
-        InterruptHandler<OS, SPI, WD>,
-        ErrorInterruptHandler<OS, SPI, WD>,
+        InterruptHandler<OS, SPI>,
+        ErrorInterruptHandler<OS, SPI>,
     ) {
         spi.disable_all_interrupt();
-        let work = Arc::new(AtomicCell::new(Work::Stop));
+        let work = Arc::new(AtomicCell::new(Work::Success));
         let err_code = Arc::new(AtomicCell::new(None));
         let (notifier, waiter) = OS::notify();
-        let (tx_cmd_w, tx_cmd_r) = RingBuffer::<TxCommand<WD>>::new(max_operation);
+        let (tx_cmd_w, tx_cmd_r) = RingBuffer::<TxCommand>::new(max_operation);
         let tx_cmd_r = Arc::new(UnsafeCell::new(tx_cmd_r));
-        let (rx_cmd_w, rx_cmd_r) = RingBuffer::<RxCommand<WD>>::new(max_operation);
+        let (rx_cmd_w, rx_cmd_r) = RingBuffer::<RxCommand>::new(max_operation);
         let rx_cmd_r = Arc::new(UnsafeCell::new(rx_cmd_r));
         let byte_period = (speed.into_duration() as NanosDurationU32) * 10;
         let spi2 = unsafe { spi.steal() };
@@ -70,54 +65,80 @@ where
                 tx_cmd_r,
                 rx_cmd_r,
                 notifier: notifier.clone(),
-                tx_cache: TxCache::Dummy(0),
-                rx_cache: RxCache::Dummy(0),
+                tx_cache: TxCommand::Dummy(0),
+                tx_i: 0,
+                rx_cache: RxCommand::Dummy(0),
                 rx_i: 0,
             },
             ErrorInterruptHandler {
                 spi: spi3,
                 err_code,
                 notifier,
-                _wd: PhantomData,
             },
         )
     }
 
-    fn push_write_data(&mut self, data: &[WD]) -> Result<usize, Error> {
+    fn push_write_slice<W: Word>(&mut self, data: &[W]) -> Result<(), Error> {
+        match size_of::<W>() {
+            1 => self
+                .tx_cmd_w
+                .push(TxCommand::WriteU8(data.as_ptr() as *const u8, data.len()))?,
+            2 => self
+                .tx_cmd_w
+                .push(TxCommand::WriteU16(data.as_ptr() as *const u16, data.len()))?,
+            _ => self
+                .tx_cmd_w
+                .push(TxCommand::WriteU32(data.as_ptr() as *const u32, data.len()))?,
+        }
+        Ok(())
+    }
+
+    fn push_read_slice<W: Word>(&mut self, buf: &mut [W]) -> Result<(), Error> {
+        match size_of::<W>() {
+            1 => self
+                .rx_cmd_w
+                .push(RxCommand::ReadU8(buf.as_mut_ptr() as *mut u8, buf.len()))?,
+            2 => self
+                .rx_cmd_w
+                .push(RxCommand::ReadU16(buf.as_mut_ptr() as *mut u16, buf.len()))?,
+            _ => self
+                .rx_cmd_w
+                .push(RxCommand::ReadU32(buf.as_mut_ptr() as *mut u32, buf.len()))?,
+        }
+        Ok(())
+    }
+
+    fn push_write_data<W: Word>(&mut self, data: &[W]) -> Result<usize, Error> {
         if data.is_empty() {
             return Err(Error::Buffer);
         }
 
-        self.tx_cmd_w
-            .push(TxCommand::Write(data.as_ptr(), data.len()))?;
+        self.push_write_slice(data)?;
         self.rx_cmd_w.push(RxCommand::Dummy(data.len()))?;
         Ok(data.len())
     }
 
-    fn push_read_buf(&mut self, buf: &mut [WD]) -> Result<usize, Error> {
+    fn push_read_buf<W: Word>(&mut self, buf: &mut [W]) -> Result<usize, Error> {
         if buf.is_empty() {
             return Err(Error::Buffer);
         }
 
         self.tx_cmd_w.push(TxCommand::Dummy(buf.len()))?;
-        self.rx_cmd_w
-            .push(RxCommand::Read(buf.as_mut_ptr(), buf.len()))?;
+        self.push_read_slice(buf)?;
         Ok(buf.len())
     }
 
-    fn push_transfer(&mut self, buf: &mut [WD], data: &[WD]) -> Result<usize, Error> {
+    fn push_transfer<W: Word>(&mut self, buf: &mut [W], data: &[W]) -> Result<usize, Error> {
         let max_len = buf.len().max(data.len());
         if max_len == 0 {
             return Err(Error::Buffer);
         }
 
         if !data.is_empty() {
-            self.tx_cmd_w
-                .push(TxCommand::Write(data.as_ptr(), data.len()))?;
+            self.push_write_slice(data)?;
         }
         if !buf.is_empty() {
-            self.rx_cmd_w
-                .push(RxCommand::Read(buf.as_mut_ptr(), buf.len()))?;
+            self.push_read_slice(buf)?;
         }
         if max_len > data.len() {
             self.tx_cmd_w.push(TxCommand::Dummy(max_len - data.len()))?;
@@ -127,25 +148,24 @@ where
         Ok(max_len)
     }
 
-    fn push_transfer_in_place(&mut self, buf: &mut [WD]) -> Result<usize, Error> {
+    fn push_transfer_in_place<W: Word>(&mut self, buf: &mut [W]) -> Result<usize, Error> {
         if buf.is_empty() {
             return Err(Error::Buffer);
         }
 
-        self.tx_cmd_w
-            .push(TxCommand::Write(buf.as_ptr(), buf.len()))?;
-        self.rx_cmd_w
-            .push(RxCommand::Read(buf.as_mut_ptr(), buf.len()))?;
+        self.push_write_slice(buf)?;
+        self.push_read_slice(buf)?;
         Ok(buf.len())
     }
 
-    fn communicate(&mut self, data_len: usize) -> Result<(), Error> {
+    fn communicate<W: Word>(&mut self, data_len: usize) -> Result<(), Error> {
         if data_len == 0 {
             return Ok(());
         }
 
-        let timeout_ns = (data_len as u32 + 2) * self.byte_period.ticks();
-        self.work.store(Work::Start, Ordering::Release);
+        let timeout_ns = ((data_len + 2) * size_of::<W>()) as u32 * self.byte_period.ticks();
+        self.work
+            .store(Work::Start(size_of::<W>() as u8), Ordering::Release);
         self.spi.set_interrupt(Event::TxEmpty, true);
 
         let rst: Result<(), Error> = self
@@ -155,8 +175,6 @@ where
                 let err_code = self.err_code.load(Ordering::Acquire);
                 if Work::Success == work {
                     return Some(Ok(()));
-                } else if Work::Stop == work {
-                    return Some(Err(Error::Other));
                 } else if let Some(err) = err_code {
                     return Some(Err(err));
                 }
@@ -169,7 +187,10 @@ where
         rst
     }
 
-    fn inner_transaction(&mut self, operations: &mut [Operation<'_, WD>]) -> Result<(), Error> {
+    fn inner_transaction<W: Word>(
+        &mut self,
+        operations: &mut [Operation<'_, W>],
+    ) -> Result<(), Error> {
         if operations.is_empty() {
             return Ok(());
         }
@@ -179,7 +200,7 @@ where
         }
 
         // TODO: clear all errors
-        while self.spi.read().is_some() {}
+        while self.spi.read::<W>().is_some() {}
 
         // clean old commands
         let cmd = unsafe { &mut *self.tx_cmd_r.get() };
@@ -195,61 +216,74 @@ where
                 Operation::Transfer(buf, data) => data_len += self.push_transfer(buf, data)?,
                 Operation::TransferInPlace(buf) => data_len += self.push_transfer_in_place(buf)?,
                 Operation::DelayNs(ns) => {
-                    self.communicate(data_len)?;
+                    self.communicate::<W>(data_len)?;
                     OS::delay().delay_ns(*ns);
                     data_len = 0;
                 }
             }
             Ok(())
         });
-        let rst = op_rst.and_then(|_| self.communicate(data_len));
+        let rst = op_rst.and_then(|_| self.communicate::<W>(data_len));
         // TODO error handler
         rst
     }
 }
 
-impl<OS, SPI, WD> SpiBusInterface<WD> for SpiBus<OS, SPI, WD>
+impl<OS, SPI> SpiBusInterface for SpiBus<OS, SPI>
 where
     OS: OsInterface,
-    WD: Word,
-    SPI: SpiPeriph<WD> + Steal,
+    SPI: SpiPeriph + Steal,
 {
     #[inline]
-    fn transaction(&mut self, operations: &mut [Operation<'_, WD>]) -> Result<(), Error> {
+    fn transaction<W: Word>(&mut self, operations: &mut [Operation<'_, W>]) -> Result<(), Error> {
         self.inner_transaction(operations)
+    }
+
+    #[inline]
+    fn config<W: Word>(&mut self, mode: Mode, freq: KilohertzU32) {
+        self.spi.config::<W>(mode, freq);
     }
 }
 
 // Interrupt Handler ------------------------------------------------
 
-pub struct InterruptHandler<OS: OsInterface, SPI, WD: Word> {
+pub struct InterruptHandler<OS: OsInterface, SPI> {
     spi: SPI,
     work: Arc<AtomicCell<Work>>,
-    tx_cmd_r: Arc<UnsafeCell<Consumer<TxCommand<WD>>>>,
-    rx_cmd_r: Arc<UnsafeCell<Consumer<RxCommand<WD>>>>,
+    tx_cmd_r: Arc<UnsafeCell<Consumer<TxCommand>>>,
+    rx_cmd_r: Arc<UnsafeCell<Consumer<RxCommand>>>,
     notifier: OS::Notifier,
 
-    tx_cache: TxCache<WD>,
-    rx_cache: RxCache<WD>,
+    tx_cache: TxCommand,
+    tx_i: usize,
+    rx_cache: RxCommand,
     rx_i: usize,
 }
 
-impl<OS, SPI, WD> InterruptHandler<OS, SPI, WD>
+impl<OS, SPI> InterruptHandler<OS, SPI>
 where
     OS: OsInterface,
-    WD: Word,
-    SPI: SpiPeriph<WD> + Steal,
+    SPI: SpiPeriph + Steal,
 {
     pub fn handler(&mut self) {
-        if let Work::Start = self.work.load(Ordering::Acquire) {
-            self.work.store(Work::Work, Ordering::Relaxed);
-            self.tx_cache = TxCache::Dummy(0);
+        if let Work::Start(w) = self.work.load(Ordering::Acquire) {
+            self.work.store(Work::Work(w), Ordering::Relaxed);
+            self.tx_cache = TxCommand::Dummy(0);
             self.pop_rx_cache();
         }
 
+        match self.work.load(Ordering::Relaxed) {
+            Work::Work(1) => self.inner_handler::<u8>(),
+            Work::Work(2) => self.inner_handler::<u16>(),
+            Work::Work(4) => self.inner_handler::<u32>(),
+            _ => (),
+        }
+    }
+
+    fn inner_handler<W: Word>(&mut self) {
         while self.spi.is_tx_empty() {
             if let Some(data) = self.load_data() {
-                self.spi.uncheck_write(data);
+                self.spi.uncheck_write::<W>(data);
             } else {
                 self.spi.set_interrupt(Event::RxNotEmpty, true);
                 self.spi.set_interrupt(Event::TxEmpty, false);
@@ -257,7 +291,7 @@ where
             }
         }
 
-        if let Some(data) = self.spi.read() {
+        if let Some(data) = self.spi.read::<W>() {
             if !self.store_data(data) {
                 self.spi.disable_all_interrupt();
                 self.work.store(Work::Success, Ordering::Release);
@@ -267,125 +301,155 @@ where
     }
 
     #[inline]
-    fn load_data(&mut self) -> Option<WD> {
-        match &mut self.tx_cache {
-            TxCache::Write(iter) => {
-                if let Some(d) = iter.next() {
-                    return Some(*d);
+    fn load_data<W: Word>(&mut self) -> Option<W> {
+        loop {
+            let data = match &self.tx_cache {
+                TxCommand::WriteU8(p, len) => {
+                    if self.tx_i < *len {
+                        Some(W::from_u32(unsafe { *(p.add(self.tx_i)) } as u32))
+                    } else {
+                        None
+                    }
                 }
-            }
-            TxCache::Dummy(i) => {
-                if *i > 0 {
-                    *i -= 1;
-                    return Some(WD::default());
+                TxCommand::WriteU16(p, len) => {
+                    if self.tx_i < *len {
+                        Some(W::from_u32(unsafe { *(p.add(self.tx_i)) } as u32))
+                    } else {
+                        None
+                    }
                 }
-            }
-        }
-
-        if let Ok(cmd) = unsafe { &mut *self.tx_cmd_r.get() }.pop() {
-            match cmd {
-                TxCommand::Write(p, l) => {
-                    let mut iter = unsafe { slice::from_raw_parts(p, l) }.iter();
-                    let d = iter.next().copied();
-                    self.tx_cache = TxCache::Write(iter);
-                    d
+                TxCommand::WriteU32(p, len) => {
+                    if self.tx_i < *len {
+                        Some(W::from_u32(unsafe { *(p.add(self.tx_i)) }))
+                    } else {
+                        None
+                    }
                 }
                 TxCommand::Dummy(len) => {
-                    self.tx_cache = TxCache::Dummy(len - 1);
-                    Some(WD::default())
+                    if self.tx_i < *len {
+                        Some(W::default())
+                    } else {
+                        None
+                    }
                 }
+            };
+
+            self.tx_i += 1;
+            if data.is_some() {
+                return data;
             }
-        } else {
-            self.tx_cache = TxCache::Dummy(0);
-            None
+
+            if let Ok(cmd) = unsafe { &mut *self.tx_cmd_r.get() }.pop() {
+                self.tx_cache = cmd;
+                self.tx_i = 0;
+            } else {
+                self.tx_cache = TxCommand::Dummy(0);
+                return None;
+            }
         }
     }
 
     #[inline]
-    fn store_data(&mut self, data: WD) -> bool {
-        let last = match &mut self.rx_cache {
-            RxCache::Read(buf) => {
-                if self.rx_i < buf.len() {
-                    buf[self.rx_i] = data;
-                    self.rx_i += 1;
-                }
-                self.rx_i >= buf.len()
-            }
-            RxCache::Dummy(len) => {
+    fn store_data<W: Word>(&mut self, data: W) -> bool {
+        let len = match &self.rx_cache {
+            RxCommand::ReadU8(p, len) => {
                 if self.rx_i < *len {
-                    self.rx_i += 1;
+                    unsafe { *(p.add(self.rx_i)) = data.into_u32() as u8 };
                 }
-                self.rx_i >= *len
+                *len
             }
+            RxCommand::ReadU16(p, len) => {
+                if self.rx_i < *len {
+                    unsafe { *(p.add(self.rx_i)) = data.into_u32() as u16 };
+                }
+                *len
+            }
+            RxCommand::ReadU32(p, len) => {
+                if self.rx_i < *len {
+                    unsafe { *(p.add(self.rx_i)) = data.into_u32() };
+                }
+                *len
+            }
+            RxCommand::Dummy(len) => *len,
         };
 
-        if last { self.pop_rx_cache() } else { true }
+        self.rx_i += 1;
+        if self.rx_i >= len {
+            self.pop_rx_cache()
+        } else {
+            true
+        }
     }
 
     fn pop_rx_cache(&mut self) -> bool {
         if let Ok(cmd) = unsafe { &mut *self.rx_cmd_r.get() }.pop() {
-            match cmd {
-                RxCommand::Read(p, l) => {
-                    let buf = unsafe { slice::from_raw_parts_mut(p, l) };
-                    self.rx_cache = RxCache::Read(buf);
-                }
-                RxCommand::Dummy(len) => {
-                    self.rx_cache = RxCache::Dummy(len);
-                }
-            }
+            self.rx_cache = cmd;
             self.rx_i = 0;
             true
         } else {
-            self.rx_cache = RxCache::Dummy(0);
+            self.rx_cache = RxCommand::Dummy(0);
             false
         }
     }
 }
 
-pub enum TxCache<WD: Word> {
-    Write(Iter<'static, WD>),
+#[derive(Clone, Copy)]
+pub enum TxCommand {
+    WriteU8(*const u8, usize),
+    WriteU16(*const u16, usize),
+    WriteU32(*const u32, usize),
     Dummy(usize),
 }
 
-pub enum RxCache<WD: Word> {
-    Read(&'static mut [WD]),
+#[derive(Clone, Copy)]
+pub enum RxCommand {
+    ReadU8(*mut u8, usize),
+    ReadU16(*mut u16, usize),
+    ReadU32(*mut u32, usize),
     Dummy(usize),
 }
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum Work {
-    Stop,
-    Start,
-    Work,
     Success,
+    Start(u8),
+    Work(u8),
 }
 
 impl AtomicCellMember for Work {
     #[inline]
     fn to_num(self) -> usize {
-        self as usize
+        match self {
+            Self::Success => 0,
+            Self::Start(w) => ((w as usize) << 8) | 1,
+            Self::Work(w) => ((w as usize) << 8) | 2,
+        }
     }
 
     #[inline]
     unsafe fn from_num(val: usize) -> Self {
-        unsafe { core::mem::transmute(val as u8) }
+        let w = (val >> 8) as u8;
+        let v = val as u8;
+        match v {
+            0 => Self::Success,
+            1 => Self::Start(w),
+            _ => Self::Work(w),
+        }
     }
 }
 
 // Error Interrupt Handler ------------------------------------------
 
-pub struct ErrorInterruptHandler<OS: OsInterface, SPI, WD: Word> {
+pub struct ErrorInterruptHandler<OS: OsInterface, SPI> {
     spi: SPI,
     err_code: Arc<AtomicCell<Option<Error>>>,
     notifier: OS::Notifier,
-    _wd: PhantomData<WD>,
 }
 
-impl<OS, SPI, WD> ErrorInterruptHandler<OS, SPI, WD>
+impl<OS, SPI> ErrorInterruptHandler<OS, SPI>
 where
     OS: OsInterface,
-    WD: Word,
-    SPI: SpiPeriph<WD> + Steal,
+    SPI: SpiPeriph + Steal,
 {
     pub fn handler(&mut self) {
         if let Some(err) = self.spi.get_and_clean_error() {

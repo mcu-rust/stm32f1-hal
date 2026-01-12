@@ -154,7 +154,7 @@ fn main() -> ! {
     let pins = (gpioa.pa5, gpioa.pa6, gpioa.pa7);
     #[cfg(feature = "spi_it_sole")]
     let dev = {
-        let (dev, mut it, mut err_it) = dp.SPI1.init::<OS, u8>(&mut mcu).into_interrupt_sole(
+        let (dev, mut it, mut err_it) = dp.SPI1.init::<OS>(&mut mcu).into_interrupt_sole(
             pins,
             spi::MODE_0,
             200.kHz(),

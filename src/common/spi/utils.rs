@@ -1,18 +1,6 @@
 use super::*;
 use crate::common::{atomic_cell::AtomicCellMember, ringbuf::PushError};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum TxCommand<WD: Word> {
-    Write(*const WD, usize),
-    Dummy(usize),
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum RxCommand<WD: Word> {
-    Read(*mut WD, usize),
-    Dummy(usize),
-}
-
 impl<T> From<PushError<T>> for Error {
     fn from(_value: PushError<T>) -> Self {
         Self::Buffer
