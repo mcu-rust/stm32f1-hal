@@ -19,6 +19,9 @@ pub trait I2cPeriph {
     /// Disable receiving data interrupt
     fn disable_data_interrupt(&mut self);
 
+    fn is_tx_empty(&self) -> bool;
+    fn uncheck_write(&mut self, data: u8);
+
     fn it_send_start(&mut self);
 
     /// # Returns
@@ -39,11 +42,6 @@ pub trait I2cPeriph {
         step: &mut u8,
     ) -> Result<(), bool>;
 
-    /// # Returns
-    /// - `Ok()`: finished writing all data
-    /// - `Err(true)`: wrote some data
-    /// - `Err(false)`: did nothing and need to wait
-    fn it_write_with(&mut self, f: impl FnMut() -> Option<u8>) -> Result<(), bool>;
     fn it_read(&mut self, left_len: usize, last_operation: bool) -> Option<u8>;
 
     fn send_stop(&mut self);

@@ -5,7 +5,7 @@ where
     D: I2c,
 {
     dev: D,
-    buf: [u8; 16],
+    buf: [u8; 8],
     interval: Timeout,
     step: u8,
 }
@@ -24,7 +24,7 @@ where
     pub fn new(dev: D) -> Self {
         Self {
             dev,
-            buf: [0; 16],
+            buf: [0; 8],
             interval: Timeout::millis(100),
             step: 0,
         }

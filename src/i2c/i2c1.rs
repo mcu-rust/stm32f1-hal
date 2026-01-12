@@ -130,6 +130,16 @@ impl I2cPeriph for I2cX {
     }
 
     #[inline]
+    fn is_tx_empty(&self) -> bool {
+        self.sr1().read().tx_e().bit()
+    }
+
+    #[inline]
+    fn uncheck_write(&mut self, data: u8) {
+        self.write_data(data);
+    }
+
+    #[inline]
     fn it_send_start(&mut self) {
         self.set_interrupt(Interrupt::Event, true);
         // Clear all pending error bits
@@ -281,20 +291,6 @@ impl I2cPeriph for I2cX {
         } else {
             None
         }
-    }
-
-    #[inline]
-    fn it_write_with(&mut self, mut f: impl FnMut() -> Option<u8>) -> Result<(), bool> {
-        let mut rst = false;
-        while self.get_flag(Flag::TxEmpty) {
-            if let Some(data) = f() {
-                self.write_data(data);
-                rst = true;
-            } else {
-                return Ok(());
-            }
-        }
-        Err(rst)
     }
 
     #[inline]

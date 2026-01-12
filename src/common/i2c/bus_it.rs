@@ -325,23 +325,19 @@ where
                 }
             }
             Step::Write => {
-                let cmd = unsafe { &mut *self.cmd_r.get() };
-                let data_iter = &mut self.data_iter;
-                if self
-                    .i2c
-                    .it_write_with(|| Self::load_data(data_iter, cmd))
-                    .is_ok()
-                {
-                    match self.cmd().pop() {
-                        Ok(Command::Read(len)) => {
+                while self.i2c.is_tx_empty() {
+                    if let Some(data) = self.load_data() {
+                        self.i2c.uncheck_write(data);
+                    } else {
+                        if let Ok(Command::Read(len)) = self.cmd().pop() {
                             self.step_to_prepare_read(len);
                             self.i2c.disable_data_interrupt();
                             self.i2c.it_send_start();
-                        }
-                        _ => {
+                        } else {
                             self.i2c.send_stop();
                             self.step_to(Step::End);
                         }
+                        break;
                     }
                 }
             }
@@ -401,20 +397,16 @@ where
         self.step_to(Step::PrepareWrite);
     }
 
-    #[inline]
-    fn load_data(
-        data_iter: &mut Option<Iter<'static, u8>>,
-        cmd_r: &mut Consumer<Command>,
-    ) -> Option<u8> {
-        match data_iter.as_mut() {
+    fn load_data(&mut self) -> Option<u8> {
+        match self.data_iter.as_mut() {
             Some(iter) => match iter.next() {
                 Some(data) => Some(*data),
-                None => match cmd_r.pop() {
+                None => match self.cmd().pop() {
                     Ok(Command::Write(p, l)) => {
                         let data = unsafe { slice::from_raw_parts(p, l) };
                         let mut iter = data.iter();
                         let data = iter.next().copied();
-                        data_iter.replace(iter);
+                        self.data_iter.replace(iter);
                         data
                     }
                     _ => None,
