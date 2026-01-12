@@ -235,6 +235,21 @@ where
     }
 }
 
+impl<OS, I2C> I2cBusInterface for I2cBus<OS, I2C>
+where
+    OS: OsInterface,
+    I2C: I2cPeriph + Steal,
+{
+    #[inline]
+    fn bus_transaction(
+        &mut self,
+        slave_addr: Address,
+        operations: &mut [Operation<'_>],
+    ) -> Result<(), Error> {
+        self.inner_transaction(slave_addr, operations)
+    }
+}
+
 // Implement embedded-hal traits ------------------------------------
 
 impl<OS, I2C> ErrorType for I2cBus<OS, I2C>

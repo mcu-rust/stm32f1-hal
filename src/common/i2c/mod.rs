@@ -58,6 +58,14 @@ pub trait I2cPeriph {
     // fn read_sr(&mut self) -> u32;
 }
 
+pub trait I2cBusInterface {
+    fn bus_transaction(
+        &mut self,
+        slave_addr: Address,
+        operations: &mut [Operation<'_>],
+    ) -> Result<(), Error>;
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Flag {
     /// Start condition generated

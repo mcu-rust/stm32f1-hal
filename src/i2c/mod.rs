@@ -6,6 +6,7 @@ pub use crate::common::i2c::*;
 use crate::{
     Mcu, Steal,
     afio::{RemapMode, i2c_remap::*},
+    os_trait::Mutex,
     prelude::*,
     rcc::{Enable, GetClock, Reset},
     time::*,
@@ -46,7 +47,7 @@ where
     OS: OsInterface,
     I: I2cPeriphConfig,
 {
-    pub fn into_interrupt_i2c<REMAP: RemapMode<I>>(
+    pub fn into_interrupt_sole<REMAP: RemapMode<I>>(
         mut self,
         pins: (impl I2cSclPin<REMAP>, impl I2cSdaPin<REMAP>),
         speed: HertzU32,
@@ -62,6 +63,45 @@ where
         assert!(speed <= kHz(400));
         self.i2c.config(&Mode::from(speed));
         bus_it::I2cBus::<OS, I>::new(self.i2c, speed, max_operation)
+    }
+
+    pub fn into_interrupt_bus<REMAP: RemapMode<I>>(
+        mut self,
+        pins: (impl I2cSclPin<REMAP>, impl I2cSdaPin<REMAP>),
+        speed: HertzU32,
+        max_operation: usize,
+        mcu: &mut Mcu,
+    ) -> (
+        I2cDeviceBuilder<OS, bus_it::I2cBus<OS, I>>,
+        bus_it::InterruptHandler<OS, I>,
+        bus_it::ErrorInterruptHandler<OS, I>,
+    ) {
+        let _ = (pins.0.into_alternate(), pins.1.into_alternate());
+        REMAP::remap(&mut mcu.afio);
+        assert!(speed <= kHz(400));
+        self.i2c.config(&Mode::from(speed));
+        let (bus, it, err_it) = bus_it::I2cBus::<OS, I>::new(self.i2c, speed, max_operation);
+        (
+            I2cDeviceBuilder {
+                bus: Arc::new(OS::mutex(bus)),
+            },
+            it,
+            err_it,
+        )
+    }
+}
+
+pub struct I2cDeviceBuilder<OS: OsInterface, BUS> {
+    bus: Arc<Mutex<OS, BUS>>,
+}
+
+impl<OS, BUS> I2cDeviceBuilder<OS, BUS>
+where
+    OS: OsInterface,
+    BUS: I2cBusInterface,
+{
+    pub fn new_device(&self) -> I2cMutexDevice<OS, BUS> {
+        I2cMutexDevice::new(Arc::clone(&self.bus))
     }
 }
 

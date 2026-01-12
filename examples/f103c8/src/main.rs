@@ -132,57 +132,62 @@ fn main() -> ! {
     // I2C ----------------------------------------------------------
 
     #[cfg(feature = "i2c")]
-    let dev = {
-        let pins = (gpiob.pb6, gpiob.pb7);
-        let (bus, mut it, mut it_err) =
-            dp.I2C1
-                .init::<OS>(&mut mcu)
-                .into_interrupt_i2c(pins, 200.kHz(), 4, &mut mcu);
-        its::I2C1_EVENT_CB.set(&mut mcu, move || it.handler());
-        its::I2C1_ERR_CB.set(&mut mcu, move || it_err.handler());
-        bus
-    };
+    let pins = (gpiob.pb6, gpiob.pb7);
+    #[cfg(feature = "i2c_it_sole")]
+    let (dev, mut it, mut it_err) =
+        dp.I2C1
+            .init::<OS>(&mut mcu)
+            .into_interrupt_sole(pins, 200.kHz(), 4, &mut mcu);
 
     #[cfg(feature = "i2c_it_bus")]
-    let dev = I2cMutexDevice::new(OS::O, dev);
+    let (dev, mut it, mut it_err) = {
+        let (bus, it, err_it) =
+            dp.I2C1
+                .init::<OS>(&mut mcu)
+                .into_interrupt_bus(pins, 200.kHz(), 4, &mut mcu);
+        (bus.new_device(), it, err_it)
+    };
     #[cfg(feature = "i2c")]
-    let mut i2c_task = I2cTask::new(dev);
+    let mut i2c_task = {
+        its::I2C1_EVENT_CB.set(&mut mcu, move || it.handler());
+        its::I2C1_ERR_CB.set(&mut mcu, move || it_err.handler());
+        I2cTask::new(dev)
+    };
 
     // SPI ----------------------------------------------------------
 
     #[cfg(feature = "spi")]
     let pins = (gpioa.pa5, gpioa.pa6, gpioa.pa7);
     #[cfg(feature = "spi_it_sole")]
-    let dev = {
-        let (dev, mut it, mut err_it) = dp.SPI1.init::<OS>(&mut mcu).into_interrupt_sole(
-            pins,
-            spi::MODE_0,
-            200.kHz(),
-            gpioa.pa4,
-            0.nanos(),
-            4,
-            &mut mcu,
-        );
-        its::SPI1_CB.set(&mut mcu, move || {
-            it.handler();
-            err_it.handler();
-        });
-        dev
-    };
+    let (dev, mut it, mut err_it) = dp.SPI1.init::<OS>(&mut mcu).into_interrupt_sole(
+        pins,
+        spi::MODE_0,
+        200.kHz(),
+        gpioa.pa4,
+        0.nanos(),
+        4,
+        &mut mcu,
+    );
     #[cfg(feature = "spi_it_bus")]
-    let dev = {
-        let (bus, mut it, mut err_it) = dp
+    let (dev, mut it, mut err_it) = {
+        let (bus, it, err_it) = dp
             .SPI1
             .init::<OS>(&mut mcu)
             .into_interrupt_bus(pins, 4, &mut mcu);
+        (
+            bus.new_device(spi::MODE_0, 200.kHz(), gpioa.pa4, 0.nanos()),
+            it,
+            err_it,
+        )
+    };
+    #[cfg(feature = "spi")]
+    let mut spi_task = {
         its::SPI1_CB.set(&mut mcu, move || {
             it.handler();
             err_it.handler();
         });
-        bus.new_device(spi::MODE_0, 200.kHz(), gpioa.pa4, 0.nanos())
+        SpiTask::new(dev)
     };
-    #[cfg(feature = "spi")]
-    let mut spi_task = SpiTask::new(dev);
 
     // PWM ----------------------------------------------------------
 
