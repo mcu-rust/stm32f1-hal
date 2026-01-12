@@ -22,6 +22,13 @@ pub struct SpiBus<OS: OsInterface, SPI> {
     byte_period: NanosDurationU32,
 }
 
+unsafe impl<OS, SPI> Send for SpiBus<OS, SPI>
+where
+    OS: OsInterface,
+    SPI: SpiPeriph + Steal,
+{
+}
+
 impl<OS, SPI> SpiBus<OS, SPI>
 where
     OS: OsInterface,

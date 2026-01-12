@@ -25,6 +25,13 @@ pub struct I2cBus<OS: OsInterface, I2C> {
     byte_period: NanosDurationU32,
 }
 
+unsafe impl<OS, I2C> Send for I2cBus<OS, I2C>
+where
+    OS: OsInterface,
+    I2C: I2cPeriph + Steal,
+{
+}
+
 impl<OS, I2C> I2cBus<OS, I2C>
 where
     OS: OsInterface,
