@@ -453,6 +453,7 @@ pub struct Pin<const P: char, const N: u8, MODE = Input<Floating>> {
 pub trait HL {
     /// Configuration register associated to pin
     type Cr;
+    fn get_cr() -> Self::Cr;
 }
 
 macro_rules! cr {
@@ -460,6 +461,9 @@ macro_rules! cr {
         $(
             impl<const P: char, MODE> HL for Pin<P, $pin_number, MODE> {
                 type Cr = Cr<P, $cr_is_h>;
+                fn get_cr() -> Self::Cr {
+                    Cr::<P, $cr_is_h>
+                }
             }
         )+
     }

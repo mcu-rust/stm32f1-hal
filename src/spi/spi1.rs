@@ -7,20 +7,21 @@ use crate::{Mcu, pac};
 
 // Initialization -------------------------------------------------------------
 
-impl<WD: FrameSize> SpiInit<SpiX, WD> for SpiX {
-    fn init(self, mcu: &mut Mcu) -> Spi<SpiX, WD> {
+impl SpiInit<SpiX> for SpiX {
+    fn init<OS: OsInterface, WD: FrameSize>(self, mcu: &mut Mcu) -> Spi<OS, SpiX, WD> {
         mcu.rcc.enable(&self);
         mcu.rcc.reset(&self);
 
         Spi {
             spi: self,
             _wd: PhantomData,
+            _os: PhantomData,
         }
     }
 }
 
 impl<WD: FrameSize> SpiPeriphConfig<WD> for SpiX {
-    fn init_config(&mut self, mode: &Mode, freq: HertzU32, master_mode: bool) {
+    fn init_config(&mut self, mode: Mode, freq: KilohertzU32, master_mode: bool) {
         let br = calculate_baud_rate(self.get_clock(), freq);
 
         // disable SS output
@@ -58,9 +59,12 @@ impl<WD: FrameSize> SpiPeriphConfig<WD> for SpiX {
 // Implement Peripheral -------------------------------------------------------
 
 impl<WD: FrameSize> SpiPeriph<WD> for SpiX {
-    fn config(&mut self, mode: &Mode, freq: HertzU32) {
+    fn config(&mut self, mode: Mode, freq: KilohertzU32) {
+        self.cr1().modify(|_, w| w.spe().clear_bit());
         let br = calculate_baud_rate(self.get_clock(), freq);
         self.cr1().modify(|_, w| {
+            // dff: 8 bit or 16 bit frames
+            w.dff().bit(WD::DFF);
             // clock phase from config
             w.cpha().bit(mode.phase == Phase::CaptureOnSecondTransition);
             // clock polarity from config
@@ -68,6 +72,7 @@ impl<WD: FrameSize> SpiPeriph<WD> for SpiX {
             // baudrate value
             w.br().set(br)
         });
+        self.cr1().modify(|_, w| w.spe().set_bit());
     }
 
     #[inline]

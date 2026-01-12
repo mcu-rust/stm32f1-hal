@@ -1,6 +1,21 @@
 #![allow(unused_variables)]
 use super::*;
 use crate::{gpio::*, pac::*};
+use embedded_hal::digital::OutputPin;
+
+pub trait SpiCsPin<PIN: OutputPin> {
+    fn into_cs_pin(self) -> PIN;
+}
+
+impl<const P: char, const N: u8> SpiCsPin<Pin<P, N, Output<PushPull>>> for Pin<P, N, Input>
+where
+    Self: HL,
+{
+    fn into_cs_pin(self) -> Pin<P, N, Output<PushPull>> {
+        let mut cr = Self::get_cr();
+        self.into_push_pull_output_with_state(&mut cr, PinState::High)
+    }
+}
 
 macro_rules! impl_for_none_pin_into {
     ($Func:ident) => {

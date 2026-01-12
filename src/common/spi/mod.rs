@@ -3,15 +3,15 @@ mod utils;
 pub mod bus_it;
 pub mod device;
 
-pub use crate::fugit::HertzU32;
+pub use crate::fugit::{HertzU32, KilohertzU32};
 pub use embedded_hal::spi::{Mode, Phase, Polarity};
 
 use crate::common::prelude::*;
 use embedded_hal::spi::{ErrorKind, ErrorType, Operation};
 
-pub trait SpiPeriph<WD: Copy + 'static> {
+pub trait SpiPeriph<WD: Word> {
     /// master mode only
-    fn config(&mut self, mode: &Mode, freq: HertzU32);
+    fn config(&mut self, mode: Mode, freq: KilohertzU32);
 
     fn is_tx_empty(&self) -> bool;
     fn uncheck_write(&mut self, data: WD);
@@ -22,6 +22,11 @@ pub trait SpiPeriph<WD: Copy + 'static> {
     fn set_interrupt(&mut self, event: Event, enable: bool);
     /// Disable all interrupt
     fn disable_all_interrupt(&mut self);
+}
+
+pub trait SpiBusInterface<WD: Word> {
+    fn transaction(&mut self, operations: &mut [Operation<'_, WD>]) -> Result<(), Error>;
+    // TODO config speed and phase
 }
 
 pub trait Word: Copy + Default + 'static {}

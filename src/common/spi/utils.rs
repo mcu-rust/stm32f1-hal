@@ -1,11 +1,6 @@
 use super::*;
 use crate::common::{atomic_cell::AtomicCellMember, ringbuf::PushError};
 
-pub(crate) trait SpiBusInterface<WD: Word> {
-    fn transaction(&mut self, operations: &mut [Operation<'_, WD>]) -> Result<(), Error>;
-    // TODO config speed and phase
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TxCommand<WD: Word> {
     Write(*const WD, usize),
@@ -46,6 +41,7 @@ impl AtomicCellMember for Option<Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use fugit::{HertzU32, KilohertzU32, RateExtU32};
 
     fn compare_error(err: Option<Error>) {
         let i: usize = err.to_num();
@@ -61,5 +57,14 @@ mod tests {
         compare_error(Some(Error::Crc));
         compare_error(Some(Error::Buffer));
         compare_error(Some(Error::Other));
+    }
+
+    #[test]
+    fn hertz() {
+        let a: HertzU32 = 20.kHz();
+        let b: KilohertzU32 = 2.kHz();
+        assert_eq!(a.raw(), 20_000);
+        assert_eq!(b.raw(), 2);
+        assert_eq!(a / b, 10);
     }
 }

@@ -1,10 +1,14 @@
-use super::{utils::*, *};
+use super::*;
 use core::marker::PhantomData;
 use embedded_hal::{digital::OutputPin, spi::SpiDevice};
 use fugit::NanosDurationU32;
 use os_trait::OsInterface;
 
-pub struct SpiDeviceSole<OS: OsInterface, BUS, CS, WD> {
+// Mutex device -----------------------------------------------------
+
+// Sole device ------------------------------------------------------
+
+pub struct SpiSoleDevice<OS: OsInterface, CS, BUS, WD> {
     bus: BUS,
     cs: CS,
     cs_delay: NanosDurationU32,
@@ -12,7 +16,13 @@ pub struct SpiDeviceSole<OS: OsInterface, BUS, CS, WD> {
     _wd: PhantomData<WD>,
 }
 
-impl<OS: OsInterface, BUS, CS, WD> SpiDeviceSole<OS, BUS, CS, WD> {
+impl<OS, CS, BUS, WD> SpiSoleDevice<OS, CS, BUS, WD>
+where
+    OS: OsInterface,
+    BUS: SpiBusInterface<WD>,
+    CS: OutputPin,
+    WD: Word,
+{
     pub fn new(bus: BUS, cs: CS, cs_delay: NanosDurationU32) -> Self {
         Self {
             bus,
@@ -24,7 +34,7 @@ impl<OS: OsInterface, BUS, CS, WD> SpiDeviceSole<OS, BUS, CS, WD> {
     }
 }
 
-impl<OS, BUS, CS, WD> SpiDevice<WD> for SpiDeviceSole<OS, BUS, CS, WD>
+impl<OS, CS, BUS, WD> SpiDevice<WD> for SpiSoleDevice<OS, CS, BUS, WD>
 where
     OS: OsInterface,
     BUS: SpiBusInterface<WD>,
@@ -47,7 +57,7 @@ where
     }
 }
 
-impl<OS, BUS, CS, WD> ErrorType for SpiDeviceSole<OS, BUS, CS, WD>
+impl<OS, CS, BUS, WD> ErrorType for SpiSoleDevice<OS, CS, BUS, WD>
 where
     OS: OsInterface,
     BUS: SpiBusInterface<WD>,

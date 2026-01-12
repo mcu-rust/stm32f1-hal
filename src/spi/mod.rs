@@ -2,38 +2,70 @@ mod spi1;
 #[cfg(feature = "connectivity")]
 mod spi3;
 
-pub use crate::common::spi::*;
+use embedded_hal::digital::OutputPin;
+use os_trait::OsInterface;
+
+pub use crate::common::spi::{device::SpiSoleDevice, *};
+pub use embedded_hal::spi::{MODE_0, MODE_1, MODE_2, MODE_3};
 
 use crate::{
     Mcu, Steal,
-    fugit::HertzU32,
+    afio::{RemapMode, spi_remap::*},
+    fugit::NanosDurationU32,
     rcc::{Enable, GetClock, Reset},
 };
 use core::marker::PhantomData;
 
-pub trait SpiInit<T, WD: FrameSize> {
-    fn init(self, mcu: &mut Mcu) -> Spi<T, WD>;
+pub trait SpiInit<T> {
+    fn init<OS: OsInterface, WD: FrameSize>(self, mcu: &mut Mcu) -> Spi<OS, T, WD>;
 }
 
 pub trait SpiPeriphConfig<WD: FrameSize>:
     SpiPeriph<WD> + GetClock + Enable + Reset + Steal
 {
-    fn init_config(&mut self, mode: &Mode, freq: HertzU32, master_mode: bool);
+    fn init_config(&mut self, mode: Mode, freq: KilohertzU32, master_mode: bool);
 }
 
-pub struct Spi<T, WD: Word> {
+pub struct Spi<OS: OsInterface, T, WD: Word> {
     spi: T,
     _wd: PhantomData<WD>,
+    _os: PhantomData<OS>,
 }
 
-impl<T, WD> Spi<T, WD>
+impl<OS, T, WD> Spi<OS, T, WD>
 where
+    OS: OsInterface,
     T: SpiPeriphConfig<WD>,
     WD: FrameSize,
 {
+    pub fn into_interrupt_sole<REMAP: RemapMode<T>, CS: OutputPin>(
+        mut self,
+        pins: (
+            impl SpiSckPin<REMAP>,
+            impl SpiMisoPin<REMAP>,
+            impl SpiMosiPin<REMAP>,
+        ),
+        mode: Mode,
+        freq: KilohertzU32,
+        cs: impl SpiCsPin<CS>,
+        cs_delay: NanosDurationU32,
+        max_operation: usize,
+        mcu: &mut Mcu,
+    ) -> (
+        SpiSoleDevice<OS, CS, bus_it::SpiBus<OS, T, WD>, WD>,
+        bus_it::InterruptHandler<OS, T, WD>,
+        bus_it::ErrorInterruptHandler<OS, T, WD>,
+    ) {
+        let cs = cs.into_cs_pin();
+        let _ = (pins.0.into_alternate(), pins.2.into_alternate());
+        REMAP::remap(&mut mcu.afio);
+        self.spi.init_config(mode, freq, true);
+        let (bus, it, err_it) = bus_it::SpiBus::new(self.spi, freq, max_operation);
+        (SpiSoleDevice::new(bus, cs, cs_delay), it, err_it)
+    }
 }
 
-fn calculate_baud_rate(clock: HertzU32, freq: HertzU32) -> u8 {
+fn calculate_baud_rate(clock: HertzU32, freq: KilohertzU32) -> u8 {
     match clock / freq {
         0 => unreachable!(),
         1..=2 => 0b000,

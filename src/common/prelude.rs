@@ -2,7 +2,7 @@ pub use super::{
     dma::DmaChannel as _,
     fugit::{ExtU32 as _, RateExtU32 as _},
     i2c::I2cPeriph as _,
-    spi::Word as _,
+    spi::{SpiBusInterface as _, Word as _},
     timer::{
         GeneralTimer as _, PwmChannel as _, TimerDirection as _, TimerWithPwm as _,
         TimerWithPwm1Ch as _, TimerWithPwm2Ch as _, TimerWithPwm3Ch as _, TimerWithPwm4Ch as _,

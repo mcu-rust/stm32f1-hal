@@ -5,12 +5,14 @@
 mod i2c_task;
 mod led_task;
 mod os;
+mod spi_task;
 mod uart_task;
 
 use core::panic::PanicInfo;
 use i2c_task::I2cTask;
 use led_task::LedTask;
 use os::*;
+use spi_task::SpiTask;
 use uart_task::UartLoopBackTask;
 
 // Basic
@@ -22,10 +24,12 @@ use hal::{
     dma::DmaPriority,
     embedded_hal::{self, pwm::SetDutyCycle},
     embedded_io,
+    fugit::ExtU32,
     gpio::{Edge, ExtiPin},
     i2c::I2cMutexDevice,
     nvic_scb::PriorityGrouping,
     pac::Interrupt,
+    spi,
     time::MonoTimer,
     timer::{CountDirection, PwmMode, PwmPolarity},
     uart,
@@ -59,6 +63,7 @@ fn main() -> ! {
     mcu.nvic.set_priority(Interrupt::USART1, 3, true);
     mcu.nvic.set_priority(Interrupt::DMA1_CHANNEL4, 3, true);
     mcu.nvic.set_priority(Interrupt::DMA1_CHANNEL5, 3, true);
+    mcu.nvic.set_priority(Interrupt::SPI1, 3, true);
 
     // Peripherals --------------------------------------------------
 
@@ -127,14 +132,12 @@ fn main() -> ! {
     // I2C ----------------------------------------------------------
 
     #[cfg(feature = "i2c")]
-    let (scl, sda) = (gpiob.pb6, gpiob.pb7);
-
-    #[cfg(feature = "i2c")]
     let dev = {
+        let pins = (gpiob.pb6, gpiob.pb7);
         let (bus, mut it, mut it_err) =
             dp.I2C1
                 .init::<OS>(&mut mcu)
-                .into_interrupt_i2c((scl, sda), 200.kHz(), 4, &mut mcu);
+                .into_interrupt_i2c(pins, 200.kHz(), 4, &mut mcu);
         its::I2C1_EVENT_CB.set(&mut mcu, move || it.handler());
         its::I2C1_ERR_CB.set(&mut mcu, move || it_err.handler());
         bus
@@ -144,6 +147,30 @@ fn main() -> ! {
     let dev = I2cMutexDevice::new(OS::O, dev);
     #[cfg(feature = "i2c")]
     let mut i2c_task = I2cTask::new(dev);
+
+    // SPI ----------------------------------------------------------
+
+    #[cfg(feature = "spi")]
+    let pins = (gpioa.pa5, gpioa.pa6, gpioa.pa7);
+    #[cfg(feature = "spi_it_sole")]
+    let dev = {
+        let (dev, mut it, mut err_it) = dp.SPI1.init::<OS, u8>(&mut mcu).into_interrupt_sole(
+            pins,
+            spi::MODE_0,
+            200.kHz(),
+            gpioa.pa4,
+            0.nanos(),
+            4,
+            &mut mcu,
+        );
+        its::SPI1_CB.set(&mut mcu, move || {
+            it.handler();
+            err_it.handler();
+        });
+        dev
+    };
+    #[cfg(feature = "spi")]
+    let mut spi_task = SpiTask::new(dev);
 
     // PWM ----------------------------------------------------------
 
@@ -185,6 +212,8 @@ fn main() -> ! {
         uart_task.poll();
         #[cfg(feature = "i2c")]
         i2c_task.poll();
+        #[cfg(feature = "spi")]
+        spi_task.poll();
     }
 }
 
@@ -197,6 +226,7 @@ mod its {
         (DMA1_CHANNEL5, DMA1_CH5_CB),
         (I2C1_EV, I2C1_EVENT_CB),
         (I2C1_ER, I2C1_ERR_CB),
+        (SPI1, SPI1_CB),
     );
 }
 

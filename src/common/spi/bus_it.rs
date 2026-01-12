@@ -5,7 +5,7 @@ use crate::{
         atomic_cell::{AtomicCell, AtomicCellMember, Ordering},
         ringbuf::{Consumer, Producer, RingBuffer},
     },
-    fugit::NanosDurationU32,
+    fugit::{KilohertzU32, NanosDurationU32},
     os_trait::Duration,
 };
 use core::{
@@ -34,7 +34,7 @@ where
 {
     pub fn new(
         mut spi: SPI,
-        speed: HertzU32,
+        speed: KilohertzU32,
         max_operation: usize,
     ) -> (
         Self,
