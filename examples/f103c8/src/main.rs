@@ -211,12 +211,13 @@ fn main() -> ! {
     #[cfg(feature = "exti")]
     {
         let mut ex = gpiob.pb1.into_pull_up_input();
-        ex.make_interrupt_source(&mut mcu.afio);
-        ex.trigger_on_edge(Edge::Rising);
-        ex.enable_interrupt();
+        ex.init_external_interrupt(Edge::Rising, true, &mut mcu.afio);
         its::EXTI1_CB.set(&mut mcu, move || {
-            if ex.check_interrupt() {
-                ex.clear_interrupt_pending_bit();
+            if ex.check_and_clear_interrupt() {
+                static mut A: u32 = 0;
+                unsafe {
+                    A += 1;
+                }
             }
         });
     }

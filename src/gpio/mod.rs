@@ -229,10 +229,11 @@ impl Interruptable for Dynamic {}
 
 /// External Interrupt Pin
 pub trait ExtiPin {
-    fn make_interrupt_source(&mut self, afio: &mut afio::Afio);
-    fn trigger_on_edge(&mut self, level: Edge);
+    fn init_external_interrupt(&mut self, edge: Edge, enable: bool, afio: &mut afio::Afio);
+    fn trigger_on_edge(&mut self, edge: Edge);
     fn enable_interrupt(&mut self);
     fn disable_interrupt(&mut self);
+    fn check_and_clear_interrupt(&mut self) -> bool;
     fn clear_interrupt_pending_bit(&mut self);
     fn check_interrupt(&self) -> bool;
 }
@@ -242,8 +243,7 @@ where
     PIN: PinExt,
     PIN::Mode: Interruptable,
 {
-    /// Make corresponding EXTI line sensitive to this pin
-    fn make_interrupt_source(&mut self, afio: &mut afio::Afio) {
+    fn init_external_interrupt(&mut self, edge: Edge, enable: bool, afio: &mut afio::Afio) {
         let pin_number = self.pin_id();
         let port = self.port_id() as u32;
         let offset = 4 * (pin_number % 4);
@@ -269,6 +269,13 @@ where
                 });
             }
             _ => unreachable!(),
+        }
+
+        self.trigger_on_edge(edge);
+        if enable {
+            self.enable_interrupt();
+        } else {
+            self.disable_interrupt();
         }
     }
 
@@ -312,12 +319,23 @@ where
             .modify(|r, w| unsafe { w.bits(r.bits() & !(1 << self.pin_id())) });
     }
 
+    fn check_and_clear_interrupt(&mut self) -> bool {
+        if self.check_interrupt() {
+            self.clear_interrupt_pending_bit();
+            true
+        } else {
+            false
+        }
+    }
+
     /// Clear the interrupt pending bit for this pin
+    #[inline]
     fn clear_interrupt_pending_bit(&mut self) {
         unsafe { EXTI::steal().pr().write(|w| w.bits(1 << self.pin_id())) };
     }
 
     /// Reads the interrupt pending bit for this pin
+    #[inline]
     fn check_interrupt(&self) -> bool {
         unsafe { (EXTI::steal().pr().read().bits() & (1 << self.pin_id())) != 0 }
     }
