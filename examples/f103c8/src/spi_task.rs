@@ -8,7 +8,7 @@ const REG_READ_ID: u8 = 0x9F;
 pub struct SpiTask<D> {
     dev: D,
     interval: Timeout,
-    buf: [u8; 8],
+    buf: [u8; 12],
 }
 
 impl<D: SpiDevice> SpiTask<D> {
@@ -16,7 +16,7 @@ impl<D: SpiDevice> SpiTask<D> {
         Self {
             dev,
             interval: Timeout::millis(100),
-            buf: [0; 8],
+            buf: [0; 12],
         }
     }
 
@@ -27,6 +27,13 @@ impl<D: SpiDevice> SpiTask<D> {
                     Operation::Write(&[REG_READ_ID]),
                     Operation::Read(&mut self.buf[..3]),
                 ])
+                .unwrap();
+            self.dev
+                .transaction(&mut [Operation::Transfer(&mut self.buf[3..7], &[REG_READ_ID])])
+                .unwrap();
+            self.buf[7] = REG_READ_ID;
+            self.dev
+                .transaction(&mut [Operation::TransferInPlace(&mut self.buf[7..11])])
                 .unwrap();
         }
     }

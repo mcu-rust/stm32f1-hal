@@ -4,6 +4,7 @@ pub mod bus_it;
 pub mod device;
 
 pub use crate::fugit::{HertzU32, KilohertzU32};
+pub use device::*;
 pub use embedded_hal::spi::{Mode, Phase, Polarity};
 
 use crate::common::prelude::*;
@@ -11,7 +12,10 @@ use embedded_hal::spi::{ErrorKind, ErrorType, Operation};
 
 pub trait SpiPeriph {
     /// master mode only
-    fn config<W: Word>(&mut self, mode: Mode, freq: KilohertzU32);
+    /// # Return
+    /// - `true`: changed
+    /// - `false`: no changes
+    fn config<W: Word>(&mut self, mode: Mode, freq: KilohertzU32) -> bool;
 
     fn is_tx_empty(&self) -> bool;
     fn uncheck_write<W: Word>(&mut self, data: W);

@@ -169,6 +169,18 @@ fn main() -> ! {
         });
         dev
     };
+    #[cfg(feature = "spi_it_bus")]
+    let dev = {
+        let (bus, mut it, mut err_it) = dp
+            .SPI1
+            .init::<OS>(&mut mcu)
+            .into_interrupt_bus(pins, 4, &mut mcu);
+        its::SPI1_CB.set(&mut mcu, move || {
+            it.handler();
+            err_it.handler();
+        });
+        bus.new_device(spi::MODE_0, 200.kHz(), gpioa.pa4, 0.nanos())
+    };
     #[cfg(feature = "spi")]
     let mut spi_task = SpiTask::new(dev);
 

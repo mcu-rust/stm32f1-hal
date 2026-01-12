@@ -76,9 +76,9 @@ And [stm32f1-FreeRTOS-example](https://github.com/mcu-rust/stm32f1-FreeRTOS-exam
 - [x] UART + interrupt (stress tested)
 - [x] UART + DMA (stress tested)
 - [x] I2C + interrupt (tested)
+- [x] SPI + interrupt (tested)
 - [x] DMA
 - [ ] ADC
-- [ ] SPI
 - [ ] More features
 
 ## 🛠 Contributing

@@ -29,7 +29,7 @@ where
 {
     pub fn new(
         mut spi: SPI,
-        speed: KilohertzU32,
+        freq: KilohertzU32,
         max_operation: usize,
     ) -> (
         Self,
@@ -44,7 +44,7 @@ where
         let tx_cmd_r = Arc::new(UnsafeCell::new(tx_cmd_r));
         let (rx_cmd_w, rx_cmd_r) = RingBuffer::<RxCommand>::new(max_operation);
         let rx_cmd_r = Arc::new(UnsafeCell::new(rx_cmd_r));
-        let byte_period = (speed.into_duration() as NanosDurationU32) * 10;
+        let byte_period = (freq.into_duration() as NanosDurationU32) * 10;
         let spi2 = unsafe { spi.steal() };
         let spi3 = unsafe { spi.steal() };
         (
@@ -241,7 +241,9 @@ where
 
     #[inline]
     fn config<W: Word>(&mut self, mode: Mode, freq: KilohertzU32) {
-        self.spi.config::<W>(mode, freq);
+        if self.spi.config::<W>(mode, freq) {
+            self.byte_period = (freq.into_duration() as NanosDurationU32) * 10;
+        }
     }
 }
 

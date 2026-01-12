@@ -59,7 +59,7 @@ impl SpiPeriphConfig for SpiX {
 // Implement Peripheral -------------------------------------------------------
 
 impl SpiPeriph for SpiX {
-    fn config<W: Word>(&mut self, mode: Mode, freq: KilohertzU32) {
+    fn config<W: Word>(&mut self, mode: Mode, freq: KilohertzU32) -> bool {
         let dff = size_of::<W>() != 1;
         let cpha = mode.phase == Phase::CaptureOnSecondTransition;
         let cpol = mode.polarity == Polarity::IdleHigh;
@@ -71,7 +71,7 @@ impl SpiPeriph for SpiX {
             && cr1.cpol().bit() == cpol
             && cr1.br().bits() == br
         {
-            return;
+            return false;
         }
 
         self.cr1().modify(|_, w| w.spe().clear_bit());
@@ -86,6 +86,7 @@ impl SpiPeriph for SpiX {
             w.br().set(br)
         });
         self.cr1().modify(|_, w| w.spe().set_bit());
+        true
     }
 
     #[inline]

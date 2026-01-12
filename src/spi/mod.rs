@@ -3,9 +3,9 @@ mod spi1;
 mod spi3;
 
 use embedded_hal::digital::OutputPin;
-use os_trait::OsInterface;
+use os_trait::{Mutex, OsInterface, prelude::*};
 
-pub use crate::common::spi::{device::SpiSoleDevice, *};
+pub use crate::common::spi::*;
 pub use embedded_hal::spi::{MODE_0, MODE_1, MODE_2, MODE_3};
 
 use crate::{
@@ -58,6 +58,55 @@ where
         self.spi.init_config::<W>(mode, freq, true);
         let (bus, it, err_it) = bus_it::SpiBus::new(self.spi, freq, max_operation);
         (SpiSoleDevice::new(bus, cs, cs_delay), it, err_it)
+    }
+
+    pub fn into_interrupt_bus<REMAP: RemapMode<T>>(
+        mut self,
+        pins: (
+            impl SpiSckPin<REMAP>,
+            impl SpiMisoPin<REMAP>,
+            impl SpiMosiPin<REMAP>,
+        ),
+        max_operation: usize,
+        mcu: &mut Mcu,
+    ) -> (
+        SpiDeviceBuilder<OS, bus_it::SpiBus<OS, T>>,
+        bus_it::InterruptHandler<OS, T>,
+        bus_it::ErrorInterruptHandler<OS, T>,
+    ) {
+        let _ = (pins.0.into_alternate(), pins.2.into_alternate());
+        REMAP::remap(&mut mcu.afio);
+        let freq = 100.kHz();
+        self.spi.init_config::<u8>(MODE_0, freq, true);
+        let (bus, it, err_it) = bus_it::SpiBus::new(self.spi, freq, max_operation);
+        (
+            SpiDeviceBuilder {
+                bus: Arc::new(OS::mutex(bus)),
+            },
+            it,
+            err_it,
+        )
+    }
+}
+
+pub struct SpiDeviceBuilder<OS: OsInterface, BUS> {
+    bus: Arc<Mutex<OS, BUS>>,
+}
+
+impl<OS, BUS> SpiDeviceBuilder<OS, BUS>
+where
+    OS: OsInterface,
+    BUS: SpiBusInterface,
+{
+    pub fn new_device<W: Word, CS: OutputPin>(
+        &self,
+        mode: Mode,
+        freq: KilohertzU32,
+        cs: impl SpiCsPin<CS>,
+        cs_delay: NanosDurationU32,
+    ) -> SpiMutexDevice<OS, CS, BUS, W> {
+        let cs = cs.into_cs_pin();
+        SpiMutexDevice::new(Arc::clone(&self.bus), cs, cs_delay, mode, freq)
     }
 }
 
