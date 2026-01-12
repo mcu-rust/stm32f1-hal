@@ -222,7 +222,7 @@ fn main() -> ! {
         });
     }
 
-    loop {
+    run(move || {
         led_task.poll();
         #[cfg(feature = "uart")]
         uart_task.poll();
@@ -230,7 +230,7 @@ fn main() -> ! {
         i2c_task.poll();
         #[cfg(feature = "spi")]
         spi_task.poll();
-    }
+    })
 }
 
 mod its {
@@ -250,4 +250,15 @@ mod its {
 fn panic(_info: &PanicInfo) -> ! {
     asm::bkpt();
     loop {}
+}
+
+/// It's used to test Send trait
+pub fn run<F>(mut func: F) -> !
+where
+    F: FnMut() -> (),
+    F: Send + 'static,
+{
+    loop {
+        func();
+    }
 }
