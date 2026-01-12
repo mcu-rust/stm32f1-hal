@@ -77,9 +77,7 @@ fn main() -> ! {
 
     // LED ----------------------------------------------------------
 
-    let led = gpiob
-        .pb0
-        .into_open_drain_output_with_state(&mut gpiob.crl, PinState::High);
+    let led = gpiob.pb0.into_open_drain_output_with_state(PinState::High);
     let mut led_task = LedTask::new(led);
 
     // UART ---------------------------------------------------------
@@ -196,7 +194,7 @@ fn main() -> ! {
         let c1 = gpioa.pa8;
         let mut tim1 = dp.TIM1.init(&mut mcu);
         tim1.set_count_direction(CountDirection::Up); // Optional
-        let (mut bt, Some(mut ch1), _) =
+        let (mut bt, Some(mut ch1), None) =
             tim1.into_pwm2::<RemapDefault<_>>((c1, NONE_PIN), 20.kHz(), true, &mut mcu)
         else {
             panic!()
@@ -212,7 +210,7 @@ fn main() -> ! {
 
     #[cfg(feature = "exti")]
     {
-        let mut ex = gpiob.pb1.into_pull_up_input(&mut gpiob.crl);
+        let mut ex = gpiob.pb1.into_pull_up_input();
         ex.make_interrupt_source(&mut mcu.afio);
         ex.trigger_on_edge(Edge::Rising);
         ex.enable_interrupt();

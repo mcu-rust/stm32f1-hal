@@ -645,46 +645,40 @@ where
     /// Configures the pin to operate as an alternate function push-pull output
     /// pin.
     #[inline]
-    pub fn into_alternate_push_pull(
-        self,
-        cr: &mut <Self as HL>::Cr,
-    ) -> Pin<P, N, Alternate<PushPull>> {
-        self.into_mode(cr)
+    pub fn into_alternate_push_pull(self) -> Pin<P, N, Alternate<PushPull>> {
+        self.into_mode(&mut Self::get_cr())
     }
 
     /// Configures the pin to operate as an alternate function open-drain output
     /// pin.
     #[inline]
-    pub fn into_alternate_open_drain(
-        self,
-        cr: &mut <Self as HL>::Cr,
-    ) -> Pin<P, N, Alternate<OpenDrain>> {
-        self.into_mode(cr)
+    pub fn into_alternate_open_drain(self) -> Pin<P, N, Alternate<OpenDrain>> {
+        self.into_mode(&mut Self::get_cr())
     }
 
     /// Configures the pin to operate as a floating input pin
     #[inline]
-    pub fn into_floating_input(self, cr: &mut <Self as HL>::Cr) -> Pin<P, N, Input<Floating>> {
-        self.into_mode(cr)
+    pub fn into_floating_input(self) -> Pin<P, N, Input<Floating>> {
+        self.into_mode(&mut Self::get_cr())
     }
 
     /// Configures the pin to operate as a pulled down input pin
     #[inline]
-    pub fn into_pull_down_input(self, cr: &mut <Self as HL>::Cr) -> Pin<P, N, Input<PullDown>> {
-        self.into_mode(cr)
+    pub fn into_pull_down_input(self) -> Pin<P, N, Input<PullDown>> {
+        self.into_mode(&mut Self::get_cr())
     }
 
     /// Configures the pin to operate as a pulled up input pin
     #[inline]
-    pub fn into_pull_up_input(self, cr: &mut <Self as HL>::Cr) -> Pin<P, N, Input<PullUp>> {
-        self.into_mode(cr)
+    pub fn into_pull_up_input(self) -> Pin<P, N, Input<PullUp>> {
+        self.into_mode(&mut Self::get_cr())
     }
 
     /// Configures the pin to operate as an open-drain output pin.
     /// Initial state will be low.
     #[inline]
-    pub fn into_open_drain_output(self, cr: &mut <Self as HL>::Cr) -> Pin<P, N, Output<OpenDrain>> {
-        self.into_open_drain_output_with_state(cr, PinState::Low)
+    pub fn into_open_drain_output(self) -> Pin<P, N, Output<OpenDrain>> {
+        self.into_open_drain_output_with_state(PinState::Low)
     }
 
     /// Configures the pin to operate as an open-drain output pin.
@@ -692,18 +686,17 @@ where
     #[inline]
     pub fn into_open_drain_output_with_state(
         mut self,
-        cr: &mut <Self as HL>::Cr,
         initial_state: PinState,
     ) -> Pin<P, N, Output<OpenDrain>> {
         self._set_state(initial_state);
-        self.into_mode(cr)
+        self.into_mode(&mut Self::get_cr())
     }
 
     /// Configures the pin to operate as an push-pull output pin.
     /// Initial state will be low.
     #[inline]
-    pub fn into_push_pull_output(self, cr: &mut <Self as HL>::Cr) -> Pin<P, N, Output<PushPull>> {
-        self.into_push_pull_output_with_state(cr, PinState::Low)
+    pub fn into_push_pull_output(self) -> Pin<P, N, Output<PushPull>> {
+        self.into_push_pull_output_with_state(PinState::Low)
     }
 
     /// Configures the pin to operate as an push-pull output pin.
@@ -711,35 +704,31 @@ where
     #[inline]
     pub fn into_push_pull_output_with_state(
         mut self,
-        cr: &mut <Self as HL>::Cr,
         initial_state: PinState,
     ) -> Pin<P, N, Output<PushPull>> {
         self._set_state(initial_state);
-        self.into_mode(cr)
+        self.into_mode(&mut Self::get_cr())
     }
 
     /// Configures the pin to operate as an push-pull output pin.
     /// The state will not be changed.
     #[inline]
-    pub fn into_push_pull_output_with_current_state(
-        self,
-        cr: &mut <Self as HL>::Cr,
-    ) -> Pin<P, N, Output<PushPull>> {
-        self.into_mode(cr)
+    pub fn into_push_pull_output_with_current_state(self) -> Pin<P, N, Output<PushPull>> {
+        self.into_mode(&mut Self::get_cr())
     }
 
     /// Configures the pin to operate as an analog input pin
     #[inline]
-    pub fn into_analog(self, cr: &mut <Self as HL>::Cr) -> Pin<P, N, Analog> {
-        self.into_mode(cr)
+    pub fn into_analog(self) -> Pin<P, N, Analog> {
+        self.into_mode(&mut Self::get_cr())
     }
 
     /// Configures the pin as a pin that can change between input
     /// and output without changing the type. It starts out
     /// as a floating input
     #[inline]
-    pub fn into_dynamic(mut self, cr: &mut <Self as HL>::Cr) -> Pin<P, N, Dynamic> {
-        self.mode::<Input<Floating>>(cr);
+    pub fn into_dynamic(mut self) -> Pin<P, N, Dynamic> {
+        self.mode::<Input<Floating>>(&mut Self::get_cr());
         Pin::new()
     }
 }

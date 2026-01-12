@@ -12,8 +12,7 @@ where
     Self: HL,
 {
     fn into_cs_pin(self) -> Pin<P, N, Output<PushPull>> {
-        let mut cr = Self::get_cr();
-        self.into_push_pull_output_with_state(&mut cr, PinState::High)
+        self.into_push_pull_output_with_state(PinState::High)
     }
 }
 
