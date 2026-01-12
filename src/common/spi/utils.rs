@@ -21,7 +21,7 @@ impl AtomicCellMember for Option<Error> {
         if val == 0 {
             None
         } else {
-            Some(unsafe { core::mem::transmute((val - 1) as u8) })
+            Some(unsafe { core::mem::transmute::<u8, Error>((val - 1) as u8) })
         }
     }
 }

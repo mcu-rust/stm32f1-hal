@@ -1,4 +1,4 @@
-type SpiX = pac::SPI1;
+type SpiX = pac::SPI2;
 
 // $sync begin
 

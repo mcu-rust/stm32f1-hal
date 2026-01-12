@@ -21,6 +21,7 @@ pub struct Heap<const SIZE: usize> {
 
 unsafe impl<const SIZE: usize> Sync for Heap<SIZE> {}
 
+#[allow(clippy::new_without_default)]
 impl<const SIZE: usize> Heap<SIZE> {
     /// Create a new heap allocator
     pub const fn new() -> Self {

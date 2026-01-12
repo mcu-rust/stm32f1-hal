@@ -36,7 +36,6 @@ pub struct Uart<OS: OsInterface, U> {
     _os: PhantomData<OS>,
 }
 
-#[allow(clippy::type_complexity)]
 impl<OS, U> Uart<OS, U>
 where
     OS: OsInterface,

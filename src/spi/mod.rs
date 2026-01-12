@@ -1,4 +1,5 @@
 mod spi1;
+mod spi2;
 #[cfg(feature = "connectivity")]
 mod spi3;
 
@@ -34,6 +35,7 @@ where
     OS: OsInterface,
     T: SpiPeriphConfig,
 {
+    #[allow(clippy::too_many_arguments)]
     pub fn into_interrupt_sole<W: Word, REMAP: RemapMode<T>, CS: OutputPin>(
         mut self,
         pins: (

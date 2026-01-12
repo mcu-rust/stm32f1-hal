@@ -27,6 +27,10 @@ where
     OS: OsInterface,
     SPI: SpiPeriph + Steal,
 {
+    #[allow(
+        clippy::arc_with_non_send_sync,
+        reason = "It's safe because it's only used when interrupts are disabled."
+    )]
     pub fn new(
         mut spi: SPI,
         freq: KilohertzU32,
@@ -224,7 +228,9 @@ where
             Ok(())
         });
         let rst = op_rst.and_then(|_| self.communicate::<W>(data_len));
-        // TODO error handler
+        if rst.is_err() {
+            // TODO error handler
+        }
         rst
     }
 }
@@ -293,12 +299,12 @@ where
             }
         }
 
-        if let Some(data) = self.spi.read::<W>() {
-            if !self.store_data(data) {
-                self.spi.disable_all_interrupt();
-                self.work.store(Work::Success, Ordering::Release);
-                self.notifier.notify();
-            }
+        if let Some(data) = self.spi.read::<W>()
+            && !self.store_data(data)
+        {
+            self.spi.disable_all_interrupt();
+            self.work.store(Work::Success, Ordering::Release);
+            self.notifier.notify();
         }
     }
 

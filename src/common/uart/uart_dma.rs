@@ -189,11 +189,7 @@ where
     fn fill_buf(&mut self) -> Result<&[u8], Self::Error> {
         self.waiter
             .wait_with(&Duration::<OS>::micros(self.timeout.ticks()), 1, || {
-                if let Some(d) = self.ch.read_slice(usize::MAX) {
-                    Some(d)
-                } else {
-                    None
-                }
+                self.ch.read_slice(usize::MAX)
             })
             .ok_or(Error::Other)
     }

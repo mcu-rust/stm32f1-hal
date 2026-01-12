@@ -41,7 +41,6 @@ pub struct I2c<OS: OsInterface, I> {
     _os: PhantomData<OS>,
 }
 
-#[allow(clippy::type_complexity)]
 impl<OS, I> I2c<OS, I>
 where
     OS: OsInterface,

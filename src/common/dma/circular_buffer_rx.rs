@@ -21,7 +21,7 @@ where
     }
 
     #[inline]
-    pub fn read_slice<'a, 'b>(&'a mut self, max: usize) -> Option<&'b [T]> {
+    pub fn read_slice<'b>(&mut self, max: usize) -> Option<&'b [T]> {
         self.buf.read_slice(self.ch.get_unprocessed_len(), max)
     }
 
@@ -63,7 +63,7 @@ impl<T: Sized + Copy> CircularBuffer<T> {
         }
     }
 
-    fn read_slice<'a, 'b>(&'a mut self, unprocessed_len: usize, max: usize) -> Option<&'b [T]> {
+    fn read_slice<'b>(&mut self, unprocessed_len: usize, max: usize) -> Option<&'b [T]> {
         let recv_idx = self.get_recv_index(unprocessed_len);
 
         if self.read_idx == recv_idx {
