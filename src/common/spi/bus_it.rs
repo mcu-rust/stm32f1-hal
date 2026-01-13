@@ -289,7 +289,7 @@ where
         if let Work::Start(w) = self.work.load(Ordering::Acquire) {
             self.work.store(Work::Work(w), Ordering::Relaxed);
             self.tx_cache = TxCommand::Dummy(0);
-            self.pop_rx_cache();
+            self.rx_cache = RxCommand::Dummy(0);
         }
 
         match self.work.load(Ordering::Relaxed) {
@@ -320,43 +320,17 @@ where
         }
     }
 
-    #[inline]
     fn load_data<W: Word>(&mut self) -> Option<W> {
         loop {
-            let data = match &self.tx_cache {
-                TxCommand::WriteU8(p, len) => {
-                    if self.tx_i < *len {
-                        Some(W::from_u32(unsafe { *(p.add(self.tx_i)) } as u32))
-                    } else {
-                        None
-                    }
-                }
-                TxCommand::WriteU16(p, len) => {
-                    if self.tx_i < *len {
-                        Some(W::from_u32(unsafe { *(p.add(self.tx_i)) } as u32))
-                    } else {
-                        None
-                    }
-                }
-                TxCommand::WriteU32(p, len) => {
-                    if self.tx_i < *len {
-                        Some(W::from_u32(unsafe { *(p.add(self.tx_i)) }))
-                    } else {
-                        None
-                    }
-                }
-                TxCommand::Dummy(len) => {
-                    if self.tx_i < *len {
-                        Some(W::default())
-                    } else {
-                        None
-                    }
-                }
-            };
-
-            self.tx_i += 1;
-            if data.is_some() {
-                return data;
+            let (p, len) = self.get_tx_ptr::<W>();
+            if self.tx_i < len {
+                let data = if p.is_null() {
+                    W::default()
+                } else {
+                    unsafe { *(p.add(self.tx_i)) }
+                };
+                self.tx_i += 1;
+                return Some(data);
             }
 
             if let Ok(cmd) = unsafe { &mut *self.tx_cmd_r.get() }.pop() {
@@ -371,45 +345,84 @@ where
 
     #[inline]
     fn store_data<W: Word>(&mut self, data: W) -> bool {
-        let len = match &self.rx_cache {
-            RxCommand::ReadU8(p, len) => {
-                if self.rx_i < *len {
-                    unsafe { *(p.add(self.rx_i)) = data.into_u32() as u8 };
+        loop {
+            let (p, len) = self.get_rx_ptr::<W>();
+            if self.rx_i < len {
+                if !p.is_null() {
+                    unsafe { *(p.add(self.rx_i)) = data };
                 }
-                *len
+                self.rx_i += 1;
             }
-            RxCommand::ReadU16(p, len) => {
-                if self.rx_i < *len {
-                    unsafe { *(p.add(self.rx_i)) = data.into_u32() as u16 };
-                }
-                *len
-            }
-            RxCommand::ReadU32(p, len) => {
-                if self.rx_i < *len {
-                    unsafe { *(p.add(self.rx_i)) = data.into_u32() };
-                }
-                *len
-            }
-            RxCommand::Dummy(len) => *len,
-        };
 
-        self.rx_i += 1;
-        if self.rx_i >= len {
-            self.pop_rx_cache()
-        } else {
-            true
+            if self.rx_i >= len {
+                if let Ok(cmd) = unsafe { &mut *self.rx_cmd_r.get() }.pop() {
+                    self.rx_cache = cmd;
+                    self.rx_i = 0;
+                    if len > 0 {
+                        return true;
+                    }
+                } else {
+                    self.rx_cache = RxCommand::Dummy(0);
+                    return false;
+                }
+            } else {
+                return true;
+            }
         }
     }
 
-    fn pop_rx_cache(&mut self) -> bool {
-        if let Ok(cmd) = unsafe { &mut *self.rx_cmd_r.get() }.pop() {
-            self.rx_cache = cmd;
-            self.rx_i = 0;
-            true
+    fn get_tx_ptr<W: Word>(&self) -> (*const W, usize) {
+        let cmd = &self.tx_cache;
+        if let TxCommand::Dummy(len) = cmd {
+            return (core::ptr::null(), *len);
         } else {
-            self.rx_cache = RxCommand::Dummy(0);
-            false
+            match size_of::<W>() {
+                1 => {
+                    if let TxCommand::WriteU8(p, len) = cmd {
+                        return (*p as *const W, *len);
+                    }
+                }
+                2 => {
+                    if let TxCommand::WriteU16(p, len) = cmd {
+                        return (*p as *const W, *len);
+                    }
+                }
+                4 => {
+                    if let TxCommand::WriteU32(p, len) = cmd {
+                        return (*p as *const W, *len);
+                    }
+                }
+                _ => (),
+            }
         }
+        panic!()
+    }
+
+    fn get_rx_ptr<W: Word>(&self) -> (*mut W, usize) {
+        let cmd = &self.rx_cache;
+        if let RxCommand::Dummy(len) = cmd {
+            return (core::ptr::null_mut(), *len);
+        } else {
+            match size_of::<W>() {
+                1 => {
+                    if let RxCommand::ReadU8(p, len) = cmd {
+                        return (*p as *mut W, *len);
+                    }
+                }
+                2 => {
+                    if let RxCommand::ReadU16(p, len) = cmd {
+                        return (*p as *mut W, *len);
+                    }
+                }
+                4 => {
+                    if let RxCommand::ReadU32(p, len) = cmd {
+                        return (*p as *mut W, *len);
+                    }
+                }
+                _ => (),
+            }
+        }
+        panic!()
     }
 }
 

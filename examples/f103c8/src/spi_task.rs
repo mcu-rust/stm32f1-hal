@@ -35,6 +35,12 @@ impl<D: SpiDevice> SpiTask<D> {
             self.dev
                 .transaction(&mut [Operation::TransferInPlace(&mut self.buf[7..11])])
                 .unwrap();
+            // assert_eq!(
+            //     self.buf,
+            //     [
+            //         0xEF, 0x40, 0x18, 0, 0xEF, 0x40, 0x18, 0, 0xEF, 0x40, 0x18, 0
+            //     ]
+            // );
         }
     }
 }

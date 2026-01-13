@@ -18,7 +18,7 @@ impl<M: AtomicCellMember> AtomicCell<M> {
         }
     }
 
-    pub const fn const_new(value: usize) -> Self {
+    pub const fn new_const(value: usize) -> Self {
         Self {
             value: AtomicUsize::new(value),
             _m: PhantomData,

@@ -50,6 +50,7 @@ where
                 self.dev
                     .write_read(ADDR, &[REG_CONFIG], &mut self.buf[3..7])
                     .unwrap();
+                assert_eq!(self.buf[3..7], [0x03, 0x10, 0x08, 0x33]);
             }
         }
     }
