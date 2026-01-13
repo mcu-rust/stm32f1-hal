@@ -78,6 +78,8 @@ And [stm32f1-FreeRTOS-example](https://github.com/mcu-rust/stm32f1-FreeRTOS-exam
 - [x] I2C + interrupt (tested)
 - [x] SPI + interrupt (tested)
 - [x] DMA
+- [x] PWM output
+- [ ] DAC
 - [ ] ADC
 - [ ] More features
 

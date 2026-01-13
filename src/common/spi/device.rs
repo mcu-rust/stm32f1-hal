@@ -12,6 +12,7 @@ pub struct SpiMutexDevice<OS: OsInterface, CS, BUS, W> {
     cs_delay: NanosDurationU32,
     mode: Mode,
     freq: KilohertzU32,
+    id: u8,
     _w: PhantomData<W>,
 }
 
@@ -28,6 +29,7 @@ where
         cs_delay: NanosDurationU32,
         mode: Mode,
         freq: KilohertzU32,
+        id: u8,
     ) -> Self {
         Self {
             bus,
@@ -35,6 +37,7 @@ where
             cs_delay,
             mode,
             freq,
+            id,
             _w: PhantomData,
         }
     }
@@ -49,7 +52,7 @@ where
 {
     fn transaction(&mut self, operations: &mut [Operation<'_, W>]) -> Result<(), Self::Error> {
         let mut bus = self.bus.lock();
-        bus.config::<W>(self.mode, self.freq);
+        bus.config::<W>(self.mode, self.freq, self.id);
         self.cs.set_low().map_err(|_| Error::ChipSelectFault)?;
         let ns = self.cs_delay.ticks();
         if ns > 0 {

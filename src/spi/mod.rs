@@ -84,6 +84,7 @@ where
         (
             SpiDeviceBuilder {
                 bus: Arc::new(OS::mutex(bus)),
+                id: 0,
             },
             it,
             err_it,
@@ -93,6 +94,7 @@ where
 
 pub struct SpiDeviceBuilder<OS: OsInterface, BUS> {
     bus: Arc<Mutex<OS, BUS>>,
+    id: u8,
 }
 
 impl<OS, BUS> SpiDeviceBuilder<OS, BUS>
@@ -101,14 +103,15 @@ where
     BUS: SpiBusInterface,
 {
     pub fn new_device<W: Word, CS: OutputPin>(
-        &self,
+        &mut self,
         mode: Mode,
         freq: KilohertzU32,
         cs: impl SpiCsPin<CS>,
         cs_delay: NanosDurationU32,
     ) -> SpiMutexDevice<OS, CS, BUS, W> {
         let cs = cs.into_cs_pin();
-        SpiMutexDevice::new(Arc::clone(&self.bus), cs, cs_delay, mode, freq)
+        self.id = self.id.strict_add(1);
+        SpiMutexDevice::new(Arc::clone(&self.bus), cs, cs_delay, mode, freq, self.id)
     }
 }
 

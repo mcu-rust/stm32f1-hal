@@ -31,7 +31,7 @@ pub trait SpiPeriph {
 pub trait SpiBusInterface {
     fn transaction<W: Word>(&mut self, operations: &mut [Operation<'_, W>]) -> Result<(), Error>;
     /// config mode and frequency
-    fn config<W: Word>(&mut self, mode: Mode, freq: KilohertzU32);
+    fn config<W: Word>(&mut self, mode: Mode, freq: KilohertzU32, dev_id: u8);
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

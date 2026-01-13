@@ -20,6 +20,7 @@ pub struct SpiBus<OS: OsInterface, SPI> {
     rx_cmd_r: Arc<UnsafeCell<Consumer<RxCommand>>>,
     waiter: OS::NotifyWaiter,
     byte_period: NanosDurationU32,
+    last_dev_id: u8,
 }
 
 unsafe impl<OS, SPI> Send for SpiBus<OS, SPI>
@@ -69,6 +70,7 @@ where
                 rx_cmd_r: Arc::clone(&rx_cmd_r),
                 waiter,
                 byte_period,
+                last_dev_id: 0,
             },
             InterruptHandler {
                 spi: spi2,
@@ -253,9 +255,12 @@ where
     }
 
     #[inline]
-    fn config<W: Word>(&mut self, mode: Mode, freq: KilohertzU32) {
-        if self.spi.config::<W>(mode, freq) {
-            self.byte_period = (freq.into_duration() as NanosDurationU32) * 10;
+    fn config<W: Word>(&mut self, mode: Mode, freq: KilohertzU32, dev_id: u8) {
+        if dev_id != self.last_dev_id {
+            self.last_dev_id = dev_id;
+            if self.spi.config::<W>(mode, freq) {
+                self.byte_period = (freq.into_duration() as NanosDurationU32) * 10;
+            }
         }
     }
 }

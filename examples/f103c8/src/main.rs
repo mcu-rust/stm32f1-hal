@@ -168,7 +168,7 @@ fn main() -> ! {
     );
     #[cfg(feature = "spi_it_bus")]
     let (dev, mut it, mut err_it) = {
-        let (bus, it, err_it) = dp
+        let (mut bus, it, err_it) = dp
             .SPI1
             .init::<OS>(&mut mcu)
             .into_interrupt_bus(pins, 4, &mut mcu);
