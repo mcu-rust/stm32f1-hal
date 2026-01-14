@@ -349,7 +349,7 @@ where
             Step::Write => {
                 while self.i2c.is_tx_empty() {
                     if let Some(data) = self.load_data() {
-                        self.i2c.uncheck_write(data);
+                        self.i2c.unchecked_write(data);
                     } else {
                         if let Ok(Command::Read(len)) = self.cmd().pop() {
                             self.step_to_prepare_read(len);
