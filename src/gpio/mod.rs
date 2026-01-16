@@ -77,7 +77,7 @@ mod erased;
 mod impl_hal;
 mod partially_erased;
 
-use crate::{Steal, afio, pac::EXTI, rcc::Rcc};
+use crate::{Steal, afio, pac::EXTI, prelude::*, rcc::Rcc};
 use core::marker::PhantomData;
 
 pub use erased::{AnyPin, ErasedPin};
@@ -200,8 +200,8 @@ pub use embedded_hal::digital::PinState;
 
 // Using SCREAMING_SNAKE_CASE to be consistent with other HALs
 // see 59b2740 and #125 for motivation
-#[allow(non_camel_case_types)]
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[maybe_derive_format]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Edge {
     Rising,
     Falling,
@@ -354,7 +354,8 @@ pub enum Dynamic {
 
 impl Active for Dynamic {}
 
-#[derive(Debug, PartialEq, Eq)]
+#[maybe_derive_format]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum PinModeError {
     IncorrectMode,
 }

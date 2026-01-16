@@ -47,6 +47,8 @@ pub use stm32f1::stm32f103 as pac;
 #[cfg(any(feature = "f105", feature = "f107"))]
 pub use stm32f1::stm32f107 as pac;
 
+use defmt_or_log as dl;
+
 pub trait Steal {
     /// Steal an instance of this peripheral
     ///

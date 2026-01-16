@@ -28,7 +28,8 @@ pub trait I2cPeriphConfig: I2cPeriph + GetClock + Enable + Reset + Steal {
     fn it_clean_needless_flag(&self);
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[maybe_derive_format]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Interrupt {
     Error,
     Event,
@@ -116,13 +117,14 @@ fn convert_addr(addr: Address) -> Address {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[maybe_derive_format]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum DutyCycle {
     Ratio2to1,
     Ratio16to9,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Mode {
     Standard {
         frequency: HertzU32,

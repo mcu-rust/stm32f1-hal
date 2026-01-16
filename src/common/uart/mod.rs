@@ -71,7 +71,8 @@ pub trait UartPeriphWithDma: UartPeriph {
     fn enable_dma_rx(&mut self, enable: bool);
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[maybe_derive_format]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Event {
     /// New data can be sent
     TxEmpty,
@@ -82,7 +83,8 @@ pub enum Event {
 }
 
 /// UART error
-#[derive(Debug)]
+#[maybe_derive_format]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum Error {
     /// The peripheral receive buffer was overrun.

@@ -39,6 +39,7 @@ pub trait DmaChannel {
     fn check_and_clear_interrupt(&mut self, event: DmaEvent) -> bool;
 }
 
+#[maybe_derive_format]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DmaEvent {
     TransferComplete,

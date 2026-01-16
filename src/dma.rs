@@ -3,7 +3,7 @@
 pub use crate::common::dma::*;
 pub type DmaPriority = pac::dma1::ch::cr::PL;
 
-use crate::{Steal, common::wrap_trait::*, pac, rcc::Rcc};
+use crate::{Steal, common::wrap_trait::*, dl, pac, rcc::Rcc};
 
 pub trait DmaInit {
     type Channels;
@@ -172,7 +172,7 @@ where
     fn set_transfer_length(&mut self, len: usize) {
         self.ch()
             .ndtr()
-            .write(|w| w.ndt().set(u16::try_from(len).unwrap()));
+            .write(|w| w.ndt().set(dl::unwrap!(u16::try_from(len))));
     }
 
     #[inline]

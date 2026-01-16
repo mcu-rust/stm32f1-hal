@@ -13,6 +13,7 @@ use crate::{
         BKP, PWR, RCC,
         rcc::{self, RegisterBlock as RccRB},
     },
+    prelude::*,
 };
 use core::ops::{Deref, DerefMut};
 
@@ -229,6 +230,7 @@ const HSI: u32 = 8_000_000; // Hz
 ///
 /// **NOTE**: Currently, it is not guaranteed that the exact frequencies selected will be
 /// used, only frequencies close to it.
+#[maybe_derive_format]
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct Config {
     hse: Option<u32>,
@@ -350,7 +352,7 @@ impl BkpInit for BKP {
 ///
 /// let clocks = rcc.cfgr.freeze(&mut flash.acr);
 /// ```
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Clocks {
     hclk: HertzU32,
     pclk1: HertzU32,
@@ -570,7 +572,8 @@ pub trait Reset: RccBus {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[maybe_derive_format]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct RawConfig {
     pub hse: Option<u32>,
     pub hse_bypass: bool,
@@ -601,8 +604,9 @@ impl Default for RawConfig {
     }
 }
 
+#[maybe_derive_format]
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum HPre {
     /// SYSCLK not divided
     Div1 = 7,
@@ -624,7 +628,8 @@ pub enum HPre {
     Div512 = 15,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[maybe_derive_format]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[repr(u8)]
 pub enum PPre {
     /// HCLK not divided

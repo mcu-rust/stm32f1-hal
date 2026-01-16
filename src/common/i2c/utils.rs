@@ -1,7 +1,8 @@
 use super::*;
 use crate::common::{atomic_cell::AtomicCellMember, ringbuf::PushError};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[maybe_derive_format]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Work {
     Start = 0,
     Addr,
@@ -22,7 +23,8 @@ impl AtomicCellMember for Work {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[maybe_derive_format]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Command {
     SlaveAddr(u8),
     SlaveAddr10(u16),
