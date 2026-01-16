@@ -98,7 +98,7 @@ fn main() -> ! {
         panic!()
     };
 
-    #[cfg(feature = "uart_dma")]
+    #[cfg(feature = "uart-dma")]
     let (tx, rx) = {
         dma1.4.set_priority(DmaPriority::Medium);
         dma1.5.set_priority(DmaPriority::Medium);
@@ -110,7 +110,7 @@ fn main() -> ! {
         (tx, rx)
     };
 
-    #[cfg(feature = "uart_it")]
+    #[cfg(feature = "uart-it")]
     let (tx, rx) = {
         let (tx, mut tx_it) = uart_tx.into_interrupt(32, 0.micros());
         let (rx, mut rx_it) = uart_rx.into_interrupt(64, 100.micros());
@@ -121,7 +121,7 @@ fn main() -> ! {
         (tx, rx)
     };
 
-    #[cfg(feature = "uart_poll")]
+    #[cfg(feature = "uart-poll")]
     let (_, _) = (uart_tx.into_poll(0.micros()), uart_rx.into_poll(0.micros()));
 
     #[cfg(feature = "uart")]
@@ -131,13 +131,13 @@ fn main() -> ! {
 
     #[cfg(feature = "i2c")]
     let pins = (gpiob.pb6, gpiob.pb7);
-    #[cfg(feature = "i2c_it_sole")]
+    #[cfg(feature = "i2c-it-sole")]
     let (dev, mut it, mut it_err) =
         dp.I2C1
             .init::<OS>(&mut mcu)
             .into_interrupt_sole(pins, 200.kHz(), 4, &mut mcu);
 
-    #[cfg(feature = "i2c_it_bus")]
+    #[cfg(feature = "i2c-it-bus")]
     let (dev, mut it, mut it_err) = {
         let (bus, it, err_it) =
             dp.I2C1
@@ -156,7 +156,7 @@ fn main() -> ! {
 
     #[cfg(feature = "spi")]
     let pins = (gpioa.pa5, gpioa.pa6, gpioa.pa7);
-    #[cfg(feature = "spi_it_sole")]
+    #[cfg(feature = "spi-it-sole")]
     let (dev, mut it, mut err_it) = dp.SPI1.init::<OS>(&mut mcu).into_interrupt_sole(
         pins,
         spi::MODE_0,
@@ -166,7 +166,7 @@ fn main() -> ! {
         4,
         &mut mcu,
     );
-    #[cfg(feature = "spi_it_bus")]
+    #[cfg(feature = "spi-it-bus")]
     let (dev, mut it, mut err_it) = {
         let (mut bus, it, err_it) = dp
             .SPI1

@@ -6,28 +6,28 @@
     version = "0.1.0"
 
 [features]
-    default = ["exti", "timer", "uart_it", "spi_it_bus"]
+    default = ["exti", "timer", "uart-it", "spi-it-bus"]
     exti = []
     i2c = []
-    i2c_it_bus = ["i2c"]
-    i2c_it_sole = ["i2c"]
+    i2c-it-bus = ["i2c"]
+    i2c-it-sole = ["i2c"]
     spi = []
-    spi_it_bus = ["spi"]
-    spi_it_sole = ["spi"]
+    spi-it-bus = ["spi"]
+    spi-it-sole = ["spi"]
     timer = []
     uart = []
-    uart_dma = ["uart"]
-    uart_it = ["uart"]
-    uart_poll = ["uart"]
+    uart-dma = ["uart"]
+    uart-it = ["uart"]
+    uart-poll = ["uart"]
 
 [dependencies]
     [dependencies.stm32f1-hal]
         features = ["f103", "x8", "critical-section-single-core"]
         path = "../.."
 
-[profile.release]
+[profile.dev]
     codegen-units = 1
-    debug = true
-    # lto = true
-    opt-level = 2
+    debug = 2
+    # lto = "fat"
+    opt-level = 1
     panic = "abort"

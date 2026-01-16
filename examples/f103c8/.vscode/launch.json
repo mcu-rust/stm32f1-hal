@@ -2,17 +2,46 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug Microcontroller",
+            "name": "probe_rs debug",
+            "type": "probe-rs-debug",
+            // "request": "attach",
+            "request": "launch",
+            "flashingConfig": {
+                "flashingEnabled": true,
+            },
+            "preLaunchTask": "build",
+            "chip": "STM32F103C8",
+            "coreConfigs": [
+                {
+                    "rttEnabled": true,
+                    "svdFile": "STM32F103.svd",
+                    "programBinary": "target/thumbv7m-none-eabi/debug/f103c8"
+                }
+            ]
+        },
+        {
+            "name": "ST-Link Debug",
             "type": "cortex-debug",
             "request": "launch",
-            "cwd": "${workspaceFolder}",
+            "servertype": "stlink",
+            "interface": "swd",
+            "runToEntryPoint": "main",
+            "svdFile": "STM32F103.svd",
+            "preLaunchTask": "build",
+            "device": "STM32F103C8",
+            "executable": "target/thumbv7m-none-eabi/debug/f103c8"
+        },
+        {
+            "name": "J-Link Debug",
+            "type": "cortex-debug",
+            "request": "launch",
             "servertype": "jlink",
             "interface": "swd",
             "runToEntryPoint": "main",
             "svdFile": "STM32F103.svd",
             "preLaunchTask": "build",
             "device": "STM32F103C8",
-            "executable": "${workspaceFolder}/target/thumbv7m-none-eabi/release/f103c8"
+            "executable": "target/thumbv7m-none-eabi/debug/f103c8"
         }
     ]
 }
