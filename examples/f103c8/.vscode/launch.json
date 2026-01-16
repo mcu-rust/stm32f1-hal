@@ -8,12 +8,22 @@
             "request": "launch",
             "flashingConfig": {
                 "flashingEnabled": true,
+                "verifyBeforeFlashing": true,
+                "verifyAfterFlashing": true,
             },
             "preLaunchTask": "build",
             "chip": "STM32F103C8",
             "coreConfigs": [
                 {
                     "rttEnabled": true,
+                    "rttChannelFormats": [
+                        {
+                            "channelNumber": 0,
+                            "dataFormat": "Defmt",
+                            "showLocation": true,
+                            "showTimestamps": true
+                        }
+                    ],
                     "svdFile": "STM32F103.svd",
                     "programBinary": "target/thumbv7m-none-eabi/debug/f103c8"
                 }

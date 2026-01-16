@@ -5,7 +5,7 @@
     "rust-analyzer.cargo.features": [
         "critical-section-single-core",
         "f103",
-        "xG"
+        "xG",
     ],
     "editor.formatOnSave": true,
     "files.exclude": {

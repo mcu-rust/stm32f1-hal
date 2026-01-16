@@ -34,11 +34,13 @@ use cortex_m::peripheral::{DCB, DWT};
 
 use crate::rcc::{self, Rcc};
 use crate::{
+    l::maybe_derive_format,
     os_trait::{TickDuration, TickInstant},
     prelude::*,
 };
 
 /// Bits per second
+#[maybe_derive_format]
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Debug)]
 pub struct Bps(pub u32);
 

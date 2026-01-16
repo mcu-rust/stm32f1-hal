@@ -3,4 +3,8 @@
 
 [target.thumbv7m-none-eabi]
     linker = "flip-link"
-    rustflags = ["-C", "link-arg=-Tlink.x"]
+    rustflags = ["-C", "link-arg=-Tlink.x", "-C", "link-arg=-Tdefmt.x"]
+
+[env]
+    DEFMT_LOG = "info"
+    DEFMT_RTT_BUFFER_SIZE = "128"

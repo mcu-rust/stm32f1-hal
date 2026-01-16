@@ -1,4 +1,4 @@
-use crate::{Mcu, pac::Interrupt};
+use crate::{Mcu, l, pac::Interrupt};
 use alloc::boxed::Box;
 use core::{
     cell::{Cell, UnsafeCell},
@@ -30,7 +30,7 @@ impl Callback {
     pub fn set(&self, mcu: &mut Mcu, callback: impl FnMut() + 'static) {
         let cb = Box::new(callback);
         critical_section::with(|cs| {
-            assert!(self.once_flag.borrow(cs).get());
+            l::assert!(self.once_flag.borrow(cs).get());
             let callback = unsafe { &mut *self.callback.get() };
             callback.write(cb);
             self.once_flag.borrow(cs).set(false);

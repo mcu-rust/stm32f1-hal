@@ -135,7 +135,7 @@ impl GeneralTimer for TimerX {
     fn stop_in_debug(&mut self, state: bool) {
         let dbg = unsafe { DBG::steal() };
         // $sync dbg_t10
-        //TODO: restore these timers once stm32-rs has been updated
+        // TODO: restore these timers once stm32-rs has been updated
         // dbg.cr().modify(|_, w| w.dbg_tim10_stop().bit(state));
         // $sync dbg_end
     }

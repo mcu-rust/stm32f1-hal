@@ -40,7 +40,7 @@ While parts of the implementation are adapted from [stm32f1xx-hal](https://githu
 cargo add stm32f1-hal
 ```
 
-```rust
+```rust ignore
 use stm32f1_hal::{self as hal, pac, cortex_m_rt::entry, prelude::*};
 
 #[entry]

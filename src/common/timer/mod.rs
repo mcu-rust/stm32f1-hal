@@ -6,7 +6,7 @@ pub use counter::*;
 pub use fix_timer::*;
 pub use pwm::*;
 
-use crate::fugit::HertzU32;
+use crate::{common::prelude::*, fugit::HertzU32};
 
 pub trait PwmChannel: embedded_hal::pwm::SetDutyCycle {
     fn config(&mut self, mode: PwmMode, polarity: PwmPolarity);
@@ -84,7 +84,8 @@ pub trait TimerWithPwm4Ch: TimerWithPwm3Ch {
 
 // Enumerate ------------------------------------------------------------------
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[maybe_derive_format]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Channel {
     C1,
     C2,
@@ -92,25 +93,29 @@ pub enum Channel {
     C4,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[maybe_derive_format]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum CountDirection {
     Up,
     Down,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[maybe_derive_format]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum PwmMode {
     Mode1,
     Mode2,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[maybe_derive_format]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum PwmPolarity {
     ActiveHigh,
     ActiveLow,
 }
 
-#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+#[maybe_derive_format]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Error {
     /// Timer is disabled
     Disabled,
@@ -118,7 +123,8 @@ pub enum Error {
 }
 
 /// Interrupt events
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[maybe_derive_format]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum SysEvent {
     /// Timer timed out / count down ended
     Update,
@@ -134,7 +140,8 @@ bitflags::bitflags! {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[maybe_derive_format]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum MasterMode {
     ///0: The UG bit from the TIMx_EGR register is used as trigger output
     Reset,

@@ -6,6 +6,7 @@ use crate::{
         ringbuf::{Consumer, Producer, RingBuffer},
     },
     fugit::{KilohertzU32, NanosDurationU32},
+    l,
     os_trait::Duration,
 };
 use core::{cell::UnsafeCell, mem::size_of};
@@ -395,7 +396,7 @@ where
                 _ => (),
             }
         }
-        panic!()
+        l::unreachable!()
     }
 
     fn get_rx_ptr<W: Word>(&self) -> (*mut W, usize) {
@@ -422,7 +423,7 @@ where
                 _ => (),
             }
         }
-        panic!()
+        l::unreachable!()
     }
 }
 

@@ -4,6 +4,8 @@ use core::{
     ops::{Deref, DerefMut},
     sync::atomic::*,
 };
+#[cfg(feature = "defmt")]
+use defmt::Format;
 
 /// A simple atomic mutex for `no_std` environment.
 /// It can be used in interrupt context.
@@ -22,6 +24,16 @@ impl<T> Debug for AtomicMutex<T> {
             true => "Locked",
             _ => "Unlocked",
         })
+    }
+}
+
+#[cfg(feature = "defmt")]
+impl<T> Format for AtomicMutex<T> {
+    fn format(&self, fmt: defmt::Formatter) {
+        match self.state.load(Ordering::Relaxed) {
+            true => defmt::write!(fmt, "Locked"),
+            _ => defmt::write!(fmt, "Unlocked"),
+        };
     }
 }
 
@@ -53,6 +65,7 @@ impl<T> AtomicMutex<T> {
 // ------------------------------------------------------------------------------------------------
 
 /// Holds the mutex until we are dropped
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[derive(Debug)]
 pub struct AtomicMutexGuard<'mutex, T> {
     m: &'mutex AtomicMutex<T>,

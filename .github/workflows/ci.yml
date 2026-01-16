@@ -31,7 +31,7 @@ jobs:
           python-version: "3.13"
       - run: cargo fmt --all --check
       - run: cargo build --release --features=f100,xC
-      - run: cargo build --release --features=f107,xG
+      - run: cargo build --release --features=f107,xG,defmt
       - run: python3.13 scripts/build.py build --release
       - run: python3.13 scripts/build.py clippy
       - run: python3.13 scripts/build.py test

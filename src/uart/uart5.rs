@@ -4,7 +4,7 @@ type UartX = pac::UART5;
 // $sync begin
 
 use super::*;
-use crate::{Mcu, pac};
+use crate::{Mcu, l, pac};
 
 // Initialization -------------------------------------------------------------
 
@@ -23,7 +23,7 @@ impl UartPeriphConfig for UartX {
     fn config(&mut self, config: Config) {
         // Configure baud rate
         let brr = self.get_clock().raw() / config.baudrate;
-        assert!(brr >= 16, "impossible baud rate");
+        l::assert!(brr >= 16, "impossible baud rate");
         self.brr().write(|w| unsafe { w.bits(brr as u16) });
 
         // Configure word

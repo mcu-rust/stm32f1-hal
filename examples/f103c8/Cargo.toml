@@ -21,8 +21,12 @@
     uart-poll = ["uart"]
 
 [dependencies]
+    cortex-m-rt = "0.7"
+    defmt = "1"
+    defmt-or-log = { version = "0.2", features = ["defmt"] }
+    defmt-rtt = "1"
     [dependencies.stm32f1-hal]
-        features = ["f103", "x8", "critical-section-single-core"]
+        features = ["f103", "x8", "defmt", "critical-section-single-core"]
         path = "../.."
 
 [profile.dev]

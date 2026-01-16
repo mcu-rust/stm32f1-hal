@@ -6,6 +6,7 @@ pub use crate::common::i2c::*;
 use crate::{
     Mcu, Steal,
     afio::{RemapMode, i2c_remap::*},
+    l,
     os_trait::Mutex,
     prelude::*,
     rcc::{Enable, GetClock, Reset},
@@ -28,7 +29,8 @@ pub trait I2cPeriphConfig: I2cPeriph + GetClock + Enable + Reset + Steal {
     fn it_clean_needless_flag(&self);
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[maybe_derive_format]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Interrupt {
     Error,
     Event,
@@ -59,7 +61,7 @@ where
     ) {
         let _ = (pins.0.into_alternate(), pins.1.into_alternate());
         REMAP::remap(&mut mcu.afio);
-        assert!(speed <= kHz(400));
+        l::assert!(speed <= kHz(400));
         self.i2c.config(&Mode::from(speed));
         bus_it::I2cBus::<OS, I>::new(self.i2c, speed, max_operation)
     }
@@ -77,7 +79,7 @@ where
     ) {
         let _ = (pins.0.into_alternate(), pins.1.into_alternate());
         REMAP::remap(&mut mcu.afio);
-        assert!(speed <= kHz(400));
+        l::assert!(speed <= kHz(400));
         self.i2c.config(&Mode::from(speed));
         let (bus, it, err_it) = bus_it::I2cBus::<OS, I>::new(self.i2c, speed, max_operation);
         (
@@ -116,13 +118,14 @@ fn convert_addr(addr: Address) -> Address {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[maybe_derive_format]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum DutyCycle {
     Ratio2to1,
     Ratio16to9,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Mode {
     Standard {
         frequency: HertzU32,

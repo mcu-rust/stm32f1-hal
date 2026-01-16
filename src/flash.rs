@@ -1,5 +1,6 @@
 //! Flash memory
 
+use crate::l::maybe_derive_format;
 use crate::pac::{FLASH, flash};
 
 pub const SZ_1K: u16 = 1024;
@@ -12,7 +13,8 @@ const KEY2: u32 = 0xCDEF89AB;
 
 pub type Result<T> = core::result::Result<T, Error>;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+#[maybe_derive_format]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd)]
 pub enum Error {
     AddressLargerThanFlash,
     AddressMisaligned,
@@ -26,7 +28,8 @@ pub enum Error {
     LockError,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+#[maybe_derive_format]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd)]
 pub enum SectorSize {
     Sz1K = 1,
     Sz2K = 2,
@@ -38,7 +41,8 @@ impl SectorSize {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+#[maybe_derive_format]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd)]
 pub enum FlashSize {
     Sz16K = 16,
     Sz32K = 32,

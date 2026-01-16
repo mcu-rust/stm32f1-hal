@@ -12,6 +12,7 @@ pub use embedded_hal::spi::{MODE_0, MODE_1, MODE_2, MODE_3};
 use crate::{
     Mcu, Steal,
     afio::{RemapMode, spi_remap::*},
+    l,
     fugit::NanosDurationU32,
     rcc::{Enable, GetClock, Reset},
 };
@@ -117,7 +118,7 @@ where
 
 fn calculate_baud_rate(clock: HertzU32, freq: KilohertzU32) -> u8 {
     match clock / freq {
-        0 => unreachable!(),
+        0 => l::unreachable!(),
         1..=2 => 0b000,
         3..=5 => 0b001,
         6..=11 => 0b010,

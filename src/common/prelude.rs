@@ -9,4 +9,5 @@ pub use super::{
     },
     uart::{UartPeriph as _, UartPeriphWithDma as _},
 };
+pub use defmt_or_log::maybe_derive_format;
 pub use os_trait::prelude::*;

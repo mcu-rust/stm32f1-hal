@@ -1,4 +1,5 @@
 use super::*;
+use crate::l;
 
 /// Timer wrapper for fixed precision timers.
 ///
@@ -26,9 +27,9 @@ impl<TIM: GeneralTimer, const FREQ: u32> FTimer<TIM, FREQ> {
 
     /// Calculate prescaler depending on `Clocks` state
     pub fn configure(&mut self) {
-        assert!(self.clk.raw() % FREQ == 0);
+        l::assert!(self.clk.raw() % FREQ == 0);
         let psc = self.clk.raw() / FREQ;
-        self.tim.set_prescaler(u16::try_from(psc - 1).unwrap());
+        self.tim.set_prescaler(l::unwrap!(u16::try_from(psc - 1)));
     }
 
     pub fn counter(self) -> Counter<TIM, FREQ> {

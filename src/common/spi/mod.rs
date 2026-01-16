@@ -34,7 +34,8 @@ pub trait SpiBusInterface {
     fn config<W: Word>(&mut self, mode: Mode, freq: KilohertzU32, dev_id: u8);
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[maybe_derive_format]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Event {
     TxEmpty,
     RxNotEmpty,
@@ -42,7 +43,8 @@ pub enum Event {
 }
 
 /// SPI error
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[maybe_derive_format]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum Error {
     /// Overrun occurred

@@ -43,14 +43,14 @@ where
                 self.dev
                     .write_read(ADDR, &[REG_WHO_AM_I], &mut self.buf[..1])
                     .unwrap();
-                assert_eq!(self.buf[0], 0x68);
+                l::assert_eq!(self.buf[0], 0x68);
                 self.dev
                     .write_read(ADDR, &[REG_TEMPERATURE], &mut self.buf[1..3])
                     .unwrap();
                 self.dev
                     .write_read(ADDR, &[REG_CONFIG], &mut self.buf[3..7])
                     .unwrap();
-                assert_eq!(self.buf[3..7], [0x03, 0x10, 0x08, 0x33]);
+                l::assert_eq!(self.buf[3..7], [0x03, 0x10, 0x08, 0x33]);
             }
         }
     }

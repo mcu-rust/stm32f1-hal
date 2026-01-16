@@ -5,6 +5,7 @@
 //! is from `0x4000_0000` to `0x400F_FFFF`. Bit-banding allows the manipulation of individual bits
 //! atomically.
 
+use crate::l;
 use core::ptr;
 
 // Start address of the peripheral memory region capable of being addressed by bit-banding
@@ -46,8 +47,8 @@ pub unsafe fn set<T>(register: *const T, bit: u8) {
 pub unsafe fn write<T>(register: *const T, bit: u8, set: bool) {
     let addr = register as usize;
 
-    assert!((PERI_ADDRESS_START..=PERI_ADDRESS_END).contains(&addr));
-    assert!(bit < 32);
+    l::assert!((PERI_ADDRESS_START..=PERI_ADDRESS_END).contains(&addr));
+    l::assert!(bit < 32);
 
     let bit = bit as usize;
     let bb_addr = (PERI_BIT_BAND_BASE + (addr - PERI_ADDRESS_START) * 32) + 4 * bit;

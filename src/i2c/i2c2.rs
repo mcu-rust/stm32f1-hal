@@ -3,7 +3,7 @@ type I2cX = pac::I2C2;
 // $sync begin
 
 use super::*;
-use crate::{Mcu, pac};
+use crate::{Mcu, l, pac};
 
 // Initialization -------------------------------------------------------------
 
@@ -176,7 +176,7 @@ impl I2cPeriph for I2cX {
                     self.write_data(lsb);
                     next(step);
                 } else {
-                    panic!();
+                    l::unreachable!()
                 }
             }
             2 => {
@@ -228,7 +228,7 @@ impl I2cPeriph for I2cX {
                     self.write_data(lsb);
                     next(step);
                 } else {
-                    panic!();
+                    l::unreachable!()
                 }
             }
             2 => {
@@ -247,7 +247,7 @@ impl I2cPeriph for I2cX {
                     self.write_data(msb | 1);
                     next(step);
                 } else {
-                    panic!();
+                    l::unreachable!()
                 }
             }
             4 => {

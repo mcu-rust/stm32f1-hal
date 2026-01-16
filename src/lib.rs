@@ -1,3 +1,4 @@
+#![doc = include_str!("../README.md")]
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::type_complexity)]
 
@@ -46,6 +47,8 @@ pub use stm32f1::stm32f101 as pac;
 pub use stm32f1::stm32f103 as pac;
 #[cfg(any(feature = "f105", feature = "f107"))]
 pub use stm32f1::stm32f107 as pac;
+
+use defmt_or_log as l;
 
 pub trait Steal {
     /// Steal an instance of this peripheral

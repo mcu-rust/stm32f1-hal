@@ -45,7 +45,9 @@ pub use syst::*;
 use crate::{
     Mcu, Steal,
     afio::{RemapMode, timer_remap::*},
+    l,
     pac::DBGMCU as DBG,
+    prelude::*,
     rcc::{Enable, GetTimerClock, Reset},
     time::HertzU32,
 };
@@ -163,11 +165,11 @@ impl<'a, TIM: TimerConfig + TimerWithPwm1Ch + Steal + 'a> Timer<TIM> {
         preload: bool,
         mcu: &mut Mcu,
     ) -> (PwmTimer<TIM>, impl PwmChannel + 'a) {
-        assert!(pin.is_pin());
+        l::assert!(pin.is_pin());
         let _ = pin.into_alternate();
         REMAP::remap(&mut mcu.afio);
         self.tim.enable_preload(preload);
-        self.tim.config_freq(self.clk, update_freq).unwrap();
+        l::unwrap!(self.tim.config_freq(self.clk, update_freq));
 
         let c1 = PwmChannel1::new(unsafe { self.tim.steal() });
         let t = PwmTimer::new(self.tim, self.clk);
@@ -191,7 +193,7 @@ impl<'a, TIM: TimerConfig + TimerWithPwm2Ch + Steal + 'a> Timer<TIM> {
         let _ = (pins.0.into_alternate(), pins.1.into_alternate());
         REMAP::remap(&mut mcu.afio);
         self.tim.enable_preload(preload);
-        self.tim.config_freq(self.clk, update_freq).unwrap();
+        l::unwrap!(self.tim.config_freq(self.clk, update_freq));
 
         let c1 = if is_pin.0 {
             Some(PwmChannel1::new(unsafe { self.tim.steal() }))
@@ -241,7 +243,7 @@ impl<'a, TIM: TimerConfig + TimerWithPwm4Ch + Steal + 'a> Timer<TIM> {
         );
         REMAP::remap(&mut mcu.afio);
         self.tim.enable_preload(preload);
-        self.tim.config_freq(self.clk, update_freq).unwrap();
+        l::unwrap!(self.tim.config_freq(self.clk, update_freq));
 
         let c1 = if is_pin.0 {
             Some(PwmChannel1::new(unsafe { self.tim.steal() }))
@@ -289,7 +291,8 @@ pub fn destroy_mono_timer<TIM: GeneralTimer, const FREQ: u32>(
 
 // Enumerate ------------------------------------------------------------------
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[maybe_derive_format]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Ocm {
     Frozen = 0,

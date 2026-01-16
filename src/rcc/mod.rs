@@ -7,12 +7,14 @@ use crate::time::MHz;
 use crate::{
     backup_domain::BackupDomain,
     common::holder::StaticHolder,
+    l,
     flash::ACR,
     fugit::{HertzU32, RateExtU32},
     pac::{
         BKP, PWR, RCC,
         rcc::{self, RegisterBlock as RccRB},
     },
+    prelude::*,
 };
 use core::ops::{Deref, DerefMut};
 
@@ -229,6 +231,7 @@ const HSI: u32 = 8_000_000; // Hz
 ///
 /// **NOTE**: Currently, it is not guaranteed that the exact frequencies selected will be
 /// used, only frequencies close to it.
+#[maybe_derive_format]
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct Config {
     hse: Option<u32>,
@@ -350,7 +353,7 @@ impl BkpInit for BKP {
 ///
 /// let clocks = rcc.cfgr.freeze(&mut flash.acr);
 /// ```
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Clocks {
     hclk: HertzU32,
     pclk1: HertzU32,
@@ -416,8 +419,6 @@ impl Clocks {
         self.ppre1
     }
 
-    // TODO remove `allow`
-    #[allow(dead_code)]
     pub(crate) const fn ppre2(&self) -> u8 {
         self.ppre2
     }
@@ -570,7 +571,8 @@ pub trait Reset: RccBus {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[maybe_derive_format]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct RawConfig {
     pub hse: Option<u32>,
     pub hse_bypass: bool,
@@ -601,8 +603,9 @@ impl Default for RawConfig {
     }
 }
 
+#[maybe_derive_format]
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum HPre {
     /// SYSCLK not divided
     Div1 = 7,
@@ -624,7 +627,8 @@ pub enum HPre {
     Div512 = 15,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[maybe_derive_format]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[repr(u8)]
 pub enum PPre {
     /// HCLK not divided
@@ -807,7 +811,7 @@ impl RawConfig {
             (Some(_), Some(_), 72_000_000) | (Some(_), Some(_), 48_000_000)
         );
 
-        assert!(
+        l::assert!(
             self.allow_overclock
                 || (sysclk <= 72_000_000
                     && hclk <= 72_000_000

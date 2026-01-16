@@ -2,6 +2,7 @@ pub use crate::common::rtrb::{
     chunks::{ChunkError, ReadChunk, WriteChunkUninit},
     *,
 };
+use crate::l;
 
 pub trait ProducerExt<T> {
     fn get_write_chunk_uninit(&mut self) -> Option<WriteChunkUninit<'_, T>>;
@@ -29,7 +30,10 @@ impl<T: Copy> ProducerExt<T> for Producer<T> {
                 &buf[..size]
             };
 
-            let mut chunk = self.write_chunk_uninit(size).unwrap();
+            let mut chunk = match self.write_chunk_uninit(size) {
+                Ok(c) => c,
+                Err(_) => l::unreachable!(),
+            };
             let (c1, c2) = chunk.get_mut_slices();
 
             if c1.len() == size {
@@ -106,7 +110,10 @@ impl<T: Copy> ConsumerExt<T> for Consumer<T> {
                 &mut buf[..size]
             };
 
-            let chunk = self.read_chunk(size).unwrap();
+            let chunk = match self.read_chunk(size) {
+                Ok(c) => c,
+                Err(_) => l::unreachable!(),
+            };
             let (c1, c2) = chunk.as_slices();
 
             if c1.len() == size {

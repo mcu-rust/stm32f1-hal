@@ -155,6 +155,7 @@ impl MasterTimer for TimerX {
 
 // $sync end
 
+use crate::l;
 use pac::tim6::cr2::MMS;
 impl From<MasterMode> for MMS {
     fn from(value: MasterMode) -> Self {
@@ -162,7 +163,7 @@ impl From<MasterMode> for MMS {
             MasterMode::Reset => MMS::Reset,
             MasterMode::Enable => MMS::Enable,
             MasterMode::Update => MMS::Update,
-            _ => panic!(),
+            _ => l::panic!(),
         }
     }
 }

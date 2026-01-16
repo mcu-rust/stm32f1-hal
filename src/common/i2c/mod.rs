@@ -66,7 +66,8 @@ pub trait I2cBusInterface {
     ) -> Result<(), Error>;
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[maybe_derive_format]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Flag {
     /// Start condition generated
     Started,
@@ -96,7 +97,8 @@ pub enum Flag {
     Dual,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[maybe_derive_format]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Address {
     Seven(u8),
     Ten(u16),
@@ -114,7 +116,8 @@ impl From<u16> for Address {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+#[maybe_derive_format]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum Error {
     Busy,

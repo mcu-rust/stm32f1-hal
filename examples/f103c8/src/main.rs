@@ -9,6 +9,8 @@ mod spi_task;
 mod uart_task;
 
 use core::panic::PanicInfo;
+use cortex_m_rt::{ExceptionFrame, entry, exception};
+use defmt_rtt as _;
 use i2c_task::I2cTask;
 use led_task::LedTask;
 use os::*;
@@ -16,7 +18,7 @@ use spi_task::SpiTask;
 use uart_task::UartLoopBackTask;
 
 // Basic
-use hal::{Mcu, cortex_m::asm, cortex_m_rt::entry, gpio::PinState, pac, rcc};
+use hal::{Mcu, cortex_m::asm, gpio::PinState, pac, rcc};
 
 use hal::{
     afio::{NONE_PIN, RemapDefault},
@@ -222,6 +224,8 @@ fn main() -> ! {
         });
     }
 
+    let mut loop_count: u32 = 0;
+    let mut interval = Timeout::millis(500);
     run(move || {
         led_task.poll();
         #[cfg(feature = "uart")]
@@ -230,6 +234,14 @@ fn main() -> ! {
         i2c_task.poll();
         #[cfg(feature = "spi")]
         spi_task.poll();
+
+        if interval.timeout() {
+            loop_count = loop_count.wrapping_add(1);
+            l::info!("loop count: {}", loop_count);
+            // if loop_count > 2 {
+            //     l::panic!("loop");
+            // }
+        }
     })
 }
 
@@ -246,16 +258,31 @@ mod its {
     );
 }
 
+#[allow(clippy::empty_loop)]
+#[defmt::panic_handler]
+fn defmt_panic() -> ! {
+    cortex_m::interrupt::disable();
+    loop {}
+}
+
 #[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
-    asm::bkpt();
+fn panic(info: &PanicInfo) -> ! {
+    l::error!("{}", l::Display2Format(info));
+    cortex_m::interrupt::disable();
+    loop {}
+}
+
+#[allow(clippy::empty_loop)]
+#[exception]
+unsafe fn HardFault(ef: &ExceptionFrame) -> ! {
+    l::error!("HardFault: {:#?}", l::Debug2Format(ef));
     loop {}
 }
 
 /// It's used to test Send trait
 pub fn run<F>(mut func: F) -> !
 where
-    F: FnMut() -> (),
+    F: FnMut(),
     F: Send + 'static,
 {
     loop {

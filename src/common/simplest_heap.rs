@@ -31,7 +31,7 @@ impl<const SIZE: usize> Heap<SIZE> {
         }
     }
 
-    /// Returns an estimate of the amount of bytes in use.
+    /// Returns the amount of unused bytes.
     pub fn remained(&self) -> usize {
         self.remained.load(Ordering::Relaxed)
     }

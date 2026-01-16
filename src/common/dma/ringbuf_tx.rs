@@ -1,5 +1,8 @@
 use super::*;
-use crate::common::{critical_section::Mutex, ringbuf::*};
+use crate::{
+    common::{critical_section::Mutex, ringbuf::*},
+    l,
+};
 use core::cell::RefCell;
 
 pub struct DmaRingbufTx {}
@@ -161,7 +164,10 @@ where
             let n = self.r.buffer().capacity() / 2;
             let chunk = match self.r.read_chunk(n) {
                 Ok(chunk) => chunk,
-                Err(ChunkError::TooFewSlots(n)) => self.r.read_chunk(n).unwrap(),
+                Err(ChunkError::TooFewSlots(n)) => match self.r.read_chunk(n) {
+                    Ok(c) => c,
+                    Err(_) => l::unreachable!(),
+                },
             };
 
             let data = chunk.get_slice();
