@@ -138,14 +138,10 @@ where
             .par()
             .write(|w| unsafe { w.pa().bits(address as u32) });
         self.ch().cr().modify(|_, w| {
-            w.mem2mem()
-                .clear_bit()
-                .pinc()
-                .bit(increase)
-                .circ()
-                .bit(circular)
-                .dir()
-                .bit(mem_to_periph);
+            w.mem2mem().clear_bit();
+            w.pinc().bit(increase);
+            w.circ().bit(circular);
+            w.dir().bit(mem_to_periph);
 
             match core::mem::size_of::<T>() {
                 2 => {

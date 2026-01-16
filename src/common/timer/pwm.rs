@@ -32,8 +32,8 @@ impl<TIM: TimerWithPwm> PwmTimer<TIM> {
     }
 
     #[inline]
-    pub fn config_freq(&mut self, update_freq: HertzU32) {
-        self.tim.config_freq(self.clk, update_freq);
+    pub fn config_freq(&mut self, update_freq: HertzU32) -> Result<(), Error> {
+        self.tim.config_freq(self.clk, update_freq)
     }
 }
 

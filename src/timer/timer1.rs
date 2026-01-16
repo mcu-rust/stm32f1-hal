@@ -94,12 +94,13 @@ impl GeneralTimer for TimerX {
     }
 
     #[inline]
-    fn config_freq(&mut self, clock: HertzU32, update_freq: HertzU32) {
+    fn config_freq(&mut self, clock: HertzU32, update_freq: HertzU32) -> Result<(), Error> {
         let (prescaler, arr) = compute_prescaler_arr(clock.raw(), update_freq.raw());
         self.set_prescaler(prescaler as u16);
-        self.set_auto_reload(arr).unwrap();
+        self.set_auto_reload(arr)?;
         // Trigger update event to load the registers
         self.trigger_update();
+        Ok(())
     }
 
     #[inline(always)]

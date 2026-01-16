@@ -152,8 +152,9 @@ where
         if self.work && !self.ch.in_progress() {
             self.ch.stop();
 
-            if self.busy_len > 0 {
-                let chunk = self.r.read_chunk(self.busy_len).unwrap();
+            if self.busy_len > 0
+                && let Ok(chunk) = self.r.read_chunk(self.busy_len)
+            {
                 chunk.commit_all();
             }
 

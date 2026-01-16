@@ -220,8 +220,9 @@ where
     }
 
     fn consume(&mut self, amt: usize) {
-        let chunk = self.r.get_read_chunk().unwrap();
-        chunk.commit(amt);
+        if let Ok(chunk) = self.r.read_chunk(amt) {
+            chunk.commit_all();
+        }
     }
 }
 

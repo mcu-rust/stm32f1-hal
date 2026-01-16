@@ -167,7 +167,7 @@ impl<'a, TIM: TimerConfig + TimerWithPwm1Ch + Steal + 'a> Timer<TIM> {
         let _ = pin.into_alternate();
         REMAP::remap(&mut mcu.afio);
         self.tim.enable_preload(preload);
-        self.tim.config_freq(self.clk, update_freq);
+        self.tim.config_freq(self.clk, update_freq).unwrap();
 
         let c1 = PwmChannel1::new(unsafe { self.tim.steal() });
         let t = PwmTimer::new(self.tim, self.clk);
@@ -188,13 +188,10 @@ impl<'a, TIM: TimerConfig + TimerWithPwm2Ch + Steal + 'a> Timer<TIM> {
         Option<impl PwmChannel + 'a>,
     ) {
         let is_pin = (pins.0.is_pin(), pins.1.is_pin());
-        let _ = (
-            pins.0.into_alternate(),
-            pins.1.into_alternate(),
-        );
+        let _ = (pins.0.into_alternate(), pins.1.into_alternate());
         REMAP::remap(&mut mcu.afio);
         self.tim.enable_preload(preload);
-        self.tim.config_freq(self.clk, update_freq);
+        self.tim.config_freq(self.clk, update_freq).unwrap();
 
         let c1 = if is_pin.0 {
             Some(PwmChannel1::new(unsafe { self.tim.steal() }))
@@ -244,7 +241,7 @@ impl<'a, TIM: TimerConfig + TimerWithPwm4Ch + Steal + 'a> Timer<TIM> {
         );
         REMAP::remap(&mut mcu.afio);
         self.tim.enable_preload(preload);
-        self.tim.config_freq(self.clk, update_freq);
+        self.tim.config_freq(self.clk, update_freq).unwrap();
 
         let c1 = if is_pin.0 {
             Some(PwmChannel1::new(unsafe { self.tim.steal() }))
