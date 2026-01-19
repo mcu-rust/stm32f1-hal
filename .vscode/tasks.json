@@ -18,17 +18,6 @@
             },
         },
         {
-            "label": "build_example_f103c8",
-            "type": "process",
-            "command": "python",
-            "args": [
-                "scripts/build.py",
-                "build",
-                "-e=f103c8",
-            ],
-            "group": "build",
-        },
-        {
             "label": "test",
             "type": "process",
             "command": "python",
@@ -49,6 +38,17 @@
                 "scripts/build.py",
                 "clippy"
             ],
+        },
+        {
+            "label": "build_example_f103c8",
+            "type": "process",
+            "command": "python",
+            "args": [
+                "scripts/build.py",
+                "build",
+                "-e=f103c8",
+            ],
+            "group": "build",
         },
     ]
 }

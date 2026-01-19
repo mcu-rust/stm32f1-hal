@@ -258,6 +258,7 @@ mod its {
     );
 }
 
+#[cfg(feature = "defmt")]
 #[allow(clippy::empty_loop)]
 #[defmt::panic_handler]
 fn defmt_panic() -> ! {

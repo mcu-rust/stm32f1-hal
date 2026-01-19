@@ -14,18 +14,19 @@ def run_cmd(cmd: list[str]) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("cmd", choices=["check", "test", "build", "clippy"])
-    parser.add_argument("--release", action="store_true")
-    parser.add_argument("-e", "--examples", type=str, nargs="*")
+    parser.add_argument("--features", type=str, nargs="*")
+    parser.add_argument("-e", "--example", type=str, default="")
     opts = parser.parse_args()
 
     cmd = ["cargo", opts.cmd]
 
-    if opts.examples:
-        for e in opts.examples:
-            os.chdir("examples/" + e)
-            cmd.append("--release")
-            run_cmd(cmd)
-            os.chdir("../../")
+    if opts.example:
+        if opts.features:
+            for ft in opts.features:
+                cmd.append(f"--features={ft}")
+        os.chdir("examples/" + opts.example)
+        run_cmd(cmd)
+        os.chdir("../../")
     elif opts.cmd == "test":
         cmd.append("--features=std")
         if platform.system().lower() == "windows":
@@ -34,10 +35,7 @@ def main() -> int:
             cmd.append("--target=x86_64-unknown-linux-gnu")
         run_cmd(cmd)
     else:
-        if opts.release:
-            cmd.append("--release")
-
-        cmd.append(f"--features=f103,xG")
+        cmd.append("--features=f103,xG")
         run_cmd(cmd)
 
     return 0

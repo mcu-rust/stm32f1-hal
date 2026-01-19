@@ -2,7 +2,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "probe_rs debug",
+            "name": "probe-rs",
             "type": "probe-rs-debug",
             // "request": "attach",
             "request": "launch",
@@ -30,7 +30,7 @@
             ]
         },
         {
-            "name": "ST-Link Debug",
+            "name": "ST-Link",
             "type": "cortex-debug",
             "request": "launch",
             "servertype": "stlink",
@@ -42,7 +42,7 @@
             "executable": "target/thumbv7m-none-eabi/debug/f103c8"
         },
         {
-            "name": "J-Link Debug",
+            "name": "J-Link",
             "type": "cortex-debug",
             "request": "launch",
             "servertype": "jlink",

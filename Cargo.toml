@@ -80,7 +80,7 @@
     rtrb = { version = "0.3", default-features = false }
     stm32f1 = { version = "0.16", optional = true }
 
-[profile.release]
+[profile.dev]
     opt-level = "s"
 
 [workspace]
