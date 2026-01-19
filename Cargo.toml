@@ -6,11 +6,11 @@
     description = "HAL for the STM32F1 family"
     documentation = "https://docs.rs/stm32f1-hal"
     edition = "2024"
-    keywords = ["arm", "cortex-m", "stm32", "hal", "embedded", "no-std"]
+    keywords = ["arm", "cortex-m", "stm32", "hal", "no-std"]
     license = "MIT OR Apache-2.0"
     readme = "README.md"
     repository = "https://github.com/mcu-rust/stm32f1-hal"
-    version = "0.12.3"
+    version = "0.13.0"
 
     [package.metadata.docs.rs]
         features = ["f103", "xG"]
