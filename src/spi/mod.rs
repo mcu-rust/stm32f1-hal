@@ -12,8 +12,8 @@ pub use embedded_hal::spi::{MODE_0, MODE_1, MODE_2, MODE_3};
 use crate::{
     Mcu, Steal,
     afio::{RemapMode, spi_remap::*},
-    l,
     fugit::NanosDurationU32,
+    l,
     rcc::{Enable, GetClock, Reset},
 };
 use core::marker::PhantomData;

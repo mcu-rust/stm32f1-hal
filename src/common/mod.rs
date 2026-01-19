@@ -5,7 +5,6 @@ pub mod holder;
 pub mod i2c;
 pub mod prelude;
 pub mod ringbuf;
-pub mod simplest_heap;
 pub mod spi;
 pub mod timer;
 pub mod uart;

@@ -11,6 +11,7 @@ mod uart_task;
 use core::panic::PanicInfo;
 use cortex_m_rt::{ExceptionFrame, entry, exception};
 use defmt_rtt as _;
+use heap1::{Heap, Inline};
 use i2c_task::I2cTask;
 use led_task::LedTask;
 use os::*;
@@ -22,7 +23,6 @@ use hal::{Mcu, cortex_m::asm, gpio::PinState, pac, rcc};
 
 use hal::{
     afio::{NONE_PIN, RemapDefault},
-    common::simplest_heap::Heap,
     dma::DmaPriority,
     embedded_hal::{self, pwm::SetDutyCycle},
     embedded_io,
@@ -38,7 +38,7 @@ use hal::{
 };
 
 #[global_allocator]
-static HEAP: Heap<10_000> = Heap::new();
+static HEAP: Heap<Inline<10_000>> = Heap::new();
 
 #[entry]
 fn main() -> ! {

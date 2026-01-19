@@ -7,9 +7,9 @@ use crate::time::MHz;
 use crate::{
     backup_domain::BackupDomain,
     common::holder::StaticHolder,
-    l,
     flash::ACR,
     fugit::{HertzU32, RateExtU32},
+    l,
     pac::{
         BKP, PWR, RCC,
         rcc::{self, RegisterBlock as RccRB},
