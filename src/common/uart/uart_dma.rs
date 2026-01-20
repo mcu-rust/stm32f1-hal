@@ -80,17 +80,13 @@ where
 
     fn flush(&mut self) -> Result<(), Self::Error> {
         self.waiter
-            .wait_with(
-                &Duration::<OS>::micros(self.flush_timeout.ticks()),
-                1,
-                || {
-                    if self.w.is_empty() && !self.w.in_progress() {
-                        Some(())
-                    } else {
-                        None
-                    }
-                },
-            )
+            .wait_with(&Duration::<OS>::micros(self.flush_timeout.ticks()), || {
+                if self.w.is_empty() && !self.w.in_progress() {
+                    Some(())
+                } else {
+                    None
+                }
+            })
             .ok_or(Error::Other)
     }
 }
@@ -168,7 +164,7 @@ where
         }
 
         self.waiter
-            .wait_with(&Duration::<OS>::micros(self.timeout.ticks()), 1, || {
+            .wait_with(&Duration::<OS>::micros(self.timeout.ticks()), || {
                 if let Some(d) = self.ch.read_slice(buf.len()) {
                     buf[..d.len()].copy_from_slice(d);
                     self.ch.consume(d.len());
@@ -188,7 +184,7 @@ where
 {
     fn fill_buf(&mut self) -> Result<&[u8], Self::Error> {
         self.waiter
-            .wait_with(&Duration::<OS>::micros(self.timeout.ticks()), 1, || {
+            .wait_with(&Duration::<OS>::micros(self.timeout.ticks()), || {
                 self.ch.read_slice(usize::MAX)
             })
             .ok_or(Error::Other)

@@ -184,7 +184,7 @@ where
 
         let rst: Result<(), Error> = self
             .waiter
-            .wait_with(&Duration::<OS>::nanos(timeout_ns), 1, || {
+            .wait_with(&Duration::<OS>::nanos(timeout_ns), || {
                 let work = self.work.load(Ordering::Acquire);
                 let err_code = self.err_code.load(Ordering::Acquire);
                 if Work::Success == work {

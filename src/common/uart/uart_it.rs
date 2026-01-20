@@ -59,7 +59,7 @@ where
         }
 
         self.waiter
-            .wait_with(&Duration::<OS>::micros(self.timeout.ticks()), 1, || {
+            .wait_with(&Duration::<OS>::micros(self.timeout.ticks()), || {
                 if let n @ 1.. = self.w.push_slice(buf) {
                     self.uart.set_interrupt(Event::TxEmpty, true);
                     return Some(n);
@@ -73,18 +73,14 @@ where
 
     fn flush(&mut self) -> Result<(), Self::Error> {
         self.waiter
-            .wait_with(
-                &Duration::<OS>::micros(self.flush_timeout.ticks()),
-                1,
-                || {
-                    if self.uart.is_tx_complete() && self.w.is_empty() {
-                        return Some(());
-                    } else if !self.uart.is_interrupt_enable(Event::TxEmpty) {
-                        self.uart.set_interrupt(Event::TxEmpty, true);
-                    }
-                    None
-                },
-            )
+            .wait_with(&Duration::<OS>::micros(self.flush_timeout.ticks()), || {
+                if self.uart.is_tx_complete() && self.w.is_empty() {
+                    return Some(());
+                } else if !self.uart.is_interrupt_enable(Event::TxEmpty) {
+                    self.uart.set_interrupt(Event::TxEmpty, true);
+                }
+                None
+            })
             .ok_or(Error::Other)
     }
 }
@@ -187,7 +183,7 @@ where
         }
 
         self.waiter
-            .wait_with(&Duration::<OS>::micros(self.timeout.ticks()), 1, || {
+            .wait_with(&Duration::<OS>::micros(self.timeout.ticks()), || {
                 if let n @ 1.. = self.r.pop_slice(buf) {
                     return Some(n);
                 } else if !self.uart.is_interrupt_enable(Event::RxNotEmpty) {
@@ -206,7 +202,7 @@ where
 {
     fn fill_buf(&mut self) -> Result<&[u8], Self::Error> {
         self.waiter
-            .wait_with(&Duration::<OS>::micros(self.timeout.ticks()), 1, || {
+            .wait_with(&Duration::<OS>::micros(self.timeout.ticks()), || {
                 if let Some(chunk) = self.r.get_read_chunk() {
                     let buf = chunk.get_slice();
                     let p = buf.as_ptr();
