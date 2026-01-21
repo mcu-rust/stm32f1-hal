@@ -12,10 +12,8 @@ pub trait ProducerExt<T> {
 impl<T: Copy> ProducerExt<T> for Producer<T> {
     fn get_write_chunk_uninit(&mut self) -> Option<WriteChunkUninit<'_, T>> {
         let n = self.slots();
-        if n > 0
-            && let Ok(chunk) = self.write_chunk_uninit(n)
-        {
-            return Some(chunk);
+        if n > 0 {
+            return self.write_chunk_uninit(n).ok();
         }
         None
     }
@@ -92,10 +90,8 @@ pub trait ConsumerExt<T> {
 impl<T: Copy> ConsumerExt<T> for Consumer<T> {
     fn get_read_chunk(&mut self) -> Option<ReadChunk<'_, T>> {
         let n = self.slots();
-        if n > 0
-            && let Ok(chunk) = self.read_chunk(n)
-        {
-            return Some(chunk);
+        if n > 0 {
+            return self.read_chunk(n).ok();
         }
         None
     }

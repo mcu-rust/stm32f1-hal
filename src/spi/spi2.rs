@@ -146,7 +146,7 @@ impl SpiPeriph for SpiX {
     }
 
     #[inline]
-    fn unchecked_write<W: Word>(&mut self, data: W) {
+    fn write_unchecked<W: Word>(&mut self, data: W) {
         if size_of::<W>() == 1 {
             self.dr8().write(|w| w.dr().set(data.into_u32() as u8));
         } else {

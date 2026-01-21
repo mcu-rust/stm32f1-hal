@@ -304,7 +304,7 @@ where
     fn inner_handler<W: Word>(&mut self) {
         while self.spi.is_tx_empty() {
             if let Some(data) = self.load_data() {
-                self.spi.unchecked_write::<W>(data);
+                self.spi.write_unchecked::<W>(data);
             } else {
                 self.spi.set_interrupt(Event::RxNotEmpty, true);
                 self.spi.set_interrupt(Event::TxEmpty, false);

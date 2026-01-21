@@ -20,7 +20,7 @@ pub trait I2cPeriph {
     fn disable_data_interrupt(&mut self);
 
     fn is_tx_empty(&self) -> bool;
-    fn unchecked_write(&mut self, data: u8);
+    fn write_unchecked(&mut self, data: u8);
 
     fn it_send_start(&mut self);
 

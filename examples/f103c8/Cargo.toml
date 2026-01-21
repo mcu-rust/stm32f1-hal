@@ -6,7 +6,7 @@
     version = "0.1.0"
 
 [features]
-    default = ["defmt", "rtt", "exti", "timer", "uart-it", "spi-it-bus"]
+    default = ["defmt", "rtt", "exti", "timer", "uart-dma", "spi-it-bus"]
     defmt = ["dep:defmt", "defmt-or-log/defmt", "stm32f1-hal/defmt"]
     exti = []
     i2c = []

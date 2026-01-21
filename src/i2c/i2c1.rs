@@ -135,7 +135,7 @@ impl I2cPeriph for I2cX {
     }
 
     #[inline]
-    fn unchecked_write(&mut self, data: u8) {
+    fn write_unchecked(&mut self, data: u8) {
         self.write_data(data);
     }
 

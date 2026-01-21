@@ -119,11 +119,9 @@ where
     OS: OsInterface,
 {
     pub fn handler(&mut self) {
-        if let Some(wrote_data) = self.uart.write_with(|| {
-            let data = self.r.pop();
-            data.map_or(None, |d| Some(d as u16))
-        }) {
-            if wrote_data {
+        if self.uart.is_tx_complete() {
+            if let Ok(data) = self.r.pop() {
+                self.uart.write_unchecked(data as u16);
                 if self.r.buffer().capacity() - self.r.slots() < 4 {
                     self.notifier.notify();
                 }

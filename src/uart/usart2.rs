@@ -92,26 +92,17 @@ impl UartPeriph for UartX {
     }
 
     #[inline]
-    fn write(&mut self, word: u16) -> nb::Result<(), Error> {
-        if self.is_tx_empty() {
-            self.dr().write(|w| unsafe { w.dr().bits(word) });
-            Ok(())
-        } else {
-            Err(nb::Error::WouldBlock)
-        }
+    fn write_unchecked(&mut self, word: u16) {
+        self.dr().write(|w| unsafe { w.dr().bits(word) });
     }
 
     #[inline]
-    fn write_with(&mut self, f: impl FnOnce() -> Option<u16>) -> Option<bool> {
+    fn write(&mut self, word: u16) -> nb::Result<(), Error> {
         if self.is_tx_empty() {
-            if let Some(data) = f() {
-                self.dr().write(|w| unsafe { w.dr().bits(data) });
-                Some(true)
-            } else {
-                Some(false)
-            }
+            self.write_unchecked(word);
+            Ok(())
         } else {
-            None
+            Err(nb::Error::WouldBlock)
         }
     }
 
@@ -143,6 +134,14 @@ impl UartPeriph for UartX {
         } else {
             Err(nb::Error::WouldBlock)
         }
+    }
+
+    fn disable_all_interrupt(&mut self) {
+        self.cr1().modify(|_, w| {
+            w.idleie().clear_bit();
+            w.rxneie().clear_bit();
+            w.txeie().clear_bit()
+        });
     }
 
     #[inline]

@@ -7,4 +7,4 @@
 
 [env]
     DEFMT_LOG = "info"
-    DEFMT_RTT_BUFFER_SIZE = "128"
+    DEFMT_RTT_BUFFER_SIZE = "256"

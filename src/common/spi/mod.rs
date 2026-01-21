@@ -18,7 +18,7 @@ pub trait SpiPeriph {
     fn config<W: Word>(&mut self, mode: Mode, freq: KilohertzU32) -> bool;
 
     fn is_tx_empty(&self) -> bool;
-    fn unchecked_write<W: Word>(&mut self, data: W);
+    fn write_unchecked<W: Word>(&mut self, data: W);
     fn read<W: Word>(&mut self) -> Option<W>;
     fn is_busy(&self) -> bool;
     fn get_and_clean_error(&mut self) -> Option<Error>;
