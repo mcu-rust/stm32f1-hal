@@ -65,7 +65,7 @@ impl Nvic {
 
         unsafe {
             // only use the highest 4 bits
-            self.nvic.set_priority(it, priority << 4);
+            self.nvic.set_priority(it, (priority << 4) | 0x0F);
         }
     }
 

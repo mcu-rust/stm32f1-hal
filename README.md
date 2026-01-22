@@ -16,7 +16,7 @@
 Existing crates didn’t fully meet my needs:
 - [stm32f1xx-hal](https://github.com/stm32-rs/stm32f1xx-hal)’s design didn’t align with my workflow.
 - [stm32-hal](https://github.com/David-OConnor/stm32-hal) lacks support for the STM32F1 series.
-- [Embassy](https://github.com/embassy-rs/embassy) and [RTIC](https://github.com/rtic-rs/rtic) are async frameworks, but I need a sync one.
+- [Embassy](https://github.com/embassy-rs/embassy) and [RTIC](https://github.com/rtic-rs/rtic) are async frameworks, but I need a blocking one.
 
 To address this gap, I created **[stm32f1-hal](https://github.com/mcu-rust/stm32f1-hal)**.
 While parts of the implementation are adapted from [stm32f1xx-hal](https://github.com/stm32-rs/stm32f1xx-hal), the focus here is on clarity, readability, and usability.
