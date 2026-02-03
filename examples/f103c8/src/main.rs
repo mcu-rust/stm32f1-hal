@@ -45,18 +45,18 @@ fn main() -> ! {
     let cp = cortex_m::Peripherals::take().unwrap();
     let dp = pac::Peripherals::take().unwrap();
 
-    // Clock --------------------------------------------------------
+    // clock --------------------------------------------------------
 
     let cfg = rcc::Config::hse(8.MHz()).sysclk(72.MHz());
     let mut flash = dp.FLASH.init();
     let mut rcc = dp.RCC.init().freeze(cfg, &mut flash.acr);
 
-    // Prepare ------------------------------------------------------
+    // prepare ------------------------------------------------------
 
     let afio = dp.AFIO.init(&mut rcc);
     let mut mcu = Mcu::new(rcc, afio, cp.SCB.init(), cp.NVIC.init(), dp.EXTI);
 
-    // Keep them in one place for easier management
+    // keep them in one place for easier management
     mcu.scb.set_priority_grouping(PriorityGrouping::Group4);
     mcu.nvic.set_priority(Interrupt::I2C1_EV, 1, true);
     mcu.nvic.set_priority(Interrupt::I2C1_ER, 1, true);
@@ -66,7 +66,7 @@ fn main() -> ! {
     mcu.nvic.set_priority(Interrupt::DMA1_CHANNEL5, 3, true);
     mcu.nvic.set_priority(Interrupt::SPI1, 3, true);
 
-    // Peripherals --------------------------------------------------
+    // peripherals --------------------------------------------------
 
     let mut sys_timer = cp.SYST.counter_hz(&mcu);
     sys_timer.start(20.Hz()).unwrap();
