@@ -59,8 +59,9 @@ impl Rcc {
     /// ```
     #[allow(unused_variables)]
     #[inline(always)]
-    pub fn freeze(self, cfg: impl Into<RawConfig>, acr: &mut ACR) -> Self {
-        let cfg = cfg.into();
+    pub fn freeze(self, cfg: Config, acr: &mut ACR) -> Self {
+        let sysclk = cfg.sysclk;
+        let cfg: RawConfig = cfg.into();
         let clocks = cfg.get_clocks();
         // adjust flash wait states
         #[cfg(any(feature = "f103", feature = "connectivity"))]
@@ -157,6 +158,10 @@ impl Rcc {
                 0b0
             })
         });
+
+        if let Some(cfg_sysclk) = sysclk {
+            l::assert_eq!(clocks.sysclk().raw(), cfg_sysclk);
+        }
 
         CLOCKS.set(clocks);
         Self { rb: self.rb }
@@ -603,52 +608,6 @@ impl Default for RawConfig {
     }
 }
 
-#[maybe_derive_format]
-#[repr(u8)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum HPre {
-    /// SYSCLK not divided
-    Div1 = 7,
-    /// SYSCLK divided by 2
-    Div2 = 8,
-    /// SYSCLK divided by 4
-    Div4 = 9,
-    /// SYSCLK divided by 8
-    Div8 = 10,
-    /// SYSCLK divided by 16
-    Div16 = 11,
-    /// SYSCLK divided by 64
-    Div64 = 12,
-    /// SYSCLK divided by 128
-    Div128 = 13,
-    /// SYSCLK divided by 256
-    Div256 = 14,
-    /// SYSCLK divided by 512
-    Div512 = 15,
-}
-
-#[maybe_derive_format]
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[repr(u8)]
-pub enum PPre {
-    /// HCLK not divided
-    Div1 = 3,
-    /// HCLK divided by 2
-    Div2 = 4,
-    /// HCLK divided by 4
-    Div4 = 5,
-    /// HCLK divided by 8
-    Div8 = 6,
-    /// HCLK divided by 16
-    Div16 = 7,
-}
-
-#[cfg(feature = "f103")]
-pub type UsbPre = rcc::cfgr::USBPRE;
-#[cfg(feature = "connectivity")]
-pub type UsbPre = rcc::cfgr::OTGFSPRE;
-pub type AdcPre = rcc::cfgr::ADCPRE;
-
 impl From<Config> for RawConfig {
     #[inline(always)]
     fn from(cfgr: Config) -> Self {
@@ -833,6 +792,52 @@ impl RawConfig {
         }
     }
 }
+
+#[maybe_derive_format]
+#[repr(u8)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum HPre {
+    /// SYSCLK not divided
+    Div1 = 7,
+    /// SYSCLK divided by 2
+    Div2 = 8,
+    /// SYSCLK divided by 4
+    Div4 = 9,
+    /// SYSCLK divided by 8
+    Div8 = 10,
+    /// SYSCLK divided by 16
+    Div16 = 11,
+    /// SYSCLK divided by 64
+    Div64 = 12,
+    /// SYSCLK divided by 128
+    Div128 = 13,
+    /// SYSCLK divided by 256
+    Div256 = 14,
+    /// SYSCLK divided by 512
+    Div512 = 15,
+}
+
+#[maybe_derive_format]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[repr(u8)]
+pub enum PPre {
+    /// HCLK not divided
+    Div1 = 3,
+    /// HCLK divided by 2
+    Div2 = 4,
+    /// HCLK divided by 4
+    Div4 = 5,
+    /// HCLK divided by 8
+    Div8 = 6,
+    /// HCLK divided by 16
+    Div16 = 7,
+}
+
+#[cfg(feature = "f103")]
+pub type UsbPre = rcc::cfgr::USBPRE;
+#[cfg(feature = "connectivity")]
+pub type UsbPre = rcc::cfgr::OTGFSPRE;
+pub type AdcPre = rcc::cfgr::ADCPRE;
 
 #[test]
 fn rcc_config_usb() {

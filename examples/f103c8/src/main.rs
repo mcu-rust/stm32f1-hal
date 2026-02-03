@@ -42,15 +42,14 @@ static HEAP: Heap<Inline<10_000>> = Heap::new();
 
 #[entry]
 fn main() -> ! {
-    // Clock --------------------------------------------------------
-
     let cp = cortex_m::Peripherals::take().unwrap();
     let dp = pac::Peripherals::take().unwrap();
+
+    // Clock --------------------------------------------------------
+
+    let cfg = rcc::Config::hse(8.MHz()).sysclk(72.MHz());
     let mut flash = dp.FLASH.init();
-    let sysclk = 72.MHz();
-    let cfg = rcc::Config::hse(8.MHz()).sysclk(sysclk);
     let mut rcc = dp.RCC.init().freeze(cfg, &mut flash.acr);
-    assert_eq!(rcc.clocks().sysclk(), sysclk);
 
     // Prepare ------------------------------------------------------
 
