@@ -47,9 +47,9 @@ where
 {
     #[inline]
     pub fn write(&mut self, data: &[T]) -> usize {
-        let ret = self.w.push_slice(data);
+        let (pushed, _) = self.w.push_partial_slice(data);
         self.reload();
-        ret
+        pushed.len()
     }
 
     #[inline]
