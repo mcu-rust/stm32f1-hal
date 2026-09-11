@@ -55,16 +55,21 @@ where
 {
     fn write(&mut self, buf: &[u8]) -> Result<usize, Self::Error> {
         if buf.is_empty() {
-            return Err(Error::Other);
+            return Ok(0);
         }
 
         self.waiter
             .wait_with(&Duration::<OS>::micros(self.timeout.ticks()), || {
-                if let n @ 1.. = self.w.push_slice(buf) {
-                    self.uart.set_interrupt(Event::TxEmpty, true);
-                    return Some(n);
-                } else if !self.uart.is_interrupt_enable(Event::TxEmpty) {
-                    self.uart.set_interrupt(Event::TxEmpty, true);
+                match self.w.push_partial_slice(buf) {
+                    ([], _) => {
+                        if !self.uart.is_interrupt_enable(Event::TxEmpty) {
+                            self.uart.set_interrupt(Event::TxEmpty, true);
+                        }
+                    }
+                    (pushed, _) => {
+                        self.uart.set_interrupt(Event::TxEmpty, true);
+                        return Some(pushed.len());
+                    }
                 }
                 None
             })
@@ -119,7 +124,7 @@ where
     OS: OsInterface,
 {
     pub fn handler(&mut self) {
-        if self.uart.is_tx_complete() {
+        if self.uart.is_tx_empty() {
             if let Ok(data) = self.r.pop() {
                 self.uart.write_unchecked(data as u16);
                 if self.r.buffer().capacity() - self.r.slots() < 4 {
@@ -177,15 +182,18 @@ where
 {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
         if buf.is_empty() {
-            return Err(Error::Other);
+            return Ok(0);
         }
 
         self.waiter
             .wait_with(&Duration::<OS>::micros(self.timeout.ticks()), || {
-                if let n @ 1.. = self.r.pop_slice(buf) {
-                    return Some(n);
-                } else if !self.uart.is_interrupt_enable(Event::RxNotEmpty) {
-                    self.uart.set_interrupt(Event::RxNotEmpty, true);
+                match self.r.pop_partial_slice(buf) {
+                    ([], _) => {
+                        if !self.uart.is_interrupt_enable(Event::RxNotEmpty) {
+                            self.uart.set_interrupt(Event::RxNotEmpty, true);
+                        }
+                    }
+                    (popped, _) => return Some(popped.len()),
                 }
                 None
             })

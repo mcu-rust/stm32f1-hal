@@ -20,6 +20,7 @@ where
     pub fn poll(&mut self) {
         if let Ok(buf) = self.rx.fill_buf()
             && let Ok(size) = self.tx.write(buf)
+            && size > 0
         {
             self.rx.consume(size);
         }

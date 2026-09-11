@@ -2,11 +2,9 @@ pub use crate::common::rtrb::{
     chunks::{ChunkError, ReadChunk, WriteChunkUninit},
     *,
 };
-use crate::l;
 
 pub trait ProducerExt<T> {
     fn get_write_chunk_uninit(&mut self) -> Option<WriteChunkUninit<'_, T>>;
-    fn push_slice(&mut self, buf: &[T]) -> usize;
     fn is_empty(&self) -> bool;
 }
 impl<T: Copy> ProducerExt<T> for Producer<T> {
@@ -16,38 +14,6 @@ impl<T: Copy> ProducerExt<T> for Producer<T> {
             return self.write_chunk_uninit(n).ok();
         }
         None
-    }
-
-    fn push_slice(&mut self, buf: &[T]) -> usize {
-        let mut size = self.slots();
-        if size > 0 {
-            let buf = if size >= buf.len() {
-                size = buf.len();
-                buf
-            } else {
-                &buf[..size]
-            };
-
-            let mut chunk = match self.write_chunk_uninit(size) {
-                Ok(c) => c,
-                Err(_) => l::unreachable!(),
-            };
-            let (c1, c2) = chunk.get_mut_slices();
-
-            if c1.len() == size {
-                c1.copy_from_slice(buf);
-            } else {
-                let (b1, b2) = buf.split_at(c1.len());
-                c1.copy_from_slice(b1);
-                c2.copy_from_slice(b2);
-            };
-            unsafe {
-                chunk.commit_all();
-            }
-            size
-        } else {
-            0
-        }
     }
 
     #[inline]
@@ -84,7 +50,6 @@ impl<T: Copy> WriteChunkExt<T> for WriteChunkUninit<'_, T> {
 
 pub trait ConsumerExt<T> {
     fn get_read_chunk(&mut self) -> Option<ReadChunk<'_, T>>;
-    fn pop_slice(&mut self, elems: &mut [T]) -> usize;
     fn is_full(&self) -> bool;
 }
 impl<T: Copy> ConsumerExt<T> for Consumer<T> {
@@ -94,36 +59,6 @@ impl<T: Copy> ConsumerExt<T> for Consumer<T> {
             return self.read_chunk(n).ok();
         }
         None
-    }
-
-    fn pop_slice(&mut self, buf: &mut [T]) -> usize {
-        let mut size = self.slots();
-        if size > 0 {
-            let buf = if size >= buf.len() {
-                size = buf.len();
-                buf
-            } else {
-                &mut buf[..size]
-            };
-
-            let chunk = match self.read_chunk(size) {
-                Ok(c) => c,
-                Err(_) => l::unreachable!(),
-            };
-            let (c1, c2) = chunk.as_slices();
-
-            if c1.len() == size {
-                buf.copy_from_slice(c1);
-            } else {
-                let (b1, b2) = buf.split_at_mut(c1.len());
-                b1.copy_from_slice(c1);
-                b2.copy_from_slice(c2);
-            };
-            chunk.commit_all();
-            size
-        } else {
-            0
-        }
     }
 
     fn is_full(&self) -> bool {
