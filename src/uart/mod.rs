@@ -26,7 +26,6 @@ pub trait UartPeriphConfig: UartPeriph + GetClock + Enable + Reset + Steal {
     fn config(&mut self, config: Config);
     fn enable_comm(&mut self, tx: bool, rx: bool);
     fn set_stop_bits(&mut self, bits: StopBits);
-    fn is_tx_empty(&self) -> bool;
     fn is_rx_not_empty(&self) -> bool;
 }
 

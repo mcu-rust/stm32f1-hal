@@ -72,11 +72,6 @@ impl UartPeriphConfig for UartX {
     }
 
     #[inline]
-    fn is_tx_empty(&self) -> bool {
-        self.sr().read().txe().bit_is_set()
-    }
-
-    #[inline]
     fn is_rx_not_empty(&self) -> bool {
         self.sr().read().rxne().bit_is_set()
     }
@@ -85,6 +80,11 @@ impl UartPeriphConfig for UartX {
 // Implement Peripheral -------------------------------------------------------
 
 impl UartPeriph for UartX {
+    #[inline]
+    fn is_tx_empty(&self) -> bool {
+        self.sr().read().txe().bit_is_set()
+    }
+
     #[inline]
     fn is_tx_complete(&self) -> bool {
         let sr = self.sr().read();

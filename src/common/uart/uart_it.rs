@@ -119,7 +119,7 @@ where
     OS: OsInterface,
 {
     pub fn handler(&mut self) {
-        if self.uart.is_tx_complete() {
+        if self.uart.is_tx_empty() {
             if let Ok(data) = self.r.pop() {
                 self.uart.write_unchecked(data as u16);
                 if self.r.buffer().capacity() - self.r.slots() < 4 {
